@@ -1,0 +1,96 @@
+name: Build Desktop Apps
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - run: flutter config --enable-windows-desktop
+      - run: flutter pub get
+      - run: flutter build windows --release
+
+      - name: Zip Windows Build
+        run: Compress-Archive -Path "build\windows\x64\runner\Release\*" -DestinationPath personalverwaltung-windows.zip
+        shell: pwsh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: personalverwaltung-windows
+          path: personalverwaltung-windows.zip
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - run: flutter config --enable-macos-desktop
+      - run: flutter pub get
+      - run: flutter build macos --release
+
+      - name: Zip macOS Build
+        run: cd build/macos/Build/Products/Release && zip -r "$GITHUB_WORKSPACE/personalverwaltung-macos.zip" personalverwaltung.app
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: personalverwaltung-macos
+          path: personalverwaltung-macos.zip
+
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libstdc++-12-dev
+
+      - run: flutter config --enable-linux-desktop
+      - run: flutter pub get
+      - run: flutter build linux --release
+
+      - name: Zip Linux Build
+        run: cd build/linux/x64/release && zip -r "$GITHUB_WORKSPACE/personalverwaltung-linux.zip" bundle/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: personalverwaltung-linux
+          path: personalverwaltung-linux.zip
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build-windows, build-macos, build-linux]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/personalverwaltung-windows/personalverwaltung-windows.zip
+            artifacts/personalverwaltung-macos/personalverwaltung-macos.zip
+            artifacts/personalverwaltung-linux/personalverwaltung-linux.zip
+          generate_release_notes: true
