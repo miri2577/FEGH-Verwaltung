@@ -259,7 +259,8 @@ class ClientNotifier extends Notifier<List<Client>> {
   }
 
   String _generateId() {
-    return 'client_${DateTime.now().millisecondsSinceEpoch}';
+    // Format muss mit EH-App kompatibel sein (nur Timestamp, kein Prefix)
+    return DateTime.now().millisecondsSinceEpoch.toString();
   }
 
   List<Client> _generateSampleClients() {

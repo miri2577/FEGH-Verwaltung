@@ -85,7 +85,8 @@ class WrappedDEK {
 }
 
 class CryptoStorage {
-  static const String _mekKey = 'personalverwaltung_mek';
+  // Muss mit EH-App übereinstimmen (dort: storageKey = 'app_mek')
+  static const String _mekKey = 'app_mek';
   static const String _algorithm = 'AES-256-GCM';
   static const int _version = 1;
 
@@ -178,10 +179,11 @@ class CryptoStorage {
     final dek = _generateRandomBytes(32);
     final dekNonce = _generateRandomBytes(12);
 
-    // Prepare AAD (Additional Authenticated Data)
+    // Prepare AAD – Feldnamen müssen mit EH-App übereinstimmen:
+    // EH nutzt 'schema' (nicht 'category'), 'ts' (nicht 'timestamp'), UTC
     final aad = {
-      'category': category,
-      'timestamp': DateTime.now().toIso8601String(),
+      'schema': category,
+      'ts': DateTime.now().toUtc().toIso8601String(),
       'version': _version,
     };
 
@@ -196,12 +198,13 @@ class CryptoStorage {
       aad: aadBytes,
     );
 
-    // Wrap DEK with MEK
+    // Wrap DEK with MEK – EH-App verwendet AAD '{"type":"dek"}' beim Wrapping
     final mekNonce = _generateRandomBytes(12);
     final wrappedDek = await _aes256Gcm.encrypt(
       dek,
       secretKey: SecretKey(_mek!),
       nonce: mekNonce,
+      aad: utf8.encode('{"type":"dek"}'),
     );
 
     // Create encrypted record
@@ -234,7 +237,7 @@ class CryptoStorage {
         throw Exception('Unsupported encryption version: ${record.version}');
       }
 
-      // Unwrap DEK
+      // Unwrap DEK – AAD muss mit encrypt übereinstimmen (EH-kompatibel)
       final wrappedDekBox = SecretBox(
         base64Decode(record.dekWrapped.ciphertext),
         nonce: base64Decode(record.dekWrapped.nonce),
@@ -244,6 +247,7 @@ class CryptoStorage {
       final dek = await _aes256Gcm.decrypt(
         wrappedDekBox,
         secretKey: SecretKey(_mek!),
+        aad: utf8.encode('{"type":"dek"}'),
       );
 
       // Decrypt data
