@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_symbols_icons/symbols.dart';
+import 'package:syncfusion_flutter_datagrid/datagrid.dart';
 import '../../../models/report_config.dart';
 import '../../../models/employee.dart';
 import '../../../models/shift.dart';
@@ -754,29 +755,21 @@ class _ReportBuilderState extends ConsumerState<ReportBuilder> {
                             ),
                           ),
                         )
-                      : SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: SingleChildScrollView(
-                            child: DataTable(
-                              columnSpacing: 16,
-                              horizontalMargin: 8,
-                              headingRowHeight: 36,
-                              dataRowMinHeight: 32,
-                              dataRowMaxHeight: 36,
-                              headingTextStyle: Theme.of(context).textTheme.labelSmall?.copyWith(fontWeight: FontWeight.bold),
-                              dataTextStyle: Theme.of(context).textTheme.bodySmall,
-                              columns: visibleColumns
-                                  .map((col) => DataColumn(label: Text(col)))
-                                  .toList(),
-                              rows: previewData.map((row) {
-                                return DataRow(
-                                  cells: visibleColumns.map((col) {
-                                    return DataCell(Text(row[col] ?? '-'));
-                                  }).toList(),
-                                );
-                              }).toList(),
+                      : SfDataGrid(
+                          source: _ReportPreviewDataSource(data: previewData, columns: visibleColumns),
+                          columnWidthMode: ColumnWidthMode.fill,
+                          gridLinesVisibility: GridLinesVisibility.horizontal,
+                          headerGridLinesVisibility: GridLinesVisibility.horizontal,
+                          rowHeight: 36,
+                          headerRowHeight: 36,
+                          columns: visibleColumns.map((col) => GridColumn(
+                            columnName: col,
+                            label: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8),
+                              alignment: Alignment.centerLeft,
+                              child: Text(col, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                             ),
-                          ),
+                          )).toList(),
                         ),
             ),
             // Footer
@@ -952,22 +945,23 @@ class _ReportBuilderState extends ConsumerState<ReportBuilder> {
                     style: Theme.of(context).textTheme.bodyLarge,
                   ),
                 )
-              : SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(24),
-                    child: DataTable(
-                      columns: visibleColumns
-                          .map((col) => DataColumn(label: Text(col)))
-                          .toList(),
-                      rows: previewData.map((row) {
-                        return DataRow(
-                          cells: visibleColumns.map((col) {
-                            return DataCell(Text(row[col] ?? '-'));
-                          }).toList(),
-                        );
-                      }).toList(),
-                    ),
+              : Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: SfDataGrid(
+                    source: _ReportPreviewDataSource(data: previewData, columns: visibleColumns),
+                    columnWidthMode: ColumnWidthMode.fill,
+                    gridLinesVisibility: GridLinesVisibility.horizontal,
+                    headerGridLinesVisibility: GridLinesVisibility.horizontal,
+                    rowHeight: 44,
+                    headerRowHeight: 44,
+                    columns: visibleColumns.map((col) => GridColumn(
+                      columnName: col,
+                      label: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        alignment: Alignment.centerLeft,
+                        child: Text(col, style: const TextStyle(fontWeight: FontWeight.bold)),
+                      ),
+                    )).toList(),
                   ),
                 ),
         ),
@@ -1002,5 +996,28 @@ class _ReportBuilderState extends ConsumerState<ReportBuilder> {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Report wird generiert...')),
     );
+  }
+}
+
+class _ReportPreviewDataSource extends DataGridSource {
+  final List<Map<String, String>> data;
+  final List<String> columns;
+
+  _ReportPreviewDataSource({required this.data, required this.columns});
+
+  @override
+  List<DataGridRow> get rows => data.map((row) => DataGridRow(
+    cells: columns.map((col) => DataGridCell<String>(columnName: col, value: row[col] ?? '-')).toList(),
+  )).toList();
+
+  @override
+  DataGridRowAdapter buildRow(DataGridRow row) {
+    return DataGridRowAdapter(cells: row.getCells().map((cell) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        alignment: Alignment.centerLeft,
+        child: Text(cell.value?.toString() ?? '-', overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12)),
+      );
+    }).toList());
   }
 }

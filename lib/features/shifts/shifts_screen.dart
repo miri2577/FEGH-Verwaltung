@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_symbols_icons/symbols.dart';
+import 'package:syncfusion_flutter_datagrid/datagrid.dart';
 import '../../models/shift.dart';
+import '../../models/employee.dart';
 import '../../providers/shift_provider.dart';
 import '../../providers/employee_provider.dart';
 import 'widgets/shift_card.dart';
@@ -242,69 +244,39 @@ class _ShiftsScreenState extends ConsumerState<ShiftsScreen> with SingleTickerPr
 
   Widget _buildShiftsTable(List<Shift> shifts) {
     final employees = ref.watch(employeesProvider).valueOrNull ?? [];
-
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: SingleChildScrollView(
-        child: DataTable(
-          columnSpacing: 24,
-          columns: const [
-            DataColumn(label: Text('Mitarbeiter')),
-            DataColumn(label: Text('Datum')),
-            DataColumn(label: Text('Zeit')),
-            DataColumn(label: Text('Typ')),
-            DataColumn(label: Text('Status')),
-            DataColumn(label: Text('Geplant (h)'), numeric: true),
-            DataColumn(label: Text('Ist (h)'), numeric: true),
-            DataColumn(label: Text('Aktionen')),
-          ],
-          rows: shifts.map((shift) {
-            final emp = employees.where((e) => e.id == shift.employeeId).firstOrNull;
-            return DataRow(
-              cells: [
-                DataCell(Text(emp?.fullName ?? shift.employeeId), onTap: () => _showShiftDetails(shift)),
-                DataCell(Text('${shift.startTime.day.toString().padLeft(2, '0')}.${shift.startTime.month.toString().padLeft(2, '0')}.${shift.startTime.year}')),
-                DataCell(Text('${shift.startTime.hour.toString().padLeft(2, '0')}:${shift.startTime.minute.toString().padLeft(2, '0')} - ${shift.endTime.hour.toString().padLeft(2, '0')}:${shift.endTime.minute.toString().padLeft(2, '0')}')),
-                DataCell(Text(_getShiftTypeLabel(shift.type))),
-                DataCell(Text(_getShiftStatusLabel(shift.status))),
-                DataCell(Text(shift.scheduledHours.toStringAsFixed(1))),
-                DataCell(Text(shift.actualHours?.toStringAsFixed(1) ?? '-')),
-                DataCell(Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      icon: const Icon(Symbols.edit, size: 18),
-                      onPressed: () => _showEditShiftDialog(shift),
-                      tooltip: 'Bearbeiten',
-                      visualDensity: VisualDensity.compact,
-                    ),
-                    if (shift.status == ShiftStatus.scheduled)
-                      IconButton(
-                        icon: const Icon(Symbols.play_arrow, size: 18),
-                        onPressed: () => _startShift(shift.id),
-                        tooltip: 'Starten',
-                        visualDensity: VisualDensity.compact,
-                      ),
-                    if (shift.status == ShiftStatus.inProgress)
-                      IconButton(
-                        icon: const Icon(Symbols.stop, size: 18),
-                        onPressed: () => _endShift(shift.id),
-                        tooltip: 'Beenden',
-                        visualDensity: VisualDensity.compact,
-                      ),
-                    IconButton(
-                      icon: const Icon(Symbols.delete, size: 18),
-                      onPressed: () => _showDeleteConfirmation(shift),
-                      tooltip: 'Löschen',
-                      visualDensity: VisualDensity.compact,
-                    ),
-                  ],
-                )),
-              ],
-            );
-          }).toList(),
-        ),
-      ),
+    final dataSource = _ShiftDataSource(
+      shifts: shifts,
+      employees: employees,
+      getStatusLabel: _getShiftStatusLabel,
+      getTypeLabel: _getShiftTypeLabel,
+      onEdit: _showEditShiftDialog,
+      onDelete: _showDeleteConfirmation,
+      onStart: (s) => _startShift(s.id),
+      onEnd: (s) => _endShift(s.id),
+    );
+    return SfDataGrid(
+      source: dataSource,
+      columnWidthMode: ColumnWidthMode.fill,
+      gridLinesVisibility: GridLinesVisibility.horizontal,
+      headerGridLinesVisibility: GridLinesVisibility.horizontal,
+      rowHeight: 48,
+      headerRowHeight: 40,
+      columns: [
+        GridColumn(columnName: 'mitarbeiter', label: Container(padding: const EdgeInsets.symmetric(horizontal: 8), alignment: Alignment.centerLeft, child: const Text('Mitarbeiter', style: TextStyle(fontWeight: FontWeight.bold)))),
+        GridColumn(columnName: 'datum', label: Container(padding: const EdgeInsets.symmetric(horizontal: 8), alignment: Alignment.centerLeft, child: const Text('Datum', style: TextStyle(fontWeight: FontWeight.bold))), minimumWidth: 90, maximumWidth: 120),
+        GridColumn(columnName: 'zeit', label: Container(padding: const EdgeInsets.symmetric(horizontal: 8), alignment: Alignment.centerLeft, child: const Text('Zeit', style: TextStyle(fontWeight: FontWeight.bold))), minimumWidth: 100, maximumWidth: 140),
+        GridColumn(columnName: 'typ', label: Container(padding: const EdgeInsets.symmetric(horizontal: 8), alignment: Alignment.centerLeft, child: const Text('Typ', style: TextStyle(fontWeight: FontWeight.bold))), minimumWidth: 80, maximumWidth: 120),
+        GridColumn(columnName: 'status', label: Container(padding: const EdgeInsets.symmetric(horizontal: 8), alignment: Alignment.centerLeft, child: const Text('Status', style: TextStyle(fontWeight: FontWeight.bold))), minimumWidth: 80, maximumWidth: 130),
+        GridColumn(columnName: 'geplant', label: Container(padding: const EdgeInsets.symmetric(horizontal: 8), alignment: Alignment.centerRight, child: const Text('Geplant (h)', style: TextStyle(fontWeight: FontWeight.bold))), minimumWidth: 80, maximumWidth: 100),
+        GridColumn(columnName: 'ist', label: Container(padding: const EdgeInsets.symmetric(horizontal: 8), alignment: Alignment.centerRight, child: const Text('Ist (h)', style: TextStyle(fontWeight: FontWeight.bold))), minimumWidth: 70, maximumWidth: 90),
+        GridColumn(columnName: 'aktionen', label: Container(padding: const EdgeInsets.symmetric(horizontal: 8), alignment: Alignment.centerLeft, child: const Text('Aktionen', style: TextStyle(fontWeight: FontWeight.bold))), minimumWidth: 130, maximumWidth: 170),
+      ],
+      onCellTap: (details) {
+        if (details.rowColumnIndex.rowIndex > 0) {
+          final index = details.rowColumnIndex.rowIndex - 1;
+          if (index < shifts.length) _showShiftDetails(shifts[index]);
+        }
+      },
     );
   }
 
@@ -494,5 +466,79 @@ class _ShiftsScreenState extends ConsumerState<ShiftsScreen> with SingleTickerPr
         ),
       );
     }
+  }
+}
+
+class _ShiftDataSource extends DataGridSource {
+  final List<Shift> shifts;
+  final List<Employee> employees;
+  final String Function(ShiftStatus) getStatusLabel;
+  final String Function(ShiftType) getTypeLabel;
+  final void Function(Shift) onEdit;
+  final void Function(Shift) onDelete;
+  final void Function(Shift) onStart;
+  final void Function(Shift) onEnd;
+
+  _ShiftDataSource({
+    required this.shifts,
+    required this.employees,
+    required this.getStatusLabel,
+    required this.getTypeLabel,
+    required this.onEdit,
+    required this.onDelete,
+    required this.onStart,
+    required this.onEnd,
+  });
+
+  String _employeeName(String id) {
+    final emp = employees.where((e) => e.id == id).firstOrNull;
+    return emp?.fullName ?? 'Unbekannt';
+  }
+
+  String _formatDate(DateTime dt) =>
+      '${dt.day.toString().padLeft(2, '0')}.${dt.month.toString().padLeft(2, '0')}.${dt.year}';
+
+  String _formatTime(DateTime start, DateTime end) =>
+      '${start.hour.toString().padLeft(2, '0')}:${start.minute.toString().padLeft(2, '0')} – ${end.hour.toString().padLeft(2, '0')}:${end.minute.toString().padLeft(2, '0')}';
+
+  @override
+  List<DataGridRow> get rows => shifts.map((s) => DataGridRow(cells: [
+    DataGridCell<String>(columnName: 'mitarbeiter', value: _employeeName(s.employeeId)),
+    DataGridCell<String>(columnName: 'datum', value: _formatDate(s.startTime)),
+    DataGridCell<String>(columnName: 'zeit', value: _formatTime(s.startTime, s.endTime)),
+    DataGridCell<String>(columnName: 'typ', value: getTypeLabel(s.type)),
+    DataGridCell<String>(columnName: 'status', value: getStatusLabel(s.status)),
+    DataGridCell<double>(columnName: 'geplant', value: s.scheduledHours),
+    DataGridCell<double?>(columnName: 'ist', value: s.actualHours),
+    DataGridCell<Shift>(columnName: 'aktionen', value: s),
+  ])).toList();
+
+  @override
+  DataGridRowAdapter buildRow(DataGridRow row) {
+    return DataGridRowAdapter(cells: row.getCells().map((cell) {
+      if (cell.columnName == 'aktionen') {
+        final shift = cell.value as Shift;
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          alignment: Alignment.centerLeft,
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            if (shift.status == ShiftStatus.scheduled)
+              IconButton(icon: const Icon(Symbols.play_arrow, size: 18), onPressed: () => onStart(shift), tooltip: 'Starten', visualDensity: VisualDensity.compact),
+            if (shift.status == ShiftStatus.inProgress)
+              IconButton(icon: const Icon(Symbols.stop, size: 18), onPressed: () => onEnd(shift), tooltip: 'Beenden', visualDensity: VisualDensity.compact),
+            IconButton(icon: const Icon(Symbols.edit, size: 18), onPressed: () => onEdit(shift), tooltip: 'Bearbeiten', visualDensity: VisualDensity.compact),
+            IconButton(icon: const Icon(Symbols.delete, size: 18), onPressed: () => onDelete(shift), tooltip: 'Löschen', visualDensity: VisualDensity.compact),
+          ]),
+        );
+      }
+      if (cell.columnName == 'geplant') {
+        return Container(padding: const EdgeInsets.symmetric(horizontal: 8), alignment: Alignment.centerRight, child: Text('${(cell.value as double).toStringAsFixed(1)}'));
+      }
+      if (cell.columnName == 'ist') {
+        final v = cell.value as double?;
+        return Container(padding: const EdgeInsets.symmetric(horizontal: 8), alignment: Alignment.centerRight, child: Text(v != null ? v.toStringAsFixed(1) : '-'));
+      }
+      return Container(padding: const EdgeInsets.symmetric(horizontal: 8), alignment: Alignment.centerLeft, child: Text(cell.value?.toString() ?? '-', overflow: TextOverflow.ellipsis));
+    }).toList());
   }
 }

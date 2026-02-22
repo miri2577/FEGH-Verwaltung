@@ -73,6 +73,7 @@ dependencies:
 
   # Responsive Design
   responsive_framework: ^1.4.0
+  syncfusion_flutter_datagrid: ^26.2.14
 
 dev_dependencies:
   flutter_test:

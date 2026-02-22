@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_symbols_icons/symbols.dart';
+import 'package:syncfusion_flutter_datagrid/datagrid.dart';
 import '../../../models/client.dart';
 import '../../../providers/client_provider.dart';
 import 'client_card.dart';
@@ -160,55 +161,37 @@ class _ClientListViewState extends ConsumerState<ClientListView> {
 
   Widget _buildClientTable(List<Client> clients) {
     final policy = ref.read(policyProvider);
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: SingleChildScrollView(
-        child: DataTable(
-          columnSpacing: 24,
-          columns: const [
-            DataColumn(label: Text('Name')),
-            DataColumn(label: Text('Status')),
-            DataColumn(label: Text('Priorität')),
-            DataColumn(label: Text('Hilfe-Typ')),
-            DataColumn(label: Text('FLS')),
-            DataColumn(label: Text('Kostenträger')),
-            DataColumn(label: Text('Aktionen')),
-          ],
-          rows: clients.map((client) {
-            final canEdit = policy.canEditClient(teamId: client.teamId);
-            final canDelete = policy.canDeleteClient(teamId: client.teamId);
-            return DataRow(
-              cells: [
-                DataCell(Text(client.fullName), onTap: () => _showClientDetails(client)),
-                DataCell(Text(client.statusDisplayName)),
-                DataCell(Text(client.priorityDisplayName)),
-                DataCell(Text(client.hilfeTypDisplay)),
-                DataCell(Text(client.fachleistungsstunden != null ? '${client.fachleistungsstunden} Std.' : '-')),
-                DataCell(Text(client.kostenuebernahme ?? '-')),
-                DataCell(Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (canEdit)
-                      IconButton(
-                        icon: const Icon(Symbols.edit, size: 18),
-                        onPressed: () => _showEditClientDialog(client),
-                        tooltip: 'Bearbeiten',
-                        visualDensity: VisualDensity.compact,
-                      ),
-                    if (canDelete)
-                      IconButton(
-                        icon: const Icon(Symbols.delete, size: 18),
-                        onPressed: () => _showDeleteConfirmation(client),
-                        tooltip: 'Löschen',
-                        visualDensity: VisualDensity.compact,
-                      ),
-                  ],
-                )),
-              ],
-            );
-          }).toList(),
-        ),
-      ),
+    final dataSource = _ClientDataSource(
+      clients: clients,
+      policy: policy,
+      onTap: _showClientDetails,
+      onEdit: _showEditClientDialog,
+      onDelete: _showDeleteConfirmation,
+    );
+    return SfDataGrid(
+      source: dataSource,
+      columnWidthMode: ColumnWidthMode.fill,
+      gridLinesVisibility: GridLinesVisibility.horizontal,
+      headerGridLinesVisibility: GridLinesVisibility.horizontal,
+      rowHeight: 48,
+      headerRowHeight: 40,
+      columns: [
+        GridColumn(columnName: 'name', label: Container(padding: const EdgeInsets.symmetric(horizontal: 8), alignment: Alignment.centerLeft, child: const Text('Name', style: TextStyle(fontWeight: FontWeight.bold)))),
+        GridColumn(columnName: 'status', label: Container(padding: const EdgeInsets.symmetric(horizontal: 8), alignment: Alignment.centerLeft, child: const Text('Status', style: TextStyle(fontWeight: FontWeight.bold))), minimumWidth: 90, maximumWidth: 120),
+        GridColumn(columnName: 'priority', label: Container(padding: const EdgeInsets.symmetric(horizontal: 8), alignment: Alignment.centerLeft, child: const Text('Priorität', style: TextStyle(fontWeight: FontWeight.bold))), minimumWidth: 90, maximumWidth: 120),
+        GridColumn(columnName: 'hilfeTyp', label: Container(padding: const EdgeInsets.symmetric(horizontal: 8), alignment: Alignment.centerLeft, child: const Text('Hilfe-Typ', style: TextStyle(fontWeight: FontWeight.bold))), minimumWidth: 100, maximumWidth: 160),
+        GridColumn(columnName: 'fls', label: Container(padding: const EdgeInsets.symmetric(horizontal: 8), alignment: Alignment.centerLeft, child: const Text('FLS', style: TextStyle(fontWeight: FontWeight.bold))), minimumWidth: 70, maximumWidth: 100),
+        GridColumn(columnName: 'kostentraeger', label: Container(padding: const EdgeInsets.symmetric(horizontal: 8), alignment: Alignment.centerLeft, child: const Text('Kostenträger', style: TextStyle(fontWeight: FontWeight.bold)))),
+        GridColumn(columnName: 'aktionen', label: Container(padding: const EdgeInsets.symmetric(horizontal: 8), alignment: Alignment.centerLeft, child: const Text('Aktionen', style: TextStyle(fontWeight: FontWeight.bold))), minimumWidth: 100, maximumWidth: 120),
+      ],
+      onCellTap: (details) {
+        if (details.rowColumnIndex.rowIndex > 0) {
+          final index = details.rowColumnIndex.rowIndex - 1;
+          if (index < clients.length) {
+            _showClientDetails(clients[index]);
+          }
+        }
+      },
     );
   }
 
@@ -433,5 +416,64 @@ class _ClientListViewState extends ConsumerState<ClientListView> {
         ],
       ),
     );
+  }
+}
+
+class _ClientDataSource extends DataGridSource {
+  final List<Client> clients;
+  final dynamic policy;
+  final void Function(Client) onTap;
+  final void Function(Client) onEdit;
+  final void Function(Client) onDelete;
+
+  _ClientDataSource({
+    required this.clients,
+    required this.policy,
+    required this.onTap,
+    required this.onEdit,
+    required this.onDelete,
+  });
+
+  @override
+  List<DataGridRow> get rows => clients.map((client) {
+    final canEdit = policy.canEditClient(teamId: client.teamId);
+    final canDelete = policy.canDeleteClient(teamId: client.teamId);
+    return DataGridRow(cells: [
+      DataGridCell<String>(columnName: 'name', value: client.fullName),
+      DataGridCell<String>(columnName: 'status', value: client.statusDisplayName),
+      DataGridCell<String>(columnName: 'priority', value: client.priorityDisplayName),
+      DataGridCell<String>(columnName: 'hilfeTyp', value: client.hilfeTypDisplay),
+      DataGridCell<String>(columnName: 'fls', value: client.fachleistungsstunden != null ? '${client.fachleistungsstunden} Std.' : '-'),
+      DataGridCell<String>(columnName: 'kostentraeger', value: client.kostenuebernahme ?? '-'),
+      DataGridCell<Map<String, dynamic>>(columnName: 'aktionen', value: {'canEdit': canEdit, 'canDelete': canDelete, 'client': client}),
+    ]);
+  }).toList();
+
+  @override
+  DataGridRowAdapter buildRow(DataGridRow row) {
+    return DataGridRowAdapter(cells: row.getCells().map((cell) {
+      if (cell.columnName == 'aktionen') {
+        final data = cell.value as Map<String, dynamic>;
+        final client = data['client'] as Client;
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          alignment: Alignment.centerLeft,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (data['canEdit'] == true)
+                IconButton(icon: const Icon(Symbols.edit, size: 18), onPressed: () => onEdit(client), tooltip: 'Bearbeiten', visualDensity: VisualDensity.compact),
+              if (data['canDelete'] == true)
+                IconButton(icon: const Icon(Symbols.delete, size: 18), onPressed: () => onDelete(client), tooltip: 'Löschen', visualDensity: VisualDensity.compact),
+            ],
+          ),
+        );
+      }
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        alignment: Alignment.centerLeft,
+        child: Text(cell.value?.toString() ?? '-', overflow: TextOverflow.ellipsis),
+      );
+    }).toList());
   }
 }

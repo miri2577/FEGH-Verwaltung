@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_symbols_icons/symbols.dart';
+import 'package:syncfusion_flutter_datagrid/datagrid.dart';
 import '../../../models/team.dart';
 import '../../../providers/policy_provider.dart';
 import '../../../providers/team_provider.dart';
@@ -142,51 +143,34 @@ class _TeamListViewState extends ConsumerState<TeamListView> {
 
   Widget _buildTeamTable(List<Team> teams) {
     final canManage = ref.read(policyProvider).canManageTeams();
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: SingleChildScrollView(
-        child: DataTable(
-          columnSpacing: 24,
-          columns: const [
-            DataColumn(label: Text('Team')),
-            DataColumn(label: Text('Abteilung')),
-            DataColumn(label: Text('Status')),
-            DataColumn(label: Text('Mitglieder'), numeric: true),
-            DataColumn(label: Text('Standort')),
-            DataColumn(label: Text('Aktionen')),
-          ],
-          rows: teams.map((team) {
-            return DataRow(
-              cells: [
-                DataCell(Text(team.name), onTap: () => _showTeamDetails(team)),
-                DataCell(Text(team.department ?? '-')),
-                DataCell(Text(_getStatusLabel(team.status))),
-                DataCell(Text('${team.memberCount}')),
-                DataCell(Text(team.location ?? '-')),
-                DataCell(Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (canManage)
-                      IconButton(
-                        icon: const Icon(Symbols.edit, size: 18),
-                        onPressed: () => _showEditTeamDialog(team),
-                        tooltip: 'Bearbeiten',
-                        visualDensity: VisualDensity.compact,
-                      ),
-                    if (canManage)
-                      IconButton(
-                        icon: const Icon(Symbols.delete, size: 18),
-                        onPressed: () => _showDeleteConfirmation(team),
-                        tooltip: 'Löschen',
-                        visualDensity: VisualDensity.compact,
-                      ),
-                  ],
-                )),
-              ],
-            );
-          }).toList(),
-        ),
-      ),
+    final dataSource = _TeamDataSource(
+      teams: teams,
+      canManage: canManage,
+      getStatusLabel: _getStatusLabel,
+      onEdit: _showEditTeamDialog,
+      onDelete: _showDeleteConfirmation,
+    );
+    return SfDataGrid(
+      source: dataSource,
+      columnWidthMode: ColumnWidthMode.fill,
+      gridLinesVisibility: GridLinesVisibility.horizontal,
+      headerGridLinesVisibility: GridLinesVisibility.horizontal,
+      rowHeight: 48,
+      headerRowHeight: 40,
+      columns: [
+        GridColumn(columnName: 'team', label: Container(padding: const EdgeInsets.symmetric(horizontal: 8), alignment: Alignment.centerLeft, child: const Text('Team', style: TextStyle(fontWeight: FontWeight.bold)))),
+        GridColumn(columnName: 'abteilung', label: Container(padding: const EdgeInsets.symmetric(horizontal: 8), alignment: Alignment.centerLeft, child: const Text('Abteilung', style: TextStyle(fontWeight: FontWeight.bold)))),
+        GridColumn(columnName: 'status', label: Container(padding: const EdgeInsets.symmetric(horizontal: 8), alignment: Alignment.centerLeft, child: const Text('Status', style: TextStyle(fontWeight: FontWeight.bold))), minimumWidth: 80, maximumWidth: 120),
+        GridColumn(columnName: 'mitglieder', label: Container(padding: const EdgeInsets.symmetric(horizontal: 8), alignment: Alignment.centerRight, child: const Text('Mitglieder', style: TextStyle(fontWeight: FontWeight.bold))), minimumWidth: 80, maximumWidth: 110),
+        GridColumn(columnName: 'standort', label: Container(padding: const EdgeInsets.symmetric(horizontal: 8), alignment: Alignment.centerLeft, child: const Text('Standort', style: TextStyle(fontWeight: FontWeight.bold)))),
+        GridColumn(columnName: 'aktionen', label: Container(padding: const EdgeInsets.symmetric(horizontal: 8), alignment: Alignment.centerLeft, child: const Text('Aktionen', style: TextStyle(fontWeight: FontWeight.bold))), minimumWidth: 100, maximumWidth: 120),
+      ],
+      onCellTap: (details) {
+        if (details.rowColumnIndex.rowIndex > 0) {
+          final index = details.rowColumnIndex.rowIndex - 1;
+          if (index < teams.length) _showTeamDetails(teams[index]);
+        }
+      },
     );
   }
 
@@ -338,5 +322,46 @@ class _TeamListViewState extends ConsumerState<TeamListView> {
         ],
       ),
     );
+  }
+}
+
+class _TeamDataSource extends DataGridSource {
+  final List<Team> teams;
+  final bool canManage;
+  final String Function(TeamStatus) getStatusLabel;
+  final void Function(Team) onEdit;
+  final void Function(Team) onDelete;
+
+  _TeamDataSource({required this.teams, required this.canManage, required this.getStatusLabel, required this.onEdit, required this.onDelete});
+
+  @override
+  List<DataGridRow> get rows => teams.map((team) => DataGridRow(cells: [
+    DataGridCell<String>(columnName: 'team', value: team.name),
+    DataGridCell<String>(columnName: 'abteilung', value: team.department ?? '-'),
+    DataGridCell<String>(columnName: 'status', value: getStatusLabel(team.status)),
+    DataGridCell<int>(columnName: 'mitglieder', value: team.memberCount),
+    DataGridCell<String>(columnName: 'standort', value: team.location ?? '-'),
+    DataGridCell<Team>(columnName: 'aktionen', value: team),
+  ])).toList();
+
+  @override
+  DataGridRowAdapter buildRow(DataGridRow row) {
+    return DataGridRowAdapter(cells: row.getCells().map((cell) {
+      if (cell.columnName == 'aktionen') {
+        final team = cell.value as Team;
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          alignment: Alignment.centerLeft,
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            if (canManage) IconButton(icon: const Icon(Symbols.edit, size: 18), onPressed: () => onEdit(team), tooltip: 'Bearbeiten', visualDensity: VisualDensity.compact),
+            if (canManage) IconButton(icon: const Icon(Symbols.delete, size: 18), onPressed: () => onDelete(team), tooltip: 'Löschen', visualDensity: VisualDensity.compact),
+          ]),
+        );
+      }
+      if (cell.columnName == 'mitglieder') {
+        return Container(padding: const EdgeInsets.symmetric(horizontal: 8), alignment: Alignment.centerRight, child: Text('${cell.value}'));
+      }
+      return Container(padding: const EdgeInsets.symmetric(horizontal: 8), alignment: Alignment.centerLeft, child: Text(cell.value?.toString() ?? '-', overflow: TextOverflow.ellipsis));
+    }).toList());
   }
 }

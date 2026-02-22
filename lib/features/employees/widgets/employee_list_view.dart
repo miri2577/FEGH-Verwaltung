@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_symbols_icons/symbols.dart';
+import 'package:syncfusion_flutter_datagrid/datagrid.dart';
 import '../../../models/employee.dart';
 import '../../../providers/employee_provider.dart';
 import 'employee_card.dart';
@@ -132,53 +133,35 @@ class _EmployeeListViewState extends ConsumerState<EmployeeListView> {
   }
 
   Widget _buildEmployeeTable(List<Employee> employees) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: SingleChildScrollView(
-        child: DataTable(
-          columnSpacing: 24,
-          columns: const [
-            DataColumn(label: Text('Name')),
-            DataColumn(label: Text('Nr.')),
-            DataColumn(label: Text('Position')),
-            DataColumn(label: Text('Abteilung')),
-            DataColumn(label: Text('Status')),
-            DataColumn(label: Text('Std/Woche'), numeric: true),
-            DataColumn(label: Text('Stundenlohn'), numeric: true),
-            DataColumn(label: Text('Aktionen')),
-          ],
-          rows: employees.map((employee) {
-            return DataRow(
-              cells: [
-                DataCell(Text(employee.fullName), onTap: () => _showEmployeeDetails(employee)),
-                DataCell(Text(employee.employeeNumber)),
-                DataCell(Text(employee.position)),
-                DataCell(Text(employee.department)),
-                DataCell(Text(_getStatusLabel(employee.status))),
-                DataCell(Text('${employee.hoursPerWeek}')),
-                DataCell(Text('${employee.hourlyRate.toStringAsFixed(2)} \u20AC')),
-                DataCell(Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      icon: const Icon(Symbols.edit, size: 18),
-                      onPressed: () => _showEditEmployeeDialog(employee),
-                      tooltip: 'Bearbeiten',
-                      visualDensity: VisualDensity.compact,
-                    ),
-                    IconButton(
-                      icon: const Icon(Symbols.delete, size: 18),
-                      onPressed: () => _showDeleteConfirmation(employee),
-                      tooltip: 'Löschen',
-                      visualDensity: VisualDensity.compact,
-                    ),
-                  ],
-                )),
-              ],
-            );
-          }).toList(),
-        ),
-      ),
+    final dataSource = _EmployeeDataSource(
+      employees: employees,
+      getStatusLabel: _getStatusLabel,
+      onEdit: _showEditEmployeeDialog,
+      onDelete: _showDeleteConfirmation,
+    );
+    return SfDataGrid(
+      source: dataSource,
+      columnWidthMode: ColumnWidthMode.fill,
+      gridLinesVisibility: GridLinesVisibility.horizontal,
+      headerGridLinesVisibility: GridLinesVisibility.horizontal,
+      rowHeight: 48,
+      headerRowHeight: 40,
+      columns: [
+        GridColumn(columnName: 'name', label: Container(padding: const EdgeInsets.symmetric(horizontal: 8), alignment: Alignment.centerLeft, child: const Text('Name', style: TextStyle(fontWeight: FontWeight.bold)))),
+        GridColumn(columnName: 'nr', label: Container(padding: const EdgeInsets.symmetric(horizontal: 8), alignment: Alignment.centerLeft, child: const Text('Nr.', style: TextStyle(fontWeight: FontWeight.bold))), minimumWidth: 70, maximumWidth: 100),
+        GridColumn(columnName: 'position', label: Container(padding: const EdgeInsets.symmetric(horizontal: 8), alignment: Alignment.centerLeft, child: const Text('Position', style: TextStyle(fontWeight: FontWeight.bold)))),
+        GridColumn(columnName: 'abteilung', label: Container(padding: const EdgeInsets.symmetric(horizontal: 8), alignment: Alignment.centerLeft, child: const Text('Abteilung', style: TextStyle(fontWeight: FontWeight.bold)))),
+        GridColumn(columnName: 'status', label: Container(padding: const EdgeInsets.symmetric(horizontal: 8), alignment: Alignment.centerLeft, child: const Text('Status', style: TextStyle(fontWeight: FontWeight.bold))), minimumWidth: 80, maximumWidth: 110),
+        GridColumn(columnName: 'stunden', label: Container(padding: const EdgeInsets.symmetric(horizontal: 8), alignment: Alignment.centerRight, child: const Text('Std/Woche', style: TextStyle(fontWeight: FontWeight.bold))), minimumWidth: 80, maximumWidth: 110),
+        GridColumn(columnName: 'lohn', label: Container(padding: const EdgeInsets.symmetric(horizontal: 8), alignment: Alignment.centerRight, child: const Text('Stundenlohn', style: TextStyle(fontWeight: FontWeight.bold))), minimumWidth: 90, maximumWidth: 120),
+        GridColumn(columnName: 'aktionen', label: Container(padding: const EdgeInsets.symmetric(horizontal: 8), alignment: Alignment.centerLeft, child: const Text('Aktionen', style: TextStyle(fontWeight: FontWeight.bold))), minimumWidth: 100, maximumWidth: 120),
+      ],
+      onCellTap: (details) {
+        if (details.rowColumnIndex.rowIndex > 0) {
+          final index = details.rowColumnIndex.rowIndex - 1;
+          if (index < employees.length) _showEmployeeDetails(employees[index]);
+        }
+      },
     );
   }
 
@@ -312,5 +295,50 @@ class _EmployeeListViewState extends ConsumerState<EmployeeListView> {
         ],
       ),
     );
+  }
+}
+
+class _EmployeeDataSource extends DataGridSource {
+  final List<Employee> employees;
+  final String Function(EmployeeStatus) getStatusLabel;
+  final void Function(Employee) onEdit;
+  final void Function(Employee) onDelete;
+
+  _EmployeeDataSource({required this.employees, required this.getStatusLabel, required this.onEdit, required this.onDelete});
+
+  @override
+  List<DataGridRow> get rows => employees.map((e) => DataGridRow(cells: [
+    DataGridCell<String>(columnName: 'name', value: e.fullName),
+    DataGridCell<String>(columnName: 'nr', value: e.employeeNumber),
+    DataGridCell<String>(columnName: 'position', value: e.position),
+    DataGridCell<String>(columnName: 'abteilung', value: e.department),
+    DataGridCell<String>(columnName: 'status', value: getStatusLabel(e.status)),
+    DataGridCell<double>(columnName: 'stunden', value: e.hoursPerWeek),
+    DataGridCell<double>(columnName: 'lohn', value: e.hourlyRate),
+    DataGridCell<Employee>(columnName: 'aktionen', value: e),
+  ])).toList();
+
+  @override
+  DataGridRowAdapter buildRow(DataGridRow row) {
+    return DataGridRowAdapter(cells: row.getCells().map((cell) {
+      if (cell.columnName == 'aktionen') {
+        final emp = cell.value as Employee;
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          alignment: Alignment.centerLeft,
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            IconButton(icon: const Icon(Symbols.edit, size: 18), onPressed: () => onEdit(emp), tooltip: 'Bearbeiten', visualDensity: VisualDensity.compact),
+            IconButton(icon: const Icon(Symbols.delete, size: 18), onPressed: () => onDelete(emp), tooltip: 'Löschen', visualDensity: VisualDensity.compact),
+          ]),
+        );
+      }
+      if (cell.columnName == 'stunden') {
+        return Container(padding: const EdgeInsets.symmetric(horizontal: 8), alignment: Alignment.centerRight, child: Text('${cell.value}'));
+      }
+      if (cell.columnName == 'lohn') {
+        return Container(padding: const EdgeInsets.symmetric(horizontal: 8), alignment: Alignment.centerRight, child: Text('${(cell.value as double).toStringAsFixed(2)} \u20AC'));
+      }
+      return Container(padding: const EdgeInsets.symmetric(horizontal: 8), alignment: Alignment.centerLeft, child: Text(cell.value?.toString() ?? '-', overflow: TextOverflow.ellipsis));
+    }).toList());
   }
 }
