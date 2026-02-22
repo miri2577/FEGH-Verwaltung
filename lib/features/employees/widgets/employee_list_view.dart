@@ -8,8 +8,9 @@ import 'employee_form_dialog.dart';
 
 class EmployeeListView extends ConsumerStatefulWidget {
   final List<Employee> employees;
+  final bool isTableView;
 
-  const EmployeeListView({super.key, required this.employees});
+  const EmployeeListView({super.key, required this.employees, this.isTableView = false});
 
   @override
   ConsumerState<EmployeeListView> createState() => _EmployeeListViewState();
@@ -31,7 +32,9 @@ class _EmployeeListViewState extends ConsumerState<EmployeeListView> {
         Expanded(
           child: filteredEmployees.isEmpty
               ? _buildNoResultsState()
-              : _buildEmployeeGrid(filteredEmployees),
+              : widget.isTableView
+                  ? _buildEmployeeTable(filteredEmployees)
+                  : _buildEmployeeGrid(filteredEmployees),
         ),
       ],
     );
@@ -125,6 +128,57 @@ class _EmployeeListViewState extends ConsumerState<EmployeeListView> {
           onDelete: () => _showDeleteConfirmation(employee),
         );
       },
+    );
+  }
+
+  Widget _buildEmployeeTable(List<Employee> employees) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: SingleChildScrollView(
+        child: DataTable(
+          columnSpacing: 24,
+          columns: const [
+            DataColumn(label: Text('Name')),
+            DataColumn(label: Text('Nr.')),
+            DataColumn(label: Text('Position')),
+            DataColumn(label: Text('Abteilung')),
+            DataColumn(label: Text('Status')),
+            DataColumn(label: Text('Std/Woche'), numeric: true),
+            DataColumn(label: Text('Stundenlohn'), numeric: true),
+            DataColumn(label: Text('Aktionen')),
+          ],
+          rows: employees.map((employee) {
+            return DataRow(
+              cells: [
+                DataCell(Text(employee.fullName), onTap: () => _showEmployeeDetails(employee)),
+                DataCell(Text(employee.employeeNumber)),
+                DataCell(Text(employee.position)),
+                DataCell(Text(employee.department)),
+                DataCell(Text(_getStatusLabel(employee.status))),
+                DataCell(Text('${employee.hoursPerWeek}')),
+                DataCell(Text('${employee.hourlyRate.toStringAsFixed(2)} \u20AC')),
+                DataCell(Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Symbols.edit, size: 18),
+                      onPressed: () => _showEditEmployeeDialog(employee),
+                      tooltip: 'Bearbeiten',
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    IconButton(
+                      icon: const Icon(Symbols.delete, size: 18),
+                      onPressed: () => _showDeleteConfirmation(employee),
+                      tooltip: 'Löschen',
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ],
+                )),
+              ],
+            );
+          }).toList(),
+        ),
+      ),
     );
   }
 

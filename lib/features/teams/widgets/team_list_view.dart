@@ -10,8 +10,9 @@ import 'team_form_dialog.dart';
 
 class TeamListView extends ConsumerStatefulWidget {
   final List<Team> teams;
+  final bool isTableView;
 
-  const TeamListView({super.key, required this.teams});
+  const TeamListView({super.key, required this.teams, this.isTableView = false});
 
   @override
   ConsumerState<TeamListView> createState() => _TeamListViewState();
@@ -33,7 +34,9 @@ class _TeamListViewState extends ConsumerState<TeamListView> {
         Expanded(
           child: filteredTeams.isEmpty
               ? _buildNoResultsState()
-              : _buildTeamGrid(filteredTeams),
+              : widget.isTableView
+                  ? _buildTeamTable(filteredTeams)
+                  : _buildTeamGrid(filteredTeams),
         ),
       ],
     );
@@ -134,6 +137,56 @@ class _TeamListViewState extends ConsumerState<TeamListView> {
           onDelete: canManage ? () => _showDeleteConfirmation(team) : null,
         );
       },
+    );
+  }
+
+  Widget _buildTeamTable(List<Team> teams) {
+    final canManage = ref.read(policyProvider).canManageTeams();
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: SingleChildScrollView(
+        child: DataTable(
+          columnSpacing: 24,
+          columns: const [
+            DataColumn(label: Text('Team')),
+            DataColumn(label: Text('Abteilung')),
+            DataColumn(label: Text('Status')),
+            DataColumn(label: Text('Mitglieder'), numeric: true),
+            DataColumn(label: Text('Standort')),
+            DataColumn(label: Text('Aktionen')),
+          ],
+          rows: teams.map((team) {
+            return DataRow(
+              cells: [
+                DataCell(Text(team.name), onTap: () => _showTeamDetails(team)),
+                DataCell(Text(team.department ?? '-')),
+                DataCell(Text(_getStatusLabel(team.status))),
+                DataCell(Text('${team.memberCount}')),
+                DataCell(Text(team.location ?? '-')),
+                DataCell(Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (canManage)
+                      IconButton(
+                        icon: const Icon(Symbols.edit, size: 18),
+                        onPressed: () => _showEditTeamDialog(team),
+                        tooltip: 'Bearbeiten',
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    if (canManage)
+                      IconButton(
+                        icon: const Icon(Symbols.delete, size: 18),
+                        onPressed: () => _showDeleteConfirmation(team),
+                        tooltip: 'Löschen',
+                        visualDensity: VisualDensity.compact,
+                      ),
+                  ],
+                )),
+              ],
+            );
+          }).toList(),
+        ),
+      ),
     );
   }
 

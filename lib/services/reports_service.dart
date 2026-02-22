@@ -236,8 +236,7 @@ class ReportsService {
 
   Future<bool> _exportEmployeeReport(ReportFormat format, String filePath) async {
     try {
-      // Get mock employee data for now
-      final employees = await _getMockEmployees();
+      final employees = _ref?.read(employeesProvider).valueOrNull ?? [];
 
       switch (format) {
         case ReportFormat.pdf:
@@ -266,8 +265,7 @@ class ReportsService {
 
   Future<bool> _exportTimesheetReport(ReportFormat format, String filePath) async {
     try {
-      // Get mock timesheet data for now
-      final timesheets = await _getMockTimesheets();
+      final timesheets = _ref?.read(timesheetsProvider).valueOrNull ?? [];
 
       switch (format) {
         case ReportFormat.pdf:
@@ -335,120 +333,6 @@ class ReportsService {
     }
   }
 
-  Future<List<Employee>> _getMockEmployees() async {
-    // Return mock employee data for testing
-    return [
-      Employee(
-        id: 'emp-1',
-        employeeNumber: 'E001',
-        firstName: 'Max',
-        lastName: 'Mustermann',
-        email: 'max.mustermann@example.com',
-        dateOfBirth: DateTime(1985, 5, 15),
-        position: 'Wohnbereichsleitung',
-        department: 'Wohnbereich A',
-        contractType: ContractType.fullTime,
-        hoursPerWeek: 40.0,
-        hourlyRate: 25.50,
-        status: EmployeeStatus.active,
-        hireDate: DateTime(2022, 1, 15),
-        phone: '+49 123 456 7890',
-        address: Address(
-          street: 'Musterstraße 1',
-          city: 'Musterstadt',
-          postalCode: '12345',
-          country: 'Deutschland',
-        ),
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-      ),
-      Employee(
-        id: 'emp-2',
-        employeeNumber: 'E002',
-        firstName: 'Anna',
-        lastName: 'Schmidt',
-        email: 'anna.schmidt@example.com',
-        dateOfBirth: DateTime(1990, 8, 22),
-        position: 'Betreuungsassistentin',
-        department: 'Wohnbereich B',
-        contractType: ContractType.partTime,
-        hoursPerWeek: 30.0,
-        hourlyRate: 22.00,
-        status: EmployeeStatus.active,
-        hireDate: DateTime(2023, 3, 10),
-        phone: '+49 123 456 7891',
-        address: Address(
-          street: 'Beispielweg 5',
-          city: 'Musterstadt',
-          postalCode: '12345',
-          country: 'Deutschland',
-        ),
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-      ),
-      Employee(
-        id: 'emp-3',
-        employeeNumber: 'E003',
-        firstName: 'Thomas',
-        lastName: 'Weber',
-        email: 'thomas.weber@example.com',
-        dateOfBirth: DateTime(1982, 12, 3),
-        position: 'Verwaltung',
-        department: 'Administration',
-        contractType: ContractType.fullTime,
-        hoursPerWeek: 40.0,
-        hourlyRate: 28.75,
-        status: EmployeeStatus.active,
-        hireDate: DateTime(2021, 8, 20),
-        phone: '+49 123 456 7892',
-        address: Address(
-          street: 'Teststraße 10',
-          city: 'Musterstadt',
-          postalCode: '12345',
-          country: 'Deutschland',
-        ),
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-      ),
-    ];
-  }
-
-  Future<List<dynamic>> _getMockTimesheets() async {
-    // Return mock timesheet data for testing
-    return [
-      MockTimesheet(
-        id: 'ts-1',
-        employeeId: 'emp-1',
-        startDate: DateTime.now().subtract(const Duration(days: 7)),
-        endDate: DateTime.now(),
-        calculatedTotalHours: 40.0,
-        calculatedOvertimeHours: 2.5,
-        calculatedTotalPay: 1020.0,
-        status: 'approved',
-      ),
-      MockTimesheet(
-        id: 'ts-2',
-        employeeId: 'emp-2',
-        startDate: DateTime.now().subtract(const Duration(days: 14)),
-        endDate: DateTime.now().subtract(const Duration(days: 7)),
-        calculatedTotalHours: 38.5,
-        calculatedOvertimeHours: 0.0,
-        calculatedTotalPay: 847.0,
-        status: 'approved',
-      ),
-      MockTimesheet(
-        id: 'ts-3',
-        employeeId: 'emp-3',
-        startDate: DateTime.now().subtract(const Duration(days: 7)),
-        endDate: DateTime.now(),
-        calculatedTotalHours: 42.0,
-        calculatedOvertimeHours: 4.0,
-        calculatedTotalPay: 1207.5,
-        status: 'submitted',
-      ),
-    ];
-  }
-
   Future<List<String>> getAvailableColumns(ReportType type) async {
     await Future.delayed(const Duration(milliseconds: 200));
 
@@ -475,26 +359,4 @@ class ReportsService {
         return ['custom_field_1', 'custom_field_2', 'custom_field_3'];
     }
   }
-}
-
-class MockTimesheet {
-  final String id;
-  final String employeeId;
-  final DateTime startDate;
-  final DateTime endDate;
-  final double calculatedTotalHours;
-  final double calculatedOvertimeHours;
-  final double calculatedTotalPay;
-  final String status;
-
-  MockTimesheet({
-    required this.id,
-    required this.employeeId,
-    required this.startDate,
-    required this.endDate,
-    required this.calculatedTotalHours,
-    required this.calculatedOvertimeHours,
-    required this.calculatedTotalPay,
-    required this.status,
-  });
 }

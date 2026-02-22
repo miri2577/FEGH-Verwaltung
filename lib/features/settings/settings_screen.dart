@@ -50,9 +50,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     if (settings.hidriveUsername != null) {
       _hidriveUsernameController.text = settings.hidriveUsername!;
     }
-    if (settings.hidrivePassword != null) {
-      _hidrivePasswordController.text = settings.hidrivePassword!;
-    }
+    // Passwort wird nicht vorgeladen – nur bei Änderung neu eingeben
   }
 
   @override
@@ -143,7 +141,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     obscureText: !_passwordVisible,
                     decoration: InputDecoration(
                       labelText: 'HiDrive Passwort',
-                      hintText: '••••••••',
+                      hintText: settings.hidrivePassword != null ? 'Gespeichert – neu eingeben zum Ändern' : 'Passwort eingeben',
                       prefixIcon: const Icon(Symbols.lock),
                       border: const OutlineInputBorder(),
                       suffixIcon: IconButton(
@@ -620,8 +618,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   'body': body,
                   'flags': <String>[],
                   'createdAt': DateTime.now().toUtc().toIso8601String(),
-                  'senderId': ref.read(appSettingsProvider).hidriveUsername ?? 'admin',
-                  'senderName': 'Admin',
+                  'senderId': ref.read(appSettingsProvider).hidriveUsername ?? 'unknown',
+                  'senderName': ref.read(appSettingsProvider).hidriveUsername ?? 'Unbekannt',
                   'isRead': false,
                   'priority': 'normal',
                   'type': 'announcement',
@@ -815,11 +813,24 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<void> _saveHiDriveCredentials() async {
-    if (_hidriveUsernameController.text.trim().isEmpty ||
-        _hidrivePasswordController.text.trim().isEmpty) {
+    final username = _hidriveUsernameController.text.trim();
+    final password = _hidrivePasswordController.text.trim();
+    final existingPassword = ref.read(appSettingsProvider).hidrivePassword;
+
+    if (username.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Bitte geben Sie sowohl Benutzername als auch Passwort ein'),
+          content: Text('Bitte geben Sie einen Benutzernamen ein'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    if (password.isEmpty && existingPassword == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Bitte geben Sie ein Passwort ein'),
           backgroundColor: Colors.orange,
         ),
       );
@@ -833,8 +844,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     try {
       final settingsService = ref.read(settingsServiceProvider);
       final success = await settingsService.updateHiDriveCredentials(
-        _hidriveUsernameController.text.trim(),
-        _hidrivePasswordController.text.trim(),
+        username,
+        password.isNotEmpty ? password : existingPassword!,
       );
 
       if (success) {

@@ -7,11 +7,18 @@ import '../../providers/team_provider.dart';
 import 'widgets/team_list_view.dart';
 import 'widgets/team_form_dialog.dart';
 
-class TeamsScreen extends ConsumerWidget {
+class TeamsScreen extends ConsumerStatefulWidget {
   const TeamsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<TeamsScreen> createState() => _TeamsScreenState();
+}
+
+class _TeamsScreenState extends ConsumerState<TeamsScreen> {
+  bool _isTableView = false;
+
+  @override
+  Widget build(BuildContext context) {
     final teamsAsyncValue = ref.watch(teamsProvider);
     final teamCount = ref.watch(teamCountProvider);
 
@@ -49,15 +56,33 @@ class TeamsScreen extends ConsumerWidget {
                   ),
                 ),
                 const Spacer(),
+                SegmentedButton<bool>(
+                  segments: const [
+                    ButtonSegment(value: false, icon: Icon(Symbols.grid_view, size: 18)),
+                    ButtonSegment(value: true, icon: Icon(Symbols.table_rows, size: 18)),
+                  ],
+                  selected: {_isTableView},
+                  onSelectionChanged: (value) {
+                    setState(() {
+                      _isTableView = value.first;
+                    });
+                  },
+                  showSelectedIcon: false,
+                  style: ButtonStyle(
+                    visualDensity: VisualDensity.compact,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                ),
+                const SizedBox(width: 12),
                 OutlinedButton.icon(
-                  onPressed: () => _refreshTeams(ref),
+                  onPressed: () => _refreshTeams(),
                   icon: const Icon(Symbols.refresh, size: 18),
                   label: const Text('Aktualisieren'),
                 ),
                 const SizedBox(width: 12),
                 FilledButton.icon(
                   onPressed: ref.read(policyProvider).canManageTeams()
-                      ? () => _showAddTeamDialog(context, ref)
+                      ? () => _showAddTeamDialog()
                       : null,
                   icon: const Icon(Symbols.add, size: 18),
                   label: const Text('Neues Team'),
@@ -68,12 +93,12 @@ class TeamsScreen extends ConsumerWidget {
             Expanded(
               child: teamsAsyncValue.when(
                 data: (teams) => teams.isEmpty
-                    ? _buildEmptyState(context)
-                    : TeamListView(teams: teams),
+                    ? _buildEmptyState()
+                    : TeamListView(teams: teams, isTableView: _isTableView),
                 loading: () => const Center(
                   child: CircularProgressIndicator(),
                 ),
-                error: (error, stack) => _buildErrorState(context, error, ref),
+                error: (error, stack) => _buildErrorState(error),
               ),
             ),
           ],
@@ -82,7 +107,7 @@ class TeamsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildEmptyState(BuildContext context) {
+  Widget _buildEmptyState() {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -109,7 +134,7 @@ class TeamsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildErrorState(BuildContext context, Object error, WidgetRef ref) {
+  Widget _buildErrorState(Object error) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -134,7 +159,7 @@ class TeamsScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 24),
           FilledButton.icon(
-            onPressed: () => _refreshTeams(ref),
+            onPressed: () => _refreshTeams(),
             icon: const Icon(Symbols.refresh, size: 18),
             label: const Text('Erneut versuchen'),
           ),
@@ -143,11 +168,11 @@ class TeamsScreen extends ConsumerWidget {
     );
   }
 
-  void _refreshTeams(WidgetRef ref) {
+  void _refreshTeams() {
     ref.read(teamsProvider.notifier).refresh();
   }
 
-  void _showAddTeamDialog(BuildContext context, WidgetRef ref) {
+  void _showAddTeamDialog() {
     showDialog(
       context: context,
       builder: (context) => TeamFormDialog(

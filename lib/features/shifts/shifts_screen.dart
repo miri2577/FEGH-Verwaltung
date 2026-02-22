@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import '../../models/shift.dart';
 import '../../providers/shift_provider.dart';
+import '../../providers/employee_provider.dart';
 import 'widgets/shift_card.dart';
 import 'widgets/shift_form_dialog.dart';
 
@@ -15,6 +16,7 @@ class ShiftsScreen extends ConsumerStatefulWidget {
 
 class _ShiftsScreenState extends ConsumerState<ShiftsScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  bool _isTableView = false;
 
   @override
   void initState() {
@@ -67,6 +69,24 @@ class _ShiftsScreenState extends ConsumerState<ShiftsScreen> with SingleTickerPr
                   ),
                 ),
                 const Spacer(),
+                SegmentedButton<bool>(
+                  segments: const [
+                    ButtonSegment(value: false, icon: Icon(Symbols.grid_view, size: 18)),
+                    ButtonSegment(value: true, icon: Icon(Symbols.table_rows, size: 18)),
+                  ],
+                  selected: {_isTableView},
+                  onSelectionChanged: (value) {
+                    setState(() {
+                      _isTableView = value.first;
+                    });
+                  },
+                  showSelectedIcon: false,
+                  style: ButtonStyle(
+                    visualDensity: VisualDensity.compact,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                ),
+                const SizedBox(width: 12),
                 OutlinedButton.icon(
                   onPressed: () => _refreshShifts(ref),
                   icon: const Icon(Symbols.refresh, size: 18),
@@ -164,6 +184,9 @@ class _ShiftsScreenState extends ConsumerState<ShiftsScreen> with SingleTickerPr
   }
 
   Widget _buildShiftsList(List<Shift> shifts) {
+    if (_isTableView) {
+      return _buildShiftsTable(shifts);
+    }
     return GridView.builder(
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 3,
@@ -184,6 +207,104 @@ class _ShiftsScreenState extends ConsumerState<ShiftsScreen> with SingleTickerPr
           onCancel: () => _cancelShift(shift.id),
         );
       },
+    );
+  }
+
+  String _getShiftStatusLabel(ShiftStatus status) {
+    switch (status) {
+      case ShiftStatus.scheduled:
+        return 'Geplant';
+      case ShiftStatus.inProgress:
+        return 'Aktiv';
+      case ShiftStatus.completed:
+        return 'Abgeschlossen';
+      case ShiftStatus.cancelled:
+        return 'Abgesagt';
+      case ShiftStatus.noShow:
+        return 'Nicht erschienen';
+    }
+  }
+
+  String _getShiftTypeLabel(ShiftType type) {
+    switch (type) {
+      case ShiftType.regular:
+        return 'Normal';
+      case ShiftType.overtime:
+        return 'Überstunden';
+      case ShiftType.holiday:
+        return 'Feiertag';
+      case ShiftType.night:
+        return 'Nacht';
+      case ShiftType.weekend:
+        return 'Wochenende';
+    }
+  }
+
+  Widget _buildShiftsTable(List<Shift> shifts) {
+    final employees = ref.watch(employeesProvider).valueOrNull ?? [];
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: SingleChildScrollView(
+        child: DataTable(
+          columnSpacing: 24,
+          columns: const [
+            DataColumn(label: Text('Mitarbeiter')),
+            DataColumn(label: Text('Datum')),
+            DataColumn(label: Text('Zeit')),
+            DataColumn(label: Text('Typ')),
+            DataColumn(label: Text('Status')),
+            DataColumn(label: Text('Geplant (h)'), numeric: true),
+            DataColumn(label: Text('Ist (h)'), numeric: true),
+            DataColumn(label: Text('Aktionen')),
+          ],
+          rows: shifts.map((shift) {
+            final emp = employees.where((e) => e.id == shift.employeeId).firstOrNull;
+            return DataRow(
+              cells: [
+                DataCell(Text(emp?.fullName ?? shift.employeeId), onTap: () => _showShiftDetails(shift)),
+                DataCell(Text('${shift.startTime.day.toString().padLeft(2, '0')}.${shift.startTime.month.toString().padLeft(2, '0')}.${shift.startTime.year}')),
+                DataCell(Text('${shift.startTime.hour.toString().padLeft(2, '0')}:${shift.startTime.minute.toString().padLeft(2, '0')} - ${shift.endTime.hour.toString().padLeft(2, '0')}:${shift.endTime.minute.toString().padLeft(2, '0')}')),
+                DataCell(Text(_getShiftTypeLabel(shift.type))),
+                DataCell(Text(_getShiftStatusLabel(shift.status))),
+                DataCell(Text(shift.scheduledHours.toStringAsFixed(1))),
+                DataCell(Text(shift.actualHours?.toStringAsFixed(1) ?? '-')),
+                DataCell(Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Symbols.edit, size: 18),
+                      onPressed: () => _showEditShiftDialog(shift),
+                      tooltip: 'Bearbeiten',
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    if (shift.status == ShiftStatus.scheduled)
+                      IconButton(
+                        icon: const Icon(Symbols.play_arrow, size: 18),
+                        onPressed: () => _startShift(shift.id),
+                        tooltip: 'Starten',
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    if (shift.status == ShiftStatus.inProgress)
+                      IconButton(
+                        icon: const Icon(Symbols.stop, size: 18),
+                        onPressed: () => _endShift(shift.id),
+                        tooltip: 'Beenden',
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    IconButton(
+                      icon: const Icon(Symbols.delete, size: 18),
+                      onPressed: () => _showDeleteConfirmation(shift),
+                      tooltip: 'Löschen',
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ],
+                )),
+              ],
+            );
+          }).toList(),
+        ),
+      ),
     );
   }
 

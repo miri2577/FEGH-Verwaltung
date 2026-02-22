@@ -17,6 +17,7 @@ class ClientsScreen extends ConsumerStatefulWidget {
 class _ClientsScreenState extends ConsumerState<ClientsScreen> with TickerProviderStateMixin {
   late TabController _tabController;
   String _searchQuery = '';
+  bool _isTableView = false;
 
   @override
   void initState() {
@@ -92,6 +93,24 @@ class _ClientsScreenState extends ConsumerState<ClientsScreen> with TickerProvid
                   ),
                 ],
                 const Spacer(),
+                SegmentedButton<bool>(
+                  segments: const [
+                    ButtonSegment(value: false, icon: Icon(Symbols.grid_view, size: 18)),
+                    ButtonSegment(value: true, icon: Icon(Symbols.table_rows, size: 18)),
+                  ],
+                  selected: {_isTableView},
+                  onSelectionChanged: (value) {
+                    setState(() {
+                      _isTableView = value.first;
+                    });
+                  },
+                  showSelectedIcon: false,
+                  style: ButtonStyle(
+                    visualDensity: VisualDensity.compact,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                ),
+                const SizedBox(width: 12),
                 // Search Field
                 SizedBox(
                   width: 300,
@@ -170,7 +189,7 @@ class _ClientsScreenState extends ConsumerState<ClientsScreen> with TickerProvid
     if (clients.isEmpty) {
       return _buildEmptyState();
     }
-    return ClientListView(clients: clients);
+    return ClientListView(clients: clients, isTableView: _isTableView);
   }
 
   Widget _buildEmptyState() {

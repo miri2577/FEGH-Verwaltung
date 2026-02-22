@@ -6,11 +6,18 @@ import '../../providers/employee_provider.dart';
 import 'widgets/employee_list_view.dart';
 import 'widgets/employee_form_dialog.dart';
 
-class EmployeesScreen extends ConsumerWidget {
+class EmployeesScreen extends ConsumerStatefulWidget {
   const EmployeesScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<EmployeesScreen> createState() => _EmployeesScreenState();
+}
+
+class _EmployeesScreenState extends ConsumerState<EmployeesScreen> {
+  bool _isTableView = false;
+
+  @override
+  Widget build(BuildContext context) {
     final employeesAsyncValue = ref.watch(employeesProvider);
     final activeEmployeeCount = ref.watch(activeEmployeeCountProvider);
 
@@ -48,14 +55,32 @@ class EmployeesScreen extends ConsumerWidget {
                   ),
                 ),
                 const Spacer(),
+                SegmentedButton<bool>(
+                  segments: const [
+                    ButtonSegment(value: false, icon: Icon(Symbols.grid_view, size: 18)),
+                    ButtonSegment(value: true, icon: Icon(Symbols.table_rows, size: 18)),
+                  ],
+                  selected: {_isTableView},
+                  onSelectionChanged: (value) {
+                    setState(() {
+                      _isTableView = value.first;
+                    });
+                  },
+                  showSelectedIcon: false,
+                  style: ButtonStyle(
+                    visualDensity: VisualDensity.compact,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                ),
+                const SizedBox(width: 12),
                 OutlinedButton.icon(
-                  onPressed: () => _refreshEmployees(ref),
+                  onPressed: () => _refreshEmployees(),
                   icon: const Icon(Symbols.refresh, size: 18),
                   label: const Text('Aktualisieren'),
                 ),
                 const SizedBox(width: 12),
                 FilledButton.icon(
-                  onPressed: () => _showAddEmployeeDialog(context, ref),
+                  onPressed: () => _showAddEmployeeDialog(),
                   icon: const Icon(Symbols.person_add, size: 18),
                   label: const Text('Neuer Mitarbeiter'),
                 ),
@@ -65,12 +90,12 @@ class EmployeesScreen extends ConsumerWidget {
             Expanded(
               child: employeesAsyncValue.when(
                 data: (employees) => employees.isEmpty
-                    ? _buildEmptyState(context)
-                    : EmployeeListView(employees: employees),
+                    ? _buildEmptyState()
+                    : EmployeeListView(employees: employees, isTableView: _isTableView),
                 loading: () => const Center(
                   child: CircularProgressIndicator(),
                 ),
-                error: (error, stack) => _buildErrorState(context, error, ref),
+                error: (error, stack) => _buildErrorState(error),
               ),
             ),
           ],
@@ -79,7 +104,7 @@ class EmployeesScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildEmptyState(BuildContext context) {
+  Widget _buildEmptyState() {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -106,7 +131,7 @@ class EmployeesScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildErrorState(BuildContext context, Object error, WidgetRef ref) {
+  Widget _buildErrorState(Object error) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -131,7 +156,7 @@ class EmployeesScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 24),
           FilledButton.icon(
-            onPressed: () => _refreshEmployees(ref),
+            onPressed: () => _refreshEmployees(),
             icon: const Icon(Symbols.refresh, size: 18),
             label: const Text('Erneut versuchen'),
           ),
@@ -140,11 +165,11 @@ class EmployeesScreen extends ConsumerWidget {
     );
   }
 
-  void _refreshEmployees(WidgetRef ref) {
+  void _refreshEmployees() {
     ref.read(employeesProvider.notifier).refresh();
   }
 
-  void _showAddEmployeeDialog(BuildContext context, WidgetRef ref) {
+  void _showAddEmployeeDialog() {
     showDialog(
       context: context,
       builder: (context) => EmployeeFormDialog(

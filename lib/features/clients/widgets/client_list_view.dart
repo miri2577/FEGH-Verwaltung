@@ -9,8 +9,9 @@ import '../../../providers/policy_provider.dart';
 
 class ClientListView extends ConsumerStatefulWidget {
   final List<Client> clients;
+  final bool isTableView;
 
-  const ClientListView({super.key, required this.clients});
+  const ClientListView({super.key, required this.clients, this.isTableView = false});
 
   @override
   ConsumerState<ClientListView> createState() => _ClientListViewState();
@@ -33,7 +34,9 @@ class _ClientListViewState extends ConsumerState<ClientListView> {
         Expanded(
           child: filteredClients.isEmpty
               ? _buildNoResultsState()
-              : _buildClientGrid(filteredClients),
+              : widget.isTableView
+                  ? _buildClientTable(filteredClients)
+                  : _buildClientGrid(filteredClients),
         ),
       ],
     );
@@ -152,6 +155,60 @@ class _ClientListViewState extends ConsumerState<ClientListView> {
           canArchive: canArchive,
         );
       },
+    );
+  }
+
+  Widget _buildClientTable(List<Client> clients) {
+    final policy = ref.read(policyProvider);
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: SingleChildScrollView(
+        child: DataTable(
+          columnSpacing: 24,
+          columns: const [
+            DataColumn(label: Text('Name')),
+            DataColumn(label: Text('Status')),
+            DataColumn(label: Text('Priorität')),
+            DataColumn(label: Text('Hilfe-Typ')),
+            DataColumn(label: Text('FLS')),
+            DataColumn(label: Text('Kostenträger')),
+            DataColumn(label: Text('Aktionen')),
+          ],
+          rows: clients.map((client) {
+            final canEdit = policy.canEditClient(teamId: client.teamId);
+            final canDelete = policy.canDeleteClient(teamId: client.teamId);
+            return DataRow(
+              cells: [
+                DataCell(Text(client.fullName), onTap: () => _showClientDetails(client)),
+                DataCell(Text(client.statusDisplayName)),
+                DataCell(Text(client.priorityDisplayName)),
+                DataCell(Text(client.hilfeTypDisplay)),
+                DataCell(Text(client.fachleistungsstunden != null ? '${client.fachleistungsstunden} Std.' : '-')),
+                DataCell(Text(client.kostenuebernahme ?? '-')),
+                DataCell(Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (canEdit)
+                      IconButton(
+                        icon: const Icon(Symbols.edit, size: 18),
+                        onPressed: () => _showEditClientDialog(client),
+                        tooltip: 'Bearbeiten',
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    if (canDelete)
+                      IconButton(
+                        icon: const Icon(Symbols.delete, size: 18),
+                        onPressed: () => _showDeleteConfirmation(client),
+                        tooltip: 'Löschen',
+                        visualDensity: VisualDensity.compact,
+                      ),
+                  ],
+                )),
+              ],
+            );
+          }).toList(),
+        ),
+      ),
     );
   }
 
