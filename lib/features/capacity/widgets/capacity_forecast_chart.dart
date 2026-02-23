@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_symbols_icons/symbols.dart';
+import 'package:syncfusion_flutter_charts/charts.dart';
 import '../../../providers/capacity_provider.dart';
 import '../../../models/capacity_analytics.dart';
 
 class CapacityForecastChart extends ConsumerWidget {
   const CapacityForecastChart({super.key});
+
+  static const _dayNames = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -101,23 +104,78 @@ class CapacityForecastChart extends ConsumerWidget {
     );
   }
 
+  String _getDayLabel(DateTime date) {
+    // DateTime.weekday: 1 = Monday, 7 = Sunday
+    return _dayNames[date.weekday - 1];
+  }
+
   Widget _buildForecastChart(BuildContext context, List<CapacityForecast> forecasts) {
-    final maxCapacity = forecasts.map((f) => f.predictedCapacity).reduce((a, b) => a > b ? a : b);
-    final minCapacity = forecasts.map((f) => f.predictedCapacity).reduce((a, b) => a < b ? a : b);
-    final range = maxCapacity - minCapacity;
+    final tooltipBehavior = TooltipBehavior(
+      enable: true,
+      format: 'point.x: point.y%',
+    );
 
     return Column(
       children: [
         SizedBox(
           height: 200,
-          child: CustomPaint(
-            painter: ForecastChartPainter(
-              forecasts: forecasts,
-              minCapacity: minCapacity,
-              maxCapacity: maxCapacity,
-              theme: Theme.of(context),
+          child: SfCartesianChart(
+            tooltipBehavior: tooltipBehavior,
+            primaryXAxis: CategoryAxis(
+              majorGridLines: const MajorGridLines(width: 0.5, dashArray: [3, 3]),
             ),
-            size: const Size(double.infinity, 200),
+            primaryYAxis: NumericAxis(
+              minimum: 0,
+              maximum: 150,
+              interval: 30,
+              axisLine: const AxisLine(width: 0),
+              majorGridLines: const MajorGridLines(width: 0.5, dashArray: [3, 3]),
+              plotBands: <PlotBand>[
+                PlotBand(
+                  start: 0,
+                  end: 60,
+                  color: Colors.red.withOpacity(0.1),
+                ),
+                PlotBand(
+                  start: 60,
+                  end: 80,
+                  color: Colors.orange.withOpacity(0.1),
+                ),
+                PlotBand(
+                  start: 80,
+                  end: 100,
+                  color: Colors.green.withOpacity(0.1),
+                ),
+                PlotBand(
+                  start: 100,
+                  end: 150,
+                  color: Colors.blue.withOpacity(0.1),
+                ),
+              ],
+            ),
+            series: <CartesianSeries<CapacityForecast, String>>[
+              SplineAreaSeries<CapacityForecast, String>(
+                dataSource: forecasts,
+                xValueMapper: (CapacityForecast f, _) => _getDayLabel(f.date),
+                yValueMapper: (CapacityForecast f, _) => f.predictedCapacity,
+                color: Theme.of(context).colorScheme.primary,
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Theme.of(context).colorScheme.primary.withOpacity(0.4),
+                    Theme.of(context).colorScheme.primary.withOpacity(0.05),
+                  ],
+                ),
+                borderColor: Theme.of(context).colorScheme.primary,
+                borderWidth: 2,
+                markerSettings: const MarkerSettings(
+                  isVisible: true,
+                  height: 6,
+                  width: 6,
+                ),
+              ),
+            ],
           ),
         ),
         const SizedBox(height: 16),
@@ -269,108 +327,4 @@ class CapacityForecastChart extends ConsumerWidget {
       ),
     );
   }
-}
-
-class ForecastChartPainter extends CustomPainter {
-  final List<CapacityForecast> forecasts;
-  final double minCapacity;
-  final double maxCapacity;
-  final ThemeData theme;
-
-  ForecastChartPainter({
-    required this.forecasts,
-    required this.minCapacity,
-    required this.maxCapacity,
-    required this.theme,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..strokeWidth = 2
-      ..style = PaintingStyle.stroke;
-
-    final path = Path();
-    final points = <Offset>[];
-
-    // Calculate points
-    for (int i = 0; i < forecasts.length; i++) {
-      final x = (i / (forecasts.length - 1)) * size.width;
-      final normalizedY = (forecasts[i].predictedCapacity - minCapacity) / (maxCapacity - minCapacity);
-      final y = size.height - (normalizedY * size.height);
-      points.add(Offset(x, y));
-    }
-
-    // Draw grid lines
-    final gridPaint = Paint()
-      ..color = theme.colorScheme.outline.withOpacity(0.2)
-      ..strokeWidth = 1;
-
-    // Horizontal grid lines (capacity levels)
-    for (int i = 0; i <= 5; i++) {
-      final y = (i / 5) * size.height;
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
-    }
-
-    // Vertical grid lines (days)
-    for (int i = 0; i < forecasts.length; i++) {
-      final x = (i / (forecasts.length - 1)) * size.width;
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), gridPaint);
-    }
-
-    // Draw capacity zones
-    _drawCapacityZones(canvas, size);
-
-    // Draw forecast line
-    if (points.isNotEmpty) {
-      path.moveTo(points.first.dx, points.first.dy);
-      for (int i = 1; i < points.length; i++) {
-        path.lineTo(points[i].dx, points[i].dy);
-      }
-
-      paint.color = theme.colorScheme.primary;
-      canvas.drawPath(path, paint);
-
-      // Draw points
-      for (final point in points) {
-        canvas.drawCircle(point, 4, Paint()..color = theme.colorScheme.primary);
-      }
-    }
-  }
-
-  void _drawCapacityZones(Canvas canvas, Size size) {
-    final zonePaint = Paint()..style = PaintingStyle.fill;
-
-    // Critical zone (< 60%)
-    final criticalHeight = _getYForCapacity(60, size);
-    zonePaint.color = Colors.red.withOpacity(0.1);
-    canvas.drawRect(
-      Rect.fromLTWH(0, criticalHeight, size.width, size.height - criticalHeight),
-      zonePaint,
-    );
-
-    // Warning zone (60-80%)
-    final warningHeight = _getYForCapacity(80, size);
-    zonePaint.color = Colors.orange.withOpacity(0.1);
-    canvas.drawRect(
-      Rect.fromLTWH(0, warningHeight, size.width, criticalHeight - warningHeight),
-      zonePaint,
-    );
-
-    // Optimal zone (80-100%)
-    final optimalHeight = _getYForCapacity(100, size);
-    zonePaint.color = Colors.green.withOpacity(0.1);
-    canvas.drawRect(
-      Rect.fromLTWH(0, optimalHeight, size.width, warningHeight - optimalHeight),
-      zonePaint,
-    );
-  }
-
-  double _getYForCapacity(double capacity, Size size) {
-    final normalizedY = (capacity - minCapacity) / (maxCapacity - minCapacity);
-    return size.height - (normalizedY * size.height);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }

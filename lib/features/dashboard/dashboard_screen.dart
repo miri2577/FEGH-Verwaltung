@@ -2,7 +2,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_symbols_icons/symbols.dart';
-import 'package:fl_chart/fl_chart.dart';
+import 'package:syncfusion_flutter_charts/charts.dart';
+import 'package:syncfusion_flutter_gauges/gauges.dart';
 import '../../providers/notification_provider.dart';
 import '../../providers/employee_provider.dart';
 import '../../providers/team_provider.dart';
@@ -195,13 +196,7 @@ class DashboardScreen extends ConsumerWidget {
                                                   ),
                                             ),
                                           )
-                                        : PieChart(
-                                            PieChartData(
-                                              sections: _buildPieSections(serviceStats),
-                                              sectionsSpace: 2,
-                                              centerSpaceRadius: 40,
-                                            ),
-                                          ),
+                                        : _buildServiceChart(serviceStats),
                                   ),
                                 ],
                               ),
@@ -257,7 +252,7 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
-  List<PieChartSectionData> _buildPieSections(Map<ServiceType, int> stats) {
+  Widget _buildServiceChart(Map<ServiceType, int> serviceStats) {
     final colors = {
       ServiceType.ambulant: Colors.blue,
       ServiceType.stationaer: Colors.green,
@@ -277,24 +272,40 @@ class DashboardScreen extends ConsumerWidget {
       ServiceType.freizeit: 'FRZ',
     };
 
-    return stats.entries.map((e) {
-      return PieChartSectionData(
-        value: e.value.toDouble(),
-        title: '${labels[e.key]} (${e.value})',
-        color: colors[e.key] ?? Colors.grey,
-        radius: 60,
-        titleStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
-      );
-    }).toList();
+    final dataSource = serviceStats.entries
+        .map((e) => _ServiceChartData(
+              labels[e.key] ?? e.key.name,
+              e.value,
+              colors[e.key] ?? Colors.grey,
+            ))
+        .toList();
+
+    return SfCircularChart(
+      legend: const Legend(
+        isVisible: true,
+        position: LegendPosition.bottom,
+        overflowMode: LegendItemOverflowMode.wrap,
+      ),
+      tooltipBehavior: TooltipBehavior(enable: true),
+      series: <DoughnutSeries<_ServiceChartData, String>>[
+        DoughnutSeries<_ServiceChartData, String>(
+          dataSource: dataSource,
+          xValueMapper: (_ServiceChartData data, _) => data.label,
+          yValueMapper: (_ServiceChartData data, _) => data.value,
+          pointColorMapper: (_ServiceChartData data, _) => data.color,
+          dataLabelMapper: (_ServiceChartData data, _) => '${data.label} (${data.value})',
+          innerRadius: '40',
+          dataLabelSettings: const DataLabelSettings(
+            isVisible: true,
+            textStyle: TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+          ),
+        ),
+      ],
+    );
   }
 
   Widget _buildFlsBar(BuildContext context, Client c) {
     final prozent = c.stundenverbrauchProzent.clamp(0.0, 100.0);
-    final color = prozent > 90
-        ? Colors.red
-        : prozent > 70
-            ? Colors.orange
-            : Colors.green;
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
@@ -318,12 +329,49 @@ class DashboardScreen extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 2),
-          LinearProgressIndicator(
-            value: prozent / 100,
-            backgroundColor: color.withOpacity(0.15),
-            valueColor: AlwaysStoppedAnimation(color),
-            minHeight: 6,
-            borderRadius: BorderRadius.circular(3),
+          SizedBox(
+            height: 8,
+            child: SfLinearGauge(
+              minimum: 0,
+              maximum: 100,
+              showLabels: false,
+              showTicks: false,
+              axisTrackStyle: const LinearAxisTrackStyle(
+                thickness: 8,
+                edgeStyle: LinearEdgeStyle.bothCurve,
+              ),
+              ranges: [
+                LinearGaugeRange(
+                  startValue: 0,
+                  endValue: 70,
+                  color: Colors.green,
+                  startWidth: 8,
+                  endWidth: 8,
+                ),
+                LinearGaugeRange(
+                  startValue: 70,
+                  endValue: 90,
+                  color: Colors.orange,
+                  startWidth: 8,
+                  endWidth: 8,
+                ),
+                LinearGaugeRange(
+                  startValue: 90,
+                  endValue: 100,
+                  color: Colors.red,
+                  startWidth: 8,
+                  endWidth: 8,
+                ),
+              ],
+              markerPointers: [
+                LinearShapePointer(
+                  value: prozent,
+                  shapeType: LinearShapePointerType.invertedTriangle,
+                  height: 8,
+                  width: 8,
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -377,6 +425,14 @@ class DashboardScreen extends ConsumerWidget {
       ),
     );
   }
+}
+
+class _ServiceChartData {
+  final String label;
+  final int value;
+  final Color color;
+
+  _ServiceChartData(this.label, this.value, this.color);
 }
 
 /// Widget das echte Audit-Log-Einträge als Activity Feed anzeigt

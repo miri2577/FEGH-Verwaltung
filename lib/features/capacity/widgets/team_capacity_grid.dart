@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_symbols_icons/symbols.dart';
+import 'package:syncfusion_flutter_gauges/gauges.dart';
 import '../../../providers/capacity_provider.dart';
 import '../../../models/capacity_analytics.dart';
 
@@ -228,7 +229,7 @@ class TeamCapacityCard extends StatelessWidget {
   }
 
   Widget _buildCapacityIndicator(BuildContext context) {
-    final percentage = capacity.capacityPercentage.clamp(0, 150);
+    final percentage = capacity.capacityPercentage.clamp(0.0, 150.0);
     final color = _getStatusColor(capacity.status);
 
     return Column(
@@ -253,10 +254,34 @@ class TeamCapacityCard extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 4),
-        LinearProgressIndicator(
-          value: (percentage / 100).clamp(0, 1),
-          backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-          valueColor: AlwaysStoppedAnimation<Color>(color),
+        SizedBox(
+          height: 16,
+          child: SfLinearGauge(
+            minimum: 0,
+            maximum: 150,
+            showLabels: false,
+            showTicks: false,
+            animateAxis: true,
+            axisTrackStyle: LinearAxisTrackStyle(
+              thickness: 8,
+              edgeStyle: LinearEdgeStyle.bothCurve,
+              color: Theme.of(context).colorScheme.surfaceContainerHighest,
+            ),
+            ranges: [
+              LinearGaugeRange(startValue: 0, endValue: 60, color: Colors.red.withOpacity(0.3), startWidth: 8, endWidth: 8),
+              LinearGaugeRange(startValue: 60, endValue: 80, color: Colors.orange.withOpacity(0.3), startWidth: 8, endWidth: 8),
+              LinearGaugeRange(startValue: 80, endValue: 100, color: Colors.green.withOpacity(0.3), startWidth: 8, endWidth: 8),
+              LinearGaugeRange(startValue: 100, endValue: 150, color: Colors.blue.withOpacity(0.3), startWidth: 8, endWidth: 8),
+            ],
+            barPointers: [
+              LinearBarPointer(
+                value: percentage,
+                thickness: 8,
+                edgeStyle: LinearEdgeStyle.bothCurve,
+                color: color,
+              ),
+            ],
+          ),
         ),
       ],
     );

@@ -155,6 +155,8 @@ class _TeamListViewState extends ConsumerState<TeamListView> {
       columnWidthMode: ColumnWidthMode.fill,
       gridLinesVisibility: GridLinesVisibility.horizontal,
       headerGridLinesVisibility: GridLinesVisibility.horizontal,
+      allowSorting: true,
+      allowMultiColumnSorting: true,
       rowHeight: 48,
       headerRowHeight: 40,
       columns: [

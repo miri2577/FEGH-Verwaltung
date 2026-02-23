@@ -194,7 +194,7 @@ class _ShiftPlanningScreenState extends ConsumerState<ShiftPlanningScreen> {
     // Filter by shift type
     if (_selectedShiftType != 'all') {
       filteredShifts = filteredShifts.where((shift) {
-        return shift.shiftType.toString().split('.').last == _selectedShiftType;
+        return shift.type.toString().split('.').last == _selectedShiftType;
       }).toList();
     }
 

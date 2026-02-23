@@ -20,7 +20,7 @@ class _BulkShiftDialogState extends ConsumerState<BulkShiftDialog> {
   DateTime _endDate = DateTime.now().add(const Duration(days: 7));
   TimeOfDay _startTime = const TimeOfDay(hour: 9, minute: 0);
   TimeOfDay _endTime = const TimeOfDay(hour: 17, minute: 0);
-  ShiftType _shiftType = ShiftType.morning;
+  ShiftType _shiftType = ShiftType.regular;
   List<String> _selectedEmployeeIds = [];
   List<int> _selectedWeekdays = [1, 2, 3, 4, 5]; // Monday to Friday
   bool _includeWeekends = false;
@@ -274,7 +274,7 @@ class _BulkShiftDialogState extends ConsumerState<BulkShiftDialog> {
           ),
           items: ShiftType.values.map((type) => DropdownMenuItem(
             value: type,
-            child: Text(type.label),
+            child: Text(type.name),
           )).toList(),
           onChanged: (value) {
             if (value != null) {

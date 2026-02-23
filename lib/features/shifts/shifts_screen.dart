@@ -259,6 +259,8 @@ class _ShiftsScreenState extends ConsumerState<ShiftsScreen> with SingleTickerPr
       columnWidthMode: ColumnWidthMode.fill,
       gridLinesVisibility: GridLinesVisibility.horizontal,
       headerGridLinesVisibility: GridLinesVisibility.horizontal,
+      allowSorting: true,
+      allowMultiColumnSorting: true,
       rowHeight: 48,
       headerRowHeight: 40,
       columns: [

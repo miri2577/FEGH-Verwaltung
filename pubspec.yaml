@@ -26,8 +26,10 @@ dependencies:
   pluto_grid: ^8.0.0
 
   # Charts & Visualizations
-  fl_chart: ^0.68.0
   syncfusion_flutter_charts: ^26.2.11
+  syncfusion_flutter_gauges: ^26.2.11
+  syncfusion_flutter_calendar: ^26.2.11
+  syncfusion_flutter_datepicker: ^26.2.11
 
   # PDF Generation & Reports
   pdf: ^3.11.1

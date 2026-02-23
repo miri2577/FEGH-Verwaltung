@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
+import 'package:syncfusion_flutter_datepicker/datepicker.dart';
 import '../../../models/report_config.dart';
 
 class ReportsSidebar extends StatelessWidget {
@@ -149,51 +150,6 @@ class ReportsSidebar extends StatelessWidget {
             ),
             const SizedBox(height: 12),
 
-            // Current Date Range Display
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                border: Border.all(
-                  color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
-                ),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    Symbols.date_range,
-                    size: 18,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Von: ${dateRange.start.day}.${dateRange.start.month}.${dateRange.start.year}',
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                        Text(
-                          'Bis: ${dateRange.end.day}.${dateRange.end.month}.${dateRange.end.year}',
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                      ],
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: () => _selectDateRange(context),
-                    icon: const Icon(Symbols.edit, size: 16),
-                    constraints: const BoxConstraints(
-                      minWidth: 32,
-                      minHeight: 32,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-
             // Quick Date Filters
             Wrap(
               spacing: 8,
@@ -218,6 +174,36 @@ class ReportsSidebar extends StatelessWidget {
                   _setDateRange(start, end);
                 }),
               ],
+            ),
+            const SizedBox(height: 12),
+
+            // Inline SfDateRangePicker
+            SizedBox(
+              height: 280,
+              child: SfDateRangePicker(
+                selectionMode: DateRangePickerSelectionMode.range,
+                initialSelectedRange: PickerDateRange(dateRange.start, dateRange.end),
+                showNavigationArrow: true,
+                headerStyle: DateRangePickerHeaderStyle(
+                  textStyle: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                monthViewSettings: const DateRangePickerMonthViewSettings(
+                  firstDayOfWeek: 1,
+                  viewHeaderStyle: DateRangePickerViewHeaderStyle(
+                    textStyle: TextStyle(fontSize: 11, fontWeight: FontWeight.w500),
+                  ),
+                ),
+                onSelectionChanged: (args) {
+                  if (args.value is PickerDateRange) {
+                    final range = args.value as PickerDateRange;
+                    if (range.startDate != null && range.endDate != null) {
+                      onDateRangeChanged(DateTimeRange(start: range.startDate!, end: range.endDate!));
+                    }
+                  }
+                },
+              ),
             ),
           ],
         ),

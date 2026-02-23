@@ -1,7 +1,7 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_symbols_icons/symbols.dart';
+import 'package:syncfusion_flutter_charts/charts.dart';
 import '../../../providers/capacity_provider.dart';
 import '../../../models/capacity_analytics.dart';
 
@@ -64,17 +64,30 @@ class WorkloadDistributionChart extends ConsumerWidget {
     return Column(
       children: [
         SizedBox(
-          height: 200,
-          child: CustomPaint(
-            painter: WorkloadDistributionPainter(
-              distribution: distribution,
-              theme: Theme.of(context),
+          height: 250,
+          child: SfCircularChart(
+            legend: const Legend(
+              isVisible: true,
+              position: LegendPosition.bottom,
+              overflowMode: LegendItemOverflowMode.wrap,
             ),
-            size: const Size(200, 200),
+            tooltipBehavior: TooltipBehavior(enable: true),
+            series: <CircularSeries>[
+              DoughnutSeries<MapEntry<WorkloadType, double>, String>(
+                dataSource: distribution.entries.toList(),
+                xValueMapper: (entry, _) => _getWorkloadTypeLabel(entry.key),
+                yValueMapper: (entry, _) => entry.value,
+                pointColorMapper: (entry, _) => _getWorkloadTypeColor(entry.key),
+                innerRadius: '50%',
+                dataLabelSettings: const DataLabelSettings(
+                  isVisible: true,
+                  labelPosition: ChartDataLabelPosition.outside,
+                ),
+                dataLabelMapper: (entry, _) => '${entry.value.toStringAsFixed(1)}%',
+              ),
+            ],
           ),
         ),
-        const SizedBox(height: 16),
-        _buildDistributionLegend(context, distribution),
         const SizedBox(height: 16),
         _buildDistributionStats(context, distribution),
       ],
@@ -124,37 +137,6 @@ class WorkloadDistributionChart extends ConsumerWidget {
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildDistributionLegend(BuildContext context, Map<WorkloadType, double> distribution) {
-    return Wrap(
-      spacing: 12,
-      runSpacing: 8,
-      children: distribution.entries.map((entry) {
-        final color = _getWorkloadTypeColor(entry.key);
-        final label = _getWorkloadTypeLabel(entry.key);
-        final percentage = entry.value;
-
-        return Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 12,
-              height: 12,
-              decoration: BoxDecoration(
-                color: color,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(width: 6),
-            Text(
-              '$label (${percentage.toStringAsFixed(1)}%)',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ],
-        );
-      }).toList(),
     );
   }
 
@@ -328,104 +310,3 @@ class WorkloadDistributionChart extends ConsumerWidget {
     );
   }
 }
-
-class WorkloadDistributionPainter extends CustomPainter {
-  final Map<WorkloadType, double> distribution;
-  final ThemeData theme;
-
-  WorkloadDistributionPainter({
-    required this.distribution,
-    required this.theme,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = size.width / 2 - 20;
-    final innerRadius = radius * 0.5;
-
-    final totalPercentage = distribution.values.fold(0.0, (sum, value) => sum + value);
-    if (totalPercentage == 0) return;
-
-    double startAngle = -90 * (3.14159 / 180); // Start at top
-
-    for (final entry in distribution.entries) {
-      if (entry.value <= 0) continue;
-
-      final sweepAngle = (entry.value / totalPercentage) * 2 * 3.14159;
-      final color = _getWorkloadTypeColor(entry.key);
-
-      final paint = Paint()
-        ..color = color
-        ..style = PaintingStyle.fill;
-
-      final path = Path();
-      path.moveTo(center.dx, center.dy);
-      path.arcTo(
-        Rect.fromCircle(center: center, radius: radius),
-        startAngle,
-        sweepAngle,
-        false,
-      );
-      path.close();
-
-      // Create donut hole
-      final holePath = Path();
-      holePath.addOval(Rect.fromCircle(center: center, radius: innerRadius));
-      final combinedPath = Path.combine(PathOperation.difference, path, holePath);
-
-      canvas.drawPath(combinedPath, paint);
-
-      // Draw labels for larger segments
-      if (entry.value > 5) {
-        final labelAngle = startAngle + sweepAngle / 2;
-        final labelRadius = (radius + innerRadius) / 2;
-        final labelX = center.dx + labelRadius * cos(labelAngle);
-        final labelY = center.dy + labelRadius * sin(labelAngle);
-
-        final textPainter = TextPainter(
-          text: TextSpan(
-            text: '${entry.value.toStringAsFixed(0)}%',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          textDirection: TextDirection.ltr,
-        );
-        textPainter.layout();
-        textPainter.paint(
-          canvas,
-          Offset(
-            labelX - textPainter.width / 2,
-            labelY - textPainter.height / 2,
-          ),
-        );
-      }
-
-      startAngle += sweepAngle;
-    }
-  }
-
-  Color _getWorkloadTypeColor(WorkloadType type) {
-    switch (type) {
-      case WorkloadType.regular:
-        return Colors.blue;
-      case WorkloadType.overtime:
-        return Colors.red;
-      case WorkloadType.vacation:
-        return Colors.green;
-      case WorkloadType.sick:
-        return Colors.orange;
-      case WorkloadType.training:
-        return Colors.purple;
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
-}
-
-// Helper functions
-double cos(double angle) => math.cos(angle);
-double sin(double angle) => math.sin(angle);
