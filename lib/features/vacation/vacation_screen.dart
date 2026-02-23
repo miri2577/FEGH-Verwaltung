@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:intl/intl.dart';
 import '../../models/vacation_request.dart';
+import 'package:syncfusion_flutter_calendar/calendar.dart';
 import '../../providers/vacation_provider.dart';
+import '../../providers/employee_provider.dart';
 import 'widgets/vacation_request_card.dart';
 
 class VacationScreen extends ConsumerStatefulWidget {
@@ -19,7 +21,7 @@ class _VacationScreenState extends ConsumerState<VacationScreen> with SingleTick
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 5, vsync: this);
   }
 
   @override
@@ -117,6 +119,7 @@ class _VacationScreenState extends ConsumerState<VacationScreen> with SingleTick
                 Tab(text: 'Genehmigt'),
                 Tab(text: 'Aktiv'),
                 Tab(text: 'Alle'),
+                Tab(text: 'Kalender'),
               ],
             ),
             const SizedBox(height: 16),
@@ -128,6 +131,7 @@ class _VacationScreenState extends ConsumerState<VacationScreen> with SingleTick
                   _buildApprovedRequests(),
                   _buildActiveRequests(),
                   _buildAllRequests(vacationRequestsAsyncValue),
+                  _buildCalendarView(),
                 ],
               ),
             ),
@@ -211,6 +215,67 @@ class _VacationScreenState extends ConsumerState<VacationScreen> with SingleTick
           onApprove: () => _approveRequest(request.id),
           onReject: () => _showRejectDialog(request),
           onCancel: () => _cancelRequest(request.id),
+        );
+      },
+    );
+  }
+
+  Widget _buildCalendarView() {
+    final vacationRequestsAsync = ref.watch(vacationRequestsProvider);
+    final employeesAsync = ref.watch(employeesProvider);
+
+    return vacationRequestsAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (error, stack) => _buildErrorState(error),
+      data: (requests) {
+        final employees = employeesAsync.valueOrNull ?? [];
+        return SfCalendar(
+          view: CalendarView.month,
+          dataSource: _VacationCalendarDataSource(requests, employees),
+          monthViewSettings: const MonthViewSettings(
+            appointmentDisplayMode: MonthAppointmentDisplayMode.appointment,
+            showAgenda: true,
+            agendaViewHeight: 200,
+            numberOfWeeksInView: 6,
+          ),
+          firstDayOfWeek: 1,
+          showNavigationArrow: true,
+          showDatePickerButton: true,
+          allowDragAndDrop: true,
+          onDragEnd: (details) {
+            if (details.appointment != null && details.droppingTime != null) {
+              final appointment = details.appointment! as Appointment;
+              final request = requests.firstWhere(
+                (r) => r.id == appointment.id,
+                orElse: () => requests.first,
+              );
+              final duration = request.endDate.difference(request.startDate);
+              final newStart = DateTime(
+                details.droppingTime!.year,
+                details.droppingTime!.month,
+                details.droppingTime!.day,
+              );
+              final newEnd = newStart.add(duration);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Urlaub verschoben auf ${newStart.day}.${newStart.month}.${newStart.year} - ${newEnd.day}.${newEnd.month}.${newEnd.year}'),
+                  action: SnackBarAction(
+                    label: 'Rückgängig',
+                    onPressed: () {},
+                  ),
+                ),
+              );
+            }
+          },
+          onTap: (details) {
+            if (details.appointments != null && details.appointments!.isNotEmpty) {
+              final appointment = details.appointments!.first as Appointment;
+              final request = requests.where((r) => r.id == appointment.id).firstOrNull;
+              if (request != null) {
+                _showRequestDetails(request);
+              }
+            }
+          },
         );
       },
     );
@@ -460,6 +525,84 @@ class _VacationScreenState extends ConsumerState<VacationScreen> with SingleTick
   }
 
   String _getTypeLabel(VacationType type) {
+    switch (type) {
+      case VacationType.annual:
+        return 'Jahresurlaub';
+      case VacationType.sick:
+        return 'Krankenstand';
+      case VacationType.personal:
+        return 'Persönlicher Urlaub';
+      case VacationType.maternity:
+        return 'Mutterschaftsurlaub';
+      case VacationType.paternity:
+        return 'Vaterschaftsurlaub';
+      case VacationType.emergency:
+        return 'Notfall';
+      case VacationType.unpaid:
+        return 'Unbezahlter Urlaub';
+      case VacationType.sabbatical:
+        return 'Sabbatical';
+    }
+  }
+}
+
+class _VacationCalendarDataSource extends CalendarDataSource {
+  _VacationCalendarDataSource(List<VacationRequest> requests, List<dynamic> employees) {
+    appointments = requests.map((request) {
+      String employeeName = 'Mitarbeiter ${request.employeeId}';
+      for (final emp in employees) {
+        if (emp.id == request.employeeId) {
+          employeeName = emp.fullName;
+          break;
+        }
+      }
+      return Appointment(
+        id: request.id,
+        startTime: request.startDate,
+        endTime: request.endDate.add(const Duration(hours: 23, minutes: 59)),
+        isAllDay: true,
+        subject: '$employeeName - ${_getTypeLabel(request.type)}',
+        color: _getColor(request),
+        notes: request.reason,
+      );
+    }).toList();
+  }
+
+  static Color _getColor(VacationRequest request) {
+    if (request.status == VacationRequestStatus.pending) {
+      return _getTypeColor(request.type).withOpacity(0.5);
+    }
+    if (request.status == VacationRequestStatus.rejected) {
+      return Colors.grey;
+    }
+    if (request.status == VacationRequestStatus.cancelled) {
+      return Colors.grey.shade400;
+    }
+    return _getTypeColor(request.type);
+  }
+
+  static Color _getTypeColor(VacationType type) {
+    switch (type) {
+      case VacationType.annual:
+        return Colors.blue;
+      case VacationType.sick:
+        return Colors.red;
+      case VacationType.personal:
+        return Colors.purple;
+      case VacationType.maternity:
+        return Colors.pink;
+      case VacationType.paternity:
+        return Colors.teal;
+      case VacationType.emergency:
+        return Colors.orange;
+      case VacationType.unpaid:
+        return Colors.brown;
+      case VacationType.sabbatical:
+        return Colors.indigo;
+    }
+  }
+
+  static String _getTypeLabel(VacationType type) {
     switch (type) {
       case VacationType.annual:
         return 'Jahresurlaub';

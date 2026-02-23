@@ -26,10 +26,10 @@ dependencies:
   pluto_grid: ^8.0.0
 
   # Charts & Visualizations
-  syncfusion_flutter_charts: ^26.2.11
-  syncfusion_flutter_gauges: ^26.2.11
-  syncfusion_flutter_calendar: ^26.2.11
-  syncfusion_flutter_datepicker: ^26.2.11
+  syncfusion_flutter_charts: ^32.1.23
+  syncfusion_flutter_gauges: ^32.1.23
+  syncfusion_flutter_calendar: ^32.1.23
+  syncfusion_flutter_datepicker: ^32.1.23
 
   # PDF Generation & Reports
   pdf: ^3.11.1
@@ -50,7 +50,7 @@ dependencies:
   webdav_client: ^1.2.2
 
   # Date & Time
-  intl: ^0.19.0
+  intl: ^0.20.2
   table_calendar: ^3.1.2
 
   # Utilities
@@ -75,7 +75,7 @@ dependencies:
 
   # Responsive Design
   responsive_framework: ^1.4.0
-  syncfusion_flutter_datagrid: ^26.2.14
+  syncfusion_flutter_datagrid: ^32.1.23
 
 dev_dependencies:
   flutter_test:

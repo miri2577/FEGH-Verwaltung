@@ -6,6 +6,7 @@ import '../../../models/employee.dart';
 import '../../../providers/employee_provider.dart';
 import 'employee_card.dart';
 import 'employee_form_dialog.dart';
+import '../employee_profile_screen.dart';
 
 class EmployeeListView extends ConsumerStatefulWidget {
   final List<Employee> employees;
@@ -245,12 +246,23 @@ class _EmployeeListViewState extends ConsumerState<EmployeeListView> {
             onPressed: () => Navigator.of(context).pop(),
             child: const Text('Schließen'),
           ),
-          FilledButton(
+          OutlinedButton(
             onPressed: () {
               Navigator.of(context).pop();
               _showEditEmployeeDialog(employee);
             },
             child: const Text('Bearbeiten'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => EmployeeProfileScreen(employeeId: employee.id),
+                ),
+              );
+            },
+            child: const Text('Profil öffnen'),
           ),
         ],
       ),

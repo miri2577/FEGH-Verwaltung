@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_symbols_icons/symbols.dart';
+import 'package:syncfusion_flutter_calendar/calendar.dart';
 import '../../models/timesheet.dart';
 import '../../providers/timesheet_provider.dart';
 import '../../providers/employee_provider.dart';
@@ -21,7 +22,7 @@ class _TimesheetsScreenState extends ConsumerState<TimesheetsScreen> with Single
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 5, vsync: this);
+    _tabController = TabController(length: 6, vsync: this);
   }
 
   @override
@@ -159,6 +160,7 @@ class _TimesheetsScreenState extends ConsumerState<TimesheetsScreen> with Single
                 Tab(text: 'Eingereicht'),
                 Tab(text: 'Genehmigt'),
                 Tab(text: 'Diese Woche'),
+                Tab(text: 'Kalender'),
               ],
             ),
             const SizedBox(height: 16),
@@ -171,6 +173,7 @@ class _TimesheetsScreenState extends ConsumerState<TimesheetsScreen> with Single
                   _buildTimesheetsByStatus(TimesheetStatus.submitted),
                   _buildTimesheetsByStatus(TimesheetStatus.approved),
                   _buildCurrentWeekTimesheets(),
+                  _buildCalendarView(),
                 ],
               ),
             ),
@@ -246,6 +249,77 @@ class _TimesheetsScreenState extends ConsumerState<TimesheetsScreen> with Single
           onSubmit: () => _submitTimesheet(timesheet.id),
           onApprove: () => _approveTimesheet(timesheet.id),
           onReject: () => _showRejectDialog(timesheet),
+        );
+      },
+    );
+  }
+
+  Widget _buildCalendarView() {
+    final timesheetsAsync = ref.watch(timesheetsProvider);
+    final employeesAsync = ref.watch(employeesProvider);
+
+    return timesheetsAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (error, stack) => _buildErrorState(error),
+      data: (timesheets) {
+        final allEntries = <TimesheetEntry>[];
+        final entryToTimesheet = <String, Timesheet>{};
+        for (final ts in timesheets) {
+          for (final entry in ts.entries) {
+            allEntries.add(entry);
+            entryToTimesheet[entry.id] = ts;
+          }
+        }
+        final employees = employeesAsync.valueOrNull ?? [];
+        return SfCalendar(
+          view: CalendarView.week,
+          dataSource: _TimesheetCalendarDataSource(allEntries, entryToTimesheet, employees),
+          firstDayOfWeek: 1,
+          showNavigationArrow: true,
+          showDatePickerButton: true,
+          allowDragAndDrop: true,
+          allowAppointmentResize: true,
+          timeSlotViewSettings: const TimeSlotViewSettings(
+            startHour: 6,
+            endHour: 22,
+            timeIntervalHeight: 60,
+            timeFormat: 'HH:mm',
+          ),
+          onTap: (details) {
+            if (details.appointments != null && details.appointments!.isNotEmpty) {
+              final appointment = details.appointments!.first as Appointment;
+              final entryId = appointment.id as String?;
+              if (entryId != null) {
+                final ts = entryToTimesheet[entryId];
+                if (ts != null) {
+                  _showTimesheetDetails(ts);
+                }
+              }
+            }
+          },
+          onDragEnd: (details) {
+            if (details.appointment != null && details.droppingTime != null) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Eintrag verschoben auf ${details.droppingTime!.hour}:${details.droppingTime!.minute.toString().padLeft(2, '0')}'),
+                  action: SnackBarAction(
+                    label: 'Rückgängig',
+                    onPressed: () {},
+                  ),
+                ),
+              );
+            }
+          },
+          onAppointmentResizeEnd: (details) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Eintrag geändert: ${details.startTime!.hour}:${details.startTime!.minute.toString().padLeft(2, '0')} - ${details.endTime!.hour}:${details.endTime!.minute.toString().padLeft(2, '0')}'),
+              ),
+            );
+          },
+          headerStyle: const CalendarHeaderStyle(
+            textAlign: TextAlign.center,
+          ),
         );
       },
     );
@@ -497,6 +571,69 @@ class _TimesheetsScreenState extends ConsumerState<TimesheetsScreen> with Single
         return 'Abgelehnte';
       case TimesheetStatus.finalized:
         return 'Abgeschlossene';
+    }
+  }
+}
+
+class _TimesheetCalendarDataSource extends CalendarDataSource {
+  _TimesheetCalendarDataSource(
+    List<TimesheetEntry> entries,
+    Map<String, Timesheet> entryToTimesheet,
+    List<dynamic> employees,
+  ) {
+    appointments = entries.map((entry) {
+      final ts = entryToTimesheet[entry.id];
+      String employeeName = '';
+      if (ts != null) {
+        for (final emp in employees) {
+          if (emp.id == ts.employeeId) {
+            employeeName = '${emp.fullName} - ';
+            break;
+          }
+        }
+      }
+      return Appointment(
+        id: entry.id,
+        startTime: entry.startTime,
+        endTime: entry.endTime,
+        subject: '$employeeName${_getEntryTypeLabel(entry.type)}',
+        color: _getEntryColor(entry.type),
+        notes: entry.description,
+      );
+    }).toList();
+  }
+
+  static Color _getEntryColor(TimesheetEntryType type) {
+    switch (type) {
+      case TimesheetEntryType.regular:
+        return Colors.blue;
+      case TimesheetEntryType.overtime:
+        return Colors.red;
+      case TimesheetEntryType.travel:
+        return Colors.orange;
+      case TimesheetEntryType.break_:
+        return Colors.grey;
+      case TimesheetEntryType.training:
+        return Colors.green;
+      case TimesheetEntryType.administrative:
+        return Colors.purple;
+    }
+  }
+
+  static String _getEntryTypeLabel(TimesheetEntryType type) {
+    switch (type) {
+      case TimesheetEntryType.regular:
+        return 'Regulär';
+      case TimesheetEntryType.overtime:
+        return 'Überstunden';
+      case TimesheetEntryType.travel:
+        return 'Reise';
+      case TimesheetEntryType.break_:
+        return 'Pause';
+      case TimesheetEntryType.training:
+        return 'Schulung';
+      case TimesheetEntryType.administrative:
+        return 'Verwaltung';
     }
   }
 }
