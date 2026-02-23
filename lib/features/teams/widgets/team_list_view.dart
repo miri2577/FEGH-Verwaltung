@@ -5,9 +5,9 @@ import 'package:syncfusion_flutter_datagrid/datagrid.dart';
 import '../../../models/team.dart';
 import '../../../providers/policy_provider.dart';
 import '../../../providers/team_provider.dart';
-import '../../../providers/employee_provider.dart';
 import 'team_card.dart';
 import 'team_form_dialog.dart';
+import '../team_profile_screen.dart';
 
 class TeamListView extends ConsumerStatefulWidget {
   final List<Team> teams;
@@ -229,57 +229,9 @@ class _TeamListViewState extends ConsumerState<TeamListView> {
   }
 
   void _showTeamDetails(Team team) {
-    final employeesAsync = ref.read(employeesProvider);
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(team.name),
-        content: SizedBox(
-          width: 400,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Beschreibung: ${team.description}'),
-              if (team.department != null) Text('Abteilung: ${team.department}'),
-              Text('Status: ${_getStatusLabel(team.status)}'),
-              Text('Mitglieder: ${team.memberCount}'),
-              if (team.location != null) Text('Standort: ${team.location}'),
-              if (team.budget != null)
-                Text('Budget: €${team.budget!.toStringAsFixed(2)}'),
-              const SizedBox(height: 16),
-              if (team.memberIds.isNotEmpty) ...[
-                Text('Team-Mitglieder:',
-                  style: Theme.of(context).textTheme.titleSmall),
-                const SizedBox(height: 8),
-                ...employeesAsync.when(
-                  data: (employees) => team.memberIds.map((memberId) {
-                    final employee = employees.where((e) => e.id == memberId).firstOrNull;
-                    return employee != null
-                        ? Text('• ${employee.fullName}')
-                        : Text('• Mitarbeiter ID: $memberId');
-                  }).toList(),
-                  loading: () => [const Text('Lade Mitglieder...')],
-                  error: (_, __) => [const Text('Fehler beim Laden der Mitglieder')],
-                ),
-              ],
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Schließen'),
-          ),
-          FilledButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              _showEditTeamDialog(team);
-            },
-            child: const Text('Bearbeiten'),
-          ),
-        ],
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => TeamProfileScreen(teamId: team.id),
       ),
     );
   }
