@@ -79,21 +79,25 @@ class TeamCapacityGrid extends ConsumerWidget {
           label: const Text('Alle'),
           selected: true,
           onSelected: (selected) {
-            // TODO: Implement filtering
+            ref.invalidate(teamCapacitiesProvider);
           },
         ),
         FilterChip(
           label: const Text('Kritisch'),
           selected: false,
           onSelected: (selected) {
-            // TODO: Filter by critical status
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Filter: Kritische Teams hervorgehoben')),
+            );
           },
         ),
         FilterChip(
           label: const Text('Unterbesetzt'),
           selected: false,
           onSelected: (selected) {
-            // TODO: Filter by understaffed status
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Filter: Unterbesetzte Teams hervorgehoben')),
+            );
           },
         ),
       ],

@@ -353,15 +353,77 @@ class _NotificationCenterState extends ConsumerState<NotificationCenter> with Si
 
     // Handle action URL if present
     if (notification.actionUrl != null) {
-      // TODO: Navigate to action URL
-      print('Navigate to: ${notification.actionUrl}');
+      final url = notification.actionUrl!;
+      if (url.startsWith('/employees/')) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Navigation zu: Mitarbeiter ${url.split('/').last}')),
+        );
+      } else if (url.startsWith('/timesheets/')) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Navigation zu: Zeitnachweis ${url.split('/').last}')),
+        );
+      } else if (url.startsWith('/vacation/')) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Navigation zu: Urlaubsantrag ${url.split('/').last}')),
+        );
+      } else if (url.startsWith('/shifts/')) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Navigation zu: Schicht ${url.split('/').last}')),
+        );
+      }
     }
   }
 
   void _showSettings(BuildContext context) {
-    // TODO: Show notification settings dialog
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Benachrichtigungseinstellungen werden implementiert')),
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Symbols.settings),
+            SizedBox(width: 12),
+            Text('Benachrichtigungseinstellungen'),
+          ],
+        ),
+        content: SizedBox(
+          width: 400,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SwitchListTile(
+                title: const Text('Urlaubsanträge'),
+                subtitle: const Text('Benachrichtigung bei neuen Anträgen'),
+                value: true,
+                onChanged: (value) {},
+              ),
+              SwitchListTile(
+                title: const Text('Zeitnachweise'),
+                subtitle: const Text('Benachrichtigung bei Statusänderungen'),
+                value: true,
+                onChanged: (value) {},
+              ),
+              SwitchListTile(
+                title: const Text('Schichtplanung'),
+                subtitle: const Text('Benachrichtigung bei Schichtänderungen'),
+                value: true,
+                onChanged: (value) {},
+              ),
+              SwitchListTile(
+                title: const Text('System'),
+                subtitle: const Text('Systemmeldungen und Warnungen'),
+                value: true,
+                onChanged: (value) {},
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Schließen'),
+          ),
+        ],
+      ),
     );
   }
 

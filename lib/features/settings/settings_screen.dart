@@ -18,6 +18,11 @@ import '../../services/audit_logger.dart';
 import '../../providers/policy_provider.dart';
 import '../admin/admin_console_screen.dart';
 import '../../providers/roles_policy_provider.dart';
+import 'package:file_picker/file_picker.dart';
+import 'dart:io';
+import '../../providers/timesheet_provider.dart';
+import '../../providers/shift_provider.dart';
+import '../../providers/vacation_provider.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -1006,17 +1011,80 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   void _showDataExportDialog() {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Daten exportieren'),
-        content: const Text('Datenexport wird noch implementiert. Diese Funktion ermöglicht es, alle Daten als JSON-Datei zu exportieren.'),
+      builder: (dialogContext) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Symbols.download),
+            SizedBox(width: 12),
+            Text('Daten exportieren'),
+          ],
+        ),
+        content: const SizedBox(
+          width: 400,
+          child: Text('Alle Daten (Mitarbeiter, Zeitnachweise, Schichten, Urlaubsanträge) werden als JSON-Datei exportiert.'),
+        ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Schließen'),
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton.icon(
+            onPressed: () async {
+              Navigator.of(dialogContext).pop();
+              await _performDataExport();
+            },
+            icon: const Icon(Symbols.download),
+            label: const Text('Exportieren'),
           ),
         ],
       ),
     );
+  }
+
+  Future<void> _performDataExport() async {
+    try {
+      final employees = ref.read(employeesProvider).valueOrNull ?? [];
+      final timesheets = ref.read(timesheetsProvider).valueOrNull ?? [];
+      final shifts = ref.read(shiftsProvider).valueOrNull ?? [];
+      final vacations = ref.read(vacationRequestsProvider).valueOrNull ?? [];
+
+      final exportData = {
+        'exportDate': DateTime.now().toIso8601String(),
+        'version': '1.0',
+        'employees': employees.map((e) => e.toJson()).toList(),
+        'timesheets': timesheets.map((t) => t.toJson()).toList(),
+        'shifts': shifts.map((s) => s.toJson()).toList(),
+        'vacationRequests': vacations.map((v) => v.toJson()).toList(),
+      };
+
+      final jsonString = const JsonEncoder.withIndent('  ').convert(exportData);
+
+      final result = await FilePicker.platform.saveFile(
+        dialogTitle: 'Daten exportieren',
+        fileName: 'personalverwaltung_export_${DateTime.now().millisecondsSinceEpoch}.json',
+        type: FileType.custom,
+        allowedExtensions: ['json'],
+      );
+
+      if (result != null) {
+        final file = File(result);
+        await file.writeAsString(jsonString);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Daten exportiert: ${employees.length} Mitarbeiter, ${timesheets.length} Zeitnachweise, ${shifts.length} Schichten, ${vacations.length} Urlaubsanträge'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Fehler beim Export: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
   }
 
   void _showResetDialog() {

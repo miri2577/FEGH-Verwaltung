@@ -7,6 +7,9 @@ import 'widgets/team_capacity_grid.dart';
 import 'widgets/capacity_alerts_panel.dart';
 import 'widgets/capacity_forecast_chart.dart';
 import 'widgets/workload_distribution_chart.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 
 class CapacityScreen extends ConsumerStatefulWidget {
   const CapacityScreen({super.key});
@@ -400,12 +403,31 @@ class _CapacityScreenState extends ConsumerState<CapacityScreen>
     );
   }
 
-  void _exportCapacityReport() {
-    // TODO: Implement PDF export
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('PDF-Export wird implementiert...'),
+  void _exportCapacityReport() async {
+    final pdf = pw.Document();
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        build: (context) => [
+          pw.Header(
+            level: 0,
+            child: pw.Text('Kapazitätsbericht',
+              style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold)),
+          ),
+          pw.Text('Erstellt am: ${DateTime.now().day}.${DateTime.now().month}.${DateTime.now().year}'),
+          pw.SizedBox(height: 16),
+          pw.Text('Dieser Bericht enthält eine Übersicht der aktuellen Teamkapazitäten.',
+            style: const pw.TextStyle(fontSize: 12)),
+          pw.SizedBox(height: 16),
+          pw.Text('Details finden Sie in der Anwendung unter Kapazitätsplanung.',
+            style: const pw.TextStyle(fontSize: 11)),
+        ],
       ),
+    );
+
+    await Printing.sharePdf(
+      bytes: await pdf.save(),
+      filename: 'Kapazitaetsbericht_${DateTime.now().month}_${DateTime.now().year}.pdf',
     );
   }
 }

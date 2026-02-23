@@ -6,6 +6,7 @@ import '../../../providers/reports_provider.dart';
 import '../../../providers/policy_provider.dart';
 import '../../../services/audit_logger.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class ExportDialog extends ConsumerStatefulWidget {
   final ReportConfig reportConfig;
@@ -242,7 +243,8 @@ class _ExportDialogState extends ConsumerState<ExportDialog> {
                   label: 'Öffnen',
                   textColor: Colors.white,
                   onPressed: () {
-                    // TODO: Open file
+                    final uri = Uri.file(path);
+                    launchUrl(uri);
                   },
                 ),
               ),

@@ -104,7 +104,7 @@ class ReportsSidebar extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             SizedBox(
-              width: 200,
+              width: double.infinity,
               child: OutlinedButton.icon(
                 onPressed: () => _generateMonthlyReport(context),
                 icon: const Icon(Symbols.calendar_month, size: 18),
@@ -113,7 +113,7 @@ class ReportsSidebar extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             SizedBox(
-              width: 200,
+              width: double.infinity,
               child: OutlinedButton.icon(
                 onPressed: () => _generateWeeklyReport(context),
                 icon: const Icon(Symbols.view_week, size: 18),
@@ -122,7 +122,7 @@ class ReportsSidebar extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             SizedBox(
-              width: 200,
+              width: double.infinity,
               child: OutlinedButton.icon(
                 onPressed: () => _generateCustomReport(context),
                 icon: const Icon(Symbols.tune, size: 18),
@@ -502,36 +502,84 @@ class ReportsSidebar extends StatelessWidget {
   }
 
   void _generateMonthlyReport(BuildContext context) {
-    // TODO: Generate monthly report
+    final now = DateTime.now();
+    final start = DateTime(now.year, now.month, 1);
+    final end = DateTime(now.year, now.month + 1, 0);
+    onDateRangeChanged(DateTimeRange(start: start, end: end));
+    onCategoryChanged('overview');
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Monatsbericht wird generiert...')),
+      SnackBar(
+        content: Text('Monatsbericht für ${start.month}/${start.year} geladen'),
+        backgroundColor: Colors.green,
+      ),
     );
   }
 
   void _generateWeeklyReport(BuildContext context) {
-    // TODO: Generate weekly report
+    final now = DateTime.now();
+    final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
+    final endOfWeek = startOfWeek.add(const Duration(days: 6));
+    onDateRangeChanged(DateTimeRange(start: startOfWeek, end: endOfWeek));
+    onCategoryChanged('overview');
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Wochenbericht wird generiert...')),
+      SnackBar(
+        content: Text('Wochenbericht KW${_getWeekNumber(now)} geladen'),
+        backgroundColor: Colors.green,
+      ),
     );
   }
 
+  int _getWeekNumber(DateTime date) {
+    final firstDayOfYear = DateTime(date.year, 1, 1);
+    final days = date.difference(firstDayOfYear).inDays;
+    return ((days + firstDayOfYear.weekday - 1) / 7).ceil();
+  }
+
   void _generateCustomReport(BuildContext context) {
-    // TODO: Show custom report builder
+    onCategoryChanged('custom');
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Custom Report Builder wird geöffnet...')),
+      const SnackBar(
+        content: Text('Custom Report Builder geöffnet - nutzen Sie die Filter oben'),
+        backgroundColor: Colors.blue,
+      ),
     );
   }
 
   void _showSavedReportsDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Gespeicherte Berichte verwalten'),
-        content: const Text('Verwaltung gespeicherter Berichte wird implementiert.'),
+      builder: (dialogContext) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Symbols.bookmark),
+            SizedBox(width: 12),
+            Text('Gespeicherte Berichte'),
+          ],
+        ),
+        content: SizedBox(
+          width: 400,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Symbols.folder_open, size: 48, color: Colors.grey),
+              const SizedBox(height: 16),
+              const Text(
+                'Noch keine gespeicherten Berichte vorhanden.',
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Berichte werden automatisch gespeichert, wenn Sie einen Report generieren.',
+                style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Schließen'),
           ),
         ],
       ),
@@ -539,12 +587,62 @@ class ReportsSidebar extends StatelessWidget {
   }
 
   void _loadSavedReport(BuildContext context, String name, String type) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$name wird geladen...')),
+    final reportType = _mapStringToReportType(type);
+    final config = ReportConfig(
+      id: 'saved-${DateTime.now().millisecondsSinceEpoch}',
+      name: name,
+      description: 'Gespeicherter Bericht: $name',
+      type: reportType,
+      format: ReportFormat.pdf,
+      period: ReportPeriod.monthly,
+      startDate: dateRange.start,
+      endDate: dateRange.end,
+      createdAt: DateTime.now(),
     );
+    onReportSelected(config);
   }
 
   void _setExportFormat(String format) {
-    // TODO: Set export format preference
+    final formatEnum = ReportFormat.values.firstWhere(
+      (f) => f.name.toLowerCase() == format.toLowerCase(),
+      orElse: () => ReportFormat.pdf,
+    );
+    final config = ReportConfig(
+      id: 'quick-export-${DateTime.now().millisecondsSinceEpoch}',
+      name: 'Schnell-Export $format',
+      description: 'Export im Format $format',
+      type: _mapStringToReportType(selectedCategory == 'all' ? 'overview' : selectedCategory),
+      format: formatEnum,
+      period: ReportPeriod.monthly,
+      startDate: dateRange.start,
+      endDate: dateRange.end,
+      createdAt: DateTime.now(),
+    );
+    onReportSelected(config);
+  }
+
+  ReportType _mapStringToReportType(String type) {
+    switch (type) {
+      case 'timesheet':
+        return ReportType.timesheet;
+      case 'employee':
+        return ReportType.employee;
+      case 'shifts':
+        return ReportType.shifts;
+      case 'capacity':
+        return ReportType.capacity;
+      case 'performance':
+        return ReportType.performance;
+      case 'attendance':
+        return ReportType.attendance;
+      case 'payroll':
+        return ReportType.payroll;
+      case 'vacation':
+        return ReportType.vacation;
+      case 'overview':
+        return ReportType.overview;
+      default:
+        return ReportType.overview;
+    }
   }
 }

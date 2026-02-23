@@ -471,14 +471,134 @@ class ShiftPlanningSidebar extends ConsumerWidget {
   }
 
   void _showTemplateDialog(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Vorlagen-Dialog wird implementiert')),
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Symbols.content_copy),
+            SizedBox(width: 12),
+            Text('Schichtvorlage anwenden'),
+          ],
+        ),
+        content: SizedBox(
+          width: 400,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Wählen Sie eine Vorlage:'),
+              const SizedBox(height: 16),
+              _buildTemplateOption(dialogContext, 'Frühschicht', '06:00 - 14:00', Colors.orange),
+              const SizedBox(height: 8),
+              _buildTemplateOption(dialogContext, 'Spätschicht', '14:00 - 22:00', Colors.blue),
+              const SizedBox(height: 8),
+              _buildTemplateOption(dialogContext, 'Nachtschicht', '22:00 - 06:00', Colors.indigo),
+              const SizedBox(height: 8),
+              _buildTemplateOption(dialogContext, 'Tagschicht', '08:00 - 16:30', Colors.green),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Schließen'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTemplateOption(BuildContext context, String name, String time, Color color) {
+    return InkWell(
+      onTap: () {
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Vorlage "$name" ($time) ausgewählt - erstellen Sie nun Schichten über den Kalender'),
+            backgroundColor: color,
+          ),
+        );
+      },
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          border: Border.all(color: color.withOpacity(0.5)),
+          borderRadius: BorderRadius.circular(8),
+          color: color.withOpacity(0.05),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 8,
+              height: 40,
+              decoration: BoxDecoration(
+                color: color,
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(name, style: TextStyle(fontWeight: FontWeight.bold, color: color)),
+                Text(time, style: TextStyle(fontSize: 12, color: color.withOpacity(0.7))),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 
   void _showBulkEditDialog(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Massenbearbeitung wird implementiert')),
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Symbols.edit_calendar),
+            SizedBox(width: 12),
+            Text('Massenbearbeitung'),
+          ],
+        ),
+        content: SizedBox(
+          width: 400,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Wählen Sie eine Aktion für die ausgewählten Schichten:'),
+              const SizedBox(height: 16),
+              ListTile(
+                leading: const Icon(Symbols.delete_sweep, color: Colors.red),
+                title: const Text('Alle Schichten im Zeitraum löschen'),
+                onTap: () {
+                  Navigator.of(dialogContext).pop();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Nutzen Sie die Filter, um Schichten einzugrenzen, und löschen Sie sie einzeln')),
+                  );
+                },
+              ),
+              ListTile(
+                leading: const Icon(Symbols.swap_horiz, color: Colors.blue),
+                title: const Text('Schichttyp ändern'),
+                onTap: () {
+                  Navigator.of(dialogContext).pop();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Nutzen Sie die Massenerstellung im Hauptmenü')),
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Schließen'),
+          ),
+        ],
+      ),
     );
   }
 

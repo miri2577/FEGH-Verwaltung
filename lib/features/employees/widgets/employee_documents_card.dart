@@ -1,8 +1,14 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_symbols_icons/symbols.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../models/employee.dart';
+import '../../../models/employee_document.dart';
+import '../../../providers/employee_document_provider.dart';
 
-class EmployeeDocumentsCard extends StatelessWidget {
+class EmployeeDocumentsCard extends ConsumerWidget {
   final Employee employee;
 
   const EmployeeDocumentsCard({
@@ -11,7 +17,16 @@ class EmployeeDocumentsCard extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final documents = ref.watch(documentsByEmployeeProvider(employee.id));
+
+    final categories = {
+      'Personalakte': (Symbols.badge, Colors.blue),
+      'Schulungen & Zertifikate': (Symbols.school, Colors.green),
+      'Urlaubsanträge': (Symbols.beach_access, Colors.orange),
+      'Sonstige Dokumente': (Symbols.description, Colors.purple),
+    };
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -34,64 +49,27 @@ class EmployeeDocumentsCard extends StatelessWidget {
                 ),
                 const Spacer(),
                 FilledButton.icon(
-                  onPressed: () => _showUploadDialog(context),
+                  onPressed: () => _showUploadDialog(context, ref),
                   icon: const Icon(Symbols.upload_file, size: 18),
                   label: const Text('Hinzufügen'),
                 ),
               ],
             ),
             const SizedBox(height: 20),
-
-            // Document Categories
-            _buildDocumentCategory(
-              context,
-              'Personalakte',
-              [
-                _DocumentItem('Arbeitsvertrag', 'contract.pdf', DateTime.now().subtract(const Duration(days: 30))),
-                _DocumentItem('Lebenslauf', 'cv.pdf', DateTime.now().subtract(const Duration(days: 45))),
-                _DocumentItem('Zeugnisse', 'certificates.pdf', DateTime.now().subtract(const Duration(days: 60))),
-              ],
-              Symbols.badge,
-              Colors.blue,
-            ),
-
-            const SizedBox(height: 20),
-
-            _buildDocumentCategory(
-              context,
-              'Schulungen & Zertifikate',
-              [
-                _DocumentItem('Arbeitssicherheit', 'safety_training.pdf', DateTime.now().subtract(const Duration(days: 90))),
-                _DocumentItem('Erste Hilfe Kurs', 'first_aid.pdf', DateTime.now().subtract(const Duration(days: 200))),
-              ],
-              Symbols.school,
-              Colors.green,
-            ),
-
-            const SizedBox(height: 20),
-
-            _buildDocumentCategory(
-              context,
-              'Urlaubsanträge',
-              [
-                _DocumentItem('Sommerurlaub 2024', 'vacation_2024_summer.pdf', DateTime.now().subtract(const Duration(days: 10))),
-                _DocumentItem('Weihnachtsurlaub 2023', 'vacation_2023_christmas.pdf', DateTime.now().subtract(const Duration(days: 300))),
-              ],
-              Symbols.beach_access,
-              Colors.orange,
-            ),
-
-            const SizedBox(height: 20),
-
-            _buildDocumentCategory(
-              context,
-              'Sonstige Dokumente',
-              [
-                _DocumentItem('Führungszeugnis', 'background_check.pdf', DateTime.now().subtract(const Duration(days: 365))),
-              ],
-              Symbols.description,
-              Colors.purple,
-            ),
+            ...categories.entries.map((entry) {
+              final categoryDocs = documents.where((d) => d.category == entry.key).toList();
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 20),
+                child: _buildDocumentCategory(
+                  context,
+                  ref,
+                  entry.key,
+                  categoryDocs,
+                  entry.value.$1,
+                  entry.value.$2,
+                ),
+              );
+            }),
           ],
         ),
       ),
@@ -100,8 +78,9 @@ class EmployeeDocumentsCard extends StatelessWidget {
 
   Widget _buildDocumentCategory(
     BuildContext context,
+    WidgetRef ref,
     String title,
-    List<_DocumentItem> documents,
+    List<EmployeeDocument> documents,
     IconData icon,
     Color color,
   ) {
@@ -143,7 +122,7 @@ class EmployeeDocumentsCard extends StatelessWidget {
             padding: const EdgeInsets.all(16),
             width: double.infinity,
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+              color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.3),
               borderRadius: BorderRadius.circular(8),
               border: Border.all(
                 color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
@@ -167,12 +146,12 @@ class EmployeeDocumentsCard extends StatelessWidget {
             ),
           )
         else
-          ...documents.map((doc) => _buildDocumentItem(context, doc, color)),
+          ...documents.map((doc) => _buildDocumentItem(context, ref, doc, color)),
       ],
     );
   }
 
-  Widget _buildDocumentItem(BuildContext context, _DocumentItem document, Color categoryColor) {
+  Widget _buildDocumentItem(BuildContext context, WidgetRef ref, EmployeeDocument document, Color categoryColor) {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(12),
@@ -217,13 +196,22 @@ class EmployeeDocumentsCard extends StatelessWidget {
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
-                    const Text(' • '),
+                    const Text(' \u2022 '),
                     Text(
-                      _formatUploadDate(document.uploadDate),
+                      _formatUploadDate(document.uploadedAt),
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
+                    if (document.fileSize > 0) ...[
+                      const Text(' \u2022 '),
+                      Text(
+                        document.formattedSize,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ],
@@ -241,26 +229,6 @@ class EmployeeDocumentsCard extends StatelessWidget {
                   ],
                 ),
               ),
-              const PopupMenuItem(
-                value: 'download',
-                child: Row(
-                  children: [
-                    Icon(Symbols.download, size: 18),
-                    SizedBox(width: 8),
-                    Text('Herunterladen'),
-                  ],
-                ),
-              ),
-              const PopupMenuItem(
-                value: 'share',
-                child: Row(
-                  children: [
-                    Icon(Symbols.share, size: 18),
-                    SizedBox(width: 8),
-                    Text('Teilen'),
-                  ],
-                ),
-              ),
               const PopupMenuDivider(),
               const PopupMenuItem(
                 value: 'delete',
@@ -268,12 +236,12 @@ class EmployeeDocumentsCard extends StatelessWidget {
                   children: [
                     Icon(Symbols.delete, size: 18, color: Colors.red),
                     SizedBox(width: 8),
-                    Text('Löschen', style: TextStyle(color: Colors.red)),
+                    Text('L\u00f6schen', style: TextStyle(color: Colors.red)),
                   ],
                 ),
               ),
             ],
-            onSelected: (value) => _handleDocumentAction(context, value, document),
+            onSelected: (value) => _handleDocumentAction(context, ref, value, document),
             child: Container(
               padding: const EdgeInsets.all(4),
               child: Icon(
@@ -330,108 +298,173 @@ class EmployeeDocumentsCard extends StatelessWidget {
     }
   }
 
-  void _showUploadDialog(BuildContext context) {
+  void _showUploadDialog(BuildContext context, WidgetRef ref) {
+    final nameController = TextEditingController();
+    String selectedCategory = 'Personalakte';
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Symbols.upload_file),
-            SizedBox(width: 12),
-            Text('Dokument hinzufügen'),
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Symbols.upload_file),
+              SizedBox(width: 12),
+              Text('Dokument hinzuf\u00fcgen'),
+            ],
+          ),
+          content: SizedBox(
+            width: 400,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(
+                  controller: nameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Dokumentname',
+                    border: OutlineInputBorder(),
+                    hintText: 'z.B. Arbeitsvertrag',
+                  ),
+                ),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  value: selectedCategory,
+                  decoration: const InputDecoration(
+                    labelText: 'Kategorie',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'Personalakte', child: Text('Personalakte')),
+                    DropdownMenuItem(value: 'Schulungen & Zertifikate', child: Text('Schulungen & Zertifikate')),
+                    DropdownMenuItem(value: 'Urlaubsantr\u00e4ge', child: Text('Urlaubsantr\u00e4ge')),
+                    DropdownMenuItem(value: 'Sonstige Dokumente', child: Text('Sonstige Dokumente')),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) {
+                      setDialogState(() => selectedCategory = value);
+                    }
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Abbrechen'),
+            ),
+            FilledButton.icon(
+              onPressed: () async {
+                final result = await FilePicker.platform.pickFiles();
+                if (result != null && result.files.single.path != null) {
+                  final filePath = result.files.single.path!;
+                  final docName = nameController.text.trim().isEmpty
+                      ? result.files.single.name
+                      : nameController.text.trim();
+
+                  final doc = await ref.read(employeeDocumentsProvider.notifier).addDocument(
+                    employeeId: employee.id,
+                    name: docName,
+                    category: selectedCategory,
+                    sourceFilePath: filePath,
+                  );
+
+                  if (dialogContext.mounted) {
+                    Navigator.of(dialogContext).pop();
+                  }
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(doc != null
+                            ? 'Dokument "$docName" wurde hinzugef\u00fcgt'
+                            : 'Fehler beim Hochladen'),
+                      ),
+                    );
+                  }
+                }
+              },
+              icon: const Icon(Symbols.upload_file),
+              label: const Text('Datei ausw\u00e4hlen & hochladen'),
+            ),
           ],
         ),
-        content: const Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('Wählen Sie eine Datei zum Hochladen aus:'),
-            SizedBox(height: 16),
-            // TODO: Implement file picker
-            Text('Datei-Auswahl wird implementiert'),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Abbrechen'),
-          ),
-          FilledButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Upload-Funktion wird implementiert')),
-              );
-            },
-            child: const Text('Hochladen'),
-          ),
-        ],
       ),
     );
   }
 
-  void _handleDocumentAction(BuildContext context, String action, _DocumentItem document) {
+  void _handleDocumentAction(BuildContext context, WidgetRef ref, String action, EmployeeDocument document) {
     switch (action) {
       case 'view':
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${document.name} wird angezeigt')),
-        );
-        break;
-      case 'download':
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${document.name} wird heruntergeladen')),
-        );
-        break;
-      case 'share':
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${document.name} wird geteilt')),
-        );
+        _openDocument(context, document);
         break;
       case 'delete':
-        _showDeleteConfirmation(context, document);
+        _showDeleteConfirmation(context, ref, document);
         break;
     }
   }
 
-  void _showDeleteConfirmation(BuildContext context, _DocumentItem document) {
+  void _openDocument(BuildContext context, EmployeeDocument document) async {
+    final file = File(document.filePath);
+    if (await file.exists()) {
+      final uri = Uri.file(document.filePath);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri);
+      } else {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Datei konnte nicht ge\u00f6ffnet werden')),
+          );
+        }
+      }
+    } else {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Datei nicht gefunden')),
+        );
+      }
+    }
+  }
+
+  void _showDeleteConfirmation(BuildContext context, WidgetRef ref, EmployeeDocument document) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Row(
           children: [
             Icon(Symbols.warning, color: Colors.red),
             SizedBox(width: 12),
-            Text('Dokument löschen'),
+            Text('Dokument l\u00f6schen'),
           ],
         ),
-        content: Text('Möchten Sie "${document.name}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.'),
+        content: Text('M\u00f6chten Sie "${document.name}" wirklich l\u00f6schen? Diese Aktion kann nicht r\u00fcckg\u00e4ngig gemacht werden.'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(),
+            onPressed: () => Navigator.of(dialogContext).pop(),
             child: const Text('Abbrechen'),
           ),
           FilledButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('${document.name} wurde gelöscht')),
-              );
+            onPressed: () async {
+              Navigator.of(dialogContext).pop();
+              final success = await ref.read(employeeDocumentsProvider.notifier).deleteDocument(document.id);
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(success
+                        ? '"${document.name}" wurde gel\u00f6scht'
+                        : 'Fehler beim L\u00f6schen'),
+                  ),
+                );
+              }
             },
             style: FilledButton.styleFrom(
               backgroundColor: Colors.red,
               foregroundColor: Colors.white,
             ),
-            child: const Text('Löschen'),
+            child: const Text('L\u00f6schen'),
           ),
         ],
       ),
     );
   }
-}
-
-class _DocumentItem {
-  final String name;
-  final String fileName;
-  final DateTime uploadDate;
-
-  _DocumentItem(this.name, this.fileName, this.uploadDate);
 }

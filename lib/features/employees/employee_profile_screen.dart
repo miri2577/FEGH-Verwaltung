@@ -14,7 +14,11 @@ import 'widgets/employee_info_card.dart';
 import 'widgets/employee_stats_card.dart';
 import 'widgets/employee_documents_card.dart';
 import 'widgets/employee_timesheet_history.dart';
+import 'widgets/employee_form_dialog.dart';
 import '../timesheets/widgets/timesheet_card.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 
 class EmployeeProfileScreen extends ConsumerStatefulWidget {
   final String employeeId;
@@ -393,6 +397,53 @@ class _EmployeeProfileScreenState extends ConsumerState<EmployeeProfileScreen>
   }
 
   Widget _buildPerformanceCard(Employee employee) {
+    final timesheetsAsync = ref.watch(timesheetsByEmployeeProvider(employee.id));
+    final shiftsAsync = ref.watch(shiftsByEmployeeProvider(employee.id));
+
+    final timesheets = timesheetsAsync.valueOrNull ?? [];
+    final shifts = shiftsAsync.valueOrNull ?? [];
+
+    // Calculate average weekly hours from last 4 weeks of timesheets
+    final now = DateTime.now();
+    final fourWeeksAgo = now.subtract(const Duration(days: 28));
+    final recentTimesheets = timesheets.where((ts) =>
+      ts.startDate.isAfter(fourWeeksAgo)).toList();
+    final totalHours = recentTimesheets.fold(0.0,
+      (sum, ts) => sum + ts.calculatedTotalHours);
+    final weeks = recentTimesheets.isEmpty ? 1 :
+      (now.difference(recentTimesheets.map((ts) => ts.startDate).reduce(
+        (a, b) => a.isBefore(b) ? a : b).isAfter(fourWeeksAgo) ?
+        recentTimesheets.map((ts) => ts.startDate).reduce(
+          (a, b) => a.isBefore(b) ? a : b) : fourWeeksAgo
+      ).inDays / 7).ceil().clamp(1, 4);
+    final avgWeeklyHours = totalHours / weeks;
+
+    // Calculate overtime this month
+    final monthStart = DateTime(now.year, now.month, 1);
+    final monthTimesheets = timesheets.where((ts) =>
+      ts.startDate.isAfter(monthStart.subtract(const Duration(days: 1)))).toList();
+    final overtimeHours = monthTimesheets.fold(0.0,
+      (sum, ts) => sum + ts.calculatedOvertimeHours);
+
+    // Calculate punctuality from shifts (actualStartTime <= startTime)
+    final thirtyDaysAgo = now.subtract(const Duration(days: 30));
+    final recentShifts = shifts.where((s) =>
+      s.startTime.isAfter(thirtyDaysAgo) &&
+      (s.status == ShiftStatus.completed || s.status == ShiftStatus.inProgress)).toList();
+    final punctualShifts = recentShifts.where((s) =>
+      s.actualStartTime != null &&
+      !s.actualStartTime!.isAfter(s.startTime.add(const Duration(minutes: 5)))).length;
+    final punctuality = recentShifts.isEmpty ? 100.0 :
+      (punctualShifts / recentShifts.length * 100);
+
+    // Calculate attendance (completed shifts vs scheduled shifts this month)
+    final monthShifts = shifts.where((s) =>
+      s.startTime.isAfter(monthStart.subtract(const Duration(days: 1))) &&
+      s.startTime.isBefore(now)).toList();
+    final completedShifts = monthShifts.where((s) =>
+      s.status == ShiftStatus.completed || s.status == ShiftStatus.inProgress).length;
+    final totalScheduled = monthShifts.length;
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -417,7 +468,7 @@ class _EmployeeProfileScreenState extends ConsumerState<EmployeeProfileScreen>
                 Expanded(
                   child: _buildMetricTile(
                     'Durchschnittliche Arbeitszeit',
-                    '38.5h',
+                    '${avgWeeklyHours.toStringAsFixed(1)}h',
                     'pro Woche',
                     Colors.blue,
                   ),
@@ -426,7 +477,7 @@ class _EmployeeProfileScreenState extends ConsumerState<EmployeeProfileScreen>
                 Expanded(
                   child: _buildMetricTile(
                     'Überstunden',
-                    '12.5h',
+                    '${overtimeHours.toStringAsFixed(1)}h',
                     'diesen Monat',
                     Colors.orange,
                   ),
@@ -439,7 +490,7 @@ class _EmployeeProfileScreenState extends ConsumerState<EmployeeProfileScreen>
                 Expanded(
                   child: _buildMetricTile(
                     'Pünktlichkeit',
-                    '96%',
+                    '${punctuality.toStringAsFixed(0)}%',
                     'letzte 30 Tage',
                     Colors.green,
                   ),
@@ -448,7 +499,7 @@ class _EmployeeProfileScreenState extends ConsumerState<EmployeeProfileScreen>
                 Expanded(
                   child: _buildMetricTile(
                     'Anwesenheit',
-                    '22/23',
+                    '$completedShifts/$totalScheduled',
                     'Arbeitstage',
                     Colors.teal,
                   ),
@@ -573,29 +624,115 @@ class _EmployeeProfileScreenState extends ConsumerState<EmployeeProfileScreen>
   }
 
   void _showEditDialog(Employee employee) {
-    // TODO: Implement employee edit dialog
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Bearbeitung wird implementiert')),
+    showDialog(
+      context: context,
+      builder: (context) => EmployeeFormDialog(
+        employee: employee,
+        onSave: (updatedEmployee) {
+          ref.read(employeesProvider.notifier).updateEmployee(updatedEmployee);
+          ScaffoldMessenger.of(this.context).showSnackBar(
+            const SnackBar(content: Text('Mitarbeiter wurde aktualisiert')),
+          );
+        },
+      ),
     );
   }
 
   void _handleMenuAction(String action, Employee employee) {
     switch (action) {
       case 'export':
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Export-Funktion wird implementiert')),
-        );
+        _exportProfilePdf(employee);
         break;
       case 'print':
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Druck-Funktion wird implementiert')),
-        );
+        _printProfile(employee);
         break;
       case 'activate':
       case 'deactivate':
         _toggleEmployeeStatus(employee);
         break;
     }
+  }
+
+  pw.Document _buildProfilePdf(Employee employee) {
+    final pdf = pw.Document();
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        build: (context) => [
+          pw.Header(
+            level: 0,
+            child: pw.Text('Mitarbeiterprofil', style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold)),
+          ),
+          pw.SizedBox(height: 8),
+          pw.Text('${employee.fullName}', style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
+          pw.Text('${employee.position} - ${employee.department}'),
+          pw.Divider(),
+          pw.SizedBox(height: 12),
+          pw.Header(level: 1, text: 'Persönliche Informationen'),
+          _pdfRow('Mitarbeiter-ID', employee.id),
+          _pdfRow('Mitarbeiternummer', employee.employeeNumber),
+          _pdfRow('E-Mail', employee.email),
+          _pdfRow('Telefon', employee.phone ?? 'Nicht angegeben'),
+          _pdfRow('Geburtsdatum', employee.dateOfBirth != null
+              ? '${employee.dateOfBirth!.day}.${employee.dateOfBirth!.month}.${employee.dateOfBirth!.year}'
+              : 'Nicht angegeben'),
+          _pdfRow('Adresse', employee.address.fullAddress),
+          pw.SizedBox(height: 12),
+          pw.Header(level: 1, text: 'Vertragsinformationen'),
+          _pdfRow('Position', employee.position),
+          _pdfRow('Abteilung', employee.department),
+          _pdfRow('Vertragsart', employee.contractType.name),
+          _pdfRow('Stundenlohn', '${employee.hourlyRate.toStringAsFixed(2)} EUR'),
+          _pdfRow('Wochenarbeitszeit', '${employee.contractualHours} Stunden'),
+          _pdfRow('Einstellungsdatum', '${employee.hireDate.day}.${employee.hireDate.month}.${employee.hireDate.year}'),
+          _pdfRow('Status', employee.statusLabel),
+          if (employee.notes != null && employee.notes!.isNotEmpty) ...[
+            pw.SizedBox(height: 12),
+            pw.Header(level: 1, text: 'Notizen'),
+            pw.Text(employee.notes!),
+          ],
+          pw.SizedBox(height: 20),
+          pw.Divider(),
+          pw.Text(
+            'Erstellt am: ${DateTime.now().day}.${DateTime.now().month}.${DateTime.now().year}',
+            style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey),
+          ),
+        ],
+      ),
+    );
+    return pdf;
+  }
+
+  static pw.Widget _pdfRow(String label, String value) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.symmetric(vertical: 2),
+      child: pw.Row(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.SizedBox(
+            width: 150,
+            child: pw.Text(label, style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 11)),
+          ),
+          pw.Expanded(child: pw.Text(value, style: const pw.TextStyle(fontSize: 11))),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _exportProfilePdf(Employee employee) async {
+    final pdf = _buildProfilePdf(employee);
+    await Printing.sharePdf(
+      bytes: await pdf.save(),
+      filename: 'Mitarbeiterprofil_${employee.lastName}_${employee.firstName}.pdf',
+    );
+  }
+
+  Future<void> _printProfile(Employee employee) async {
+    final pdf = _buildProfilePdf(employee);
+    await Printing.layoutPdf(
+      onLayout: (PdfPageFormat format) async => pdf.save(),
+      name: 'Mitarbeiterprofil_${employee.fullName}',
+    );
   }
 
   void _toggleEmployeeStatus(Employee employee) {

@@ -8,6 +8,10 @@ import '../../providers/employee_provider.dart';
 import 'widgets/shift_calendar_widget.dart';
 import 'widgets/shift_planning_sidebar.dart';
 import 'widgets/bulk_shift_dialog.dart';
+import 'widgets/shift_form_dialog.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 
 class ShiftPlanningScreen extends ConsumerStatefulWidget {
   const ShiftPlanningScreen({super.key});
@@ -280,19 +284,22 @@ class _ShiftPlanningScreenState extends ConsumerState<ShiftPlanningScreen> {
   }
 
   void _handleShiftTap(Shift shift) {
-    // TODO: Show shift details/edit dialog
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Schicht angeklickt: ${shift.id}')),
+    showDialog(
+      context: context,
+      builder: (context) => ShiftFormDialog(
+        shift: shift,
+        onSave: (updatedShift) async {
+          ref.read(shiftsProvider.notifier).updateShift(updatedShift);
+        },
+      ),
     );
   }
 
   void _handleTimeSlotTap(DateTime dateTime) {
-    // TODO: Create new shift at this time slot
     _createNewShift(dateTime: dateTime);
   }
 
   void _handleShiftDrag(Shift shift, DateTime newStartTime) {
-    // TODO: Update shift with new start time
     final duration = shift.endTime.difference(shift.startTime);
     final newEndTime = newStartTime.add(duration);
 
@@ -309,12 +316,12 @@ class _ShiftPlanningScreenState extends ConsumerState<ShiftPlanningScreen> {
   }
 
   void _createNewShift({DateTime? dateTime}) {
-    // TODO: Show create shift dialog
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(dateTime != null
-          ? 'Neue Schicht für ${dateTime.day}.${dateTime.month}.${dateTime.year}'
-          : 'Neue Schicht erstellen'),
+    showDialog(
+      context: context,
+      builder: (context) => ShiftFormDialog(
+        onSave: (shift) async {
+          ref.read(shiftsProvider.notifier).addShift(shift);
+        },
       ),
     );
   }
@@ -326,9 +333,45 @@ class _ShiftPlanningScreenState extends ConsumerState<ShiftPlanningScreen> {
     );
   }
 
-  void _exportSchedule() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Export-Funktion wird implementiert')),
+  void _exportSchedule() async {
+    final shifts = ref.read(shiftsProvider).valueOrNull ?? [];
+    final employees = ref.read(employeesProvider).valueOrNull ?? [];
+    final filteredShifts = _getFilteredShifts(shifts);
+
+    final pdf = pw.Document();
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4.landscape,
+        build: (context) => [
+          pw.Header(
+            level: 0,
+            child: pw.Text('Schichtplan - ${_getPeriodTitle()}',
+              style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold)),
+          ),
+          pw.SizedBox(height: 8),
+          pw.TableHelper.fromTextArray(
+            headers: ['Mitarbeiter', 'Datum', 'Von', 'Bis', 'Typ', 'Status'],
+            data: filteredShifts.map((s) {
+              final emp = employees.where((e) => e.id == s.employeeId).firstOrNull;
+              return [
+                emp?.fullName ?? s.employeeId,
+                '${s.startTime.day}.${s.startTime.month}.${s.startTime.year}',
+                '${s.startTime.hour}:${s.startTime.minute.toString().padLeft(2, '0')}',
+                '${s.endTime.hour}:${s.endTime.minute.toString().padLeft(2, '0')}',
+                s.type.name,
+                s.status.name,
+              ];
+            }).toList(),
+            headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10),
+            cellStyle: const pw.TextStyle(fontSize: 9),
+          ),
+        ],
+      ),
+    );
+
+    await Printing.sharePdf(
+      bytes: await pdf.save(),
+      filename: 'Schichtplan_${_getPeriodTitle().replaceAll(' ', '_')}.pdf',
     );
   }
 

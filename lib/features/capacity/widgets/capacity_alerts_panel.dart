@@ -212,7 +212,12 @@ class CapacityAlertsPanel extends ConsumerWidget {
           FilledButton(
             onPressed: () {
               Navigator.of(context).pop();
-              // TODO: Navigate to relevant management screen
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Navigieren Sie zur Schichtplanung, um Maßnahmen zu ergreifen'),
+                  backgroundColor: Colors.blue,
+                ),
+              );
             },
             child: const Text('Maßnahmen'),
           ),

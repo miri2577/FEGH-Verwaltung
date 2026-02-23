@@ -21,11 +21,18 @@ class ReportsScreen extends ConsumerStatefulWidget {
 class _ReportsScreenState extends ConsumerState<ReportsScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  String _selectedCategory = 'all';
+  late DateTimeRange _dateRange;
+  double _sidebarWidth = 320;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
+    _dateRange = DateTimeRange(
+      start: DateTime.now().subtract(const Duration(days: 30)),
+      end: DateTime.now(),
+    );
   }
 
   @override
@@ -62,7 +69,6 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
-          // Quick Export Buttons
           PopupMenuButton<String>(
             icon: const Icon(Symbols.download),
             tooltip: 'Schnell-Export',
@@ -130,50 +136,74 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
       ),
       body: Row(
         children: [
-          // Sidebar
+          // Resizable Sidebar
           SizedBox(
-            width: 250,
+            width: _sidebarWidth,
             child: ReportsSidebar(
-            selectedCategory: 'all',
-            dateRange: DateTimeRange(
-              start: DateTime.now().subtract(const Duration(days: 30)),
-              end: DateTime.now(),
-            ),
-            onCategoryChanged: (category) {},
-            onDateRangeChanged: (range) {},
-            onReportSelected: (reportId) {},
+              selectedCategory: _selectedCategory,
+              dateRange: _dateRange,
+              onCategoryChanged: (category) {
+                setState(() => _selectedCategory = category);
+              },
+              onDateRangeChanged: (range) {
+                setState(() => _dateRange = range);
+              },
+              onReportSelected: (config) {
+                showDialog(
+                  context: context,
+                  builder: (context) => ExportDialog(reportConfig: config),
+                );
+              },
             ),
           ),
-          const VerticalDivider(width: 1),
+          // Drag handle to resize sidebar
+          MouseRegion(
+            cursor: SystemMouseCursors.resizeColumn,
+            child: GestureDetector(
+              onHorizontalDragUpdate: (details) {
+                setState(() {
+                  _sidebarWidth = (_sidebarWidth + details.delta.dx).clamp(260, 500);
+                });
+              },
+              child: Container(
+                width: 6,
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                child: Center(
+                  child: Container(
+                    width: 2,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.outline.withOpacity(0.5),
+                      borderRadius: BorderRadius.circular(1),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
 
           // Main Content
           Expanded(
-            flex: 4,
             child: TabBarView(
               controller: _tabController,
               children: [
-                // Dashboard Tab
                 ReportDashboard(
-                  selectedCategory: 'all',
-                  dateRange: DateTimeRange(
-                    start: DateTime.now().subtract(const Duration(days: 30)),
-                    end: DateTime.now(),
-                  ),
-                  onReportSelected: (reportId) {},
+                  selectedCategory: _selectedCategory,
+                  dateRange: _dateRange,
+                  onReportSelected: (config) {
+                    showDialog(
+                      context: context,
+                      builder: (context) => ExportDialog(reportConfig: config),
+                    );
+                  },
                 ),
-
-                // Templates Tab
                 ReportTemplates(
-                  selectedCategory: 'all',
+                  selectedCategory: _selectedCategory,
                   onTemplateSelected: (template) => _createReportFromTemplate(template),
                 ),
-
-                // Report Builder Tab
                 ReportBuilder(
                   onReportGenerated: (config) => _handleReportCreated(config),
                 ),
-
-                // History Tab
                 _buildHistoryTab(reportsAsync),
               ],
             ),
@@ -270,7 +300,6 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          // Quick Export Buttons
                           IconButton(
                             icon: const Icon(Symbols.picture_as_pdf, color: Colors.red),
                             tooltip: 'Als PDF exportieren',
@@ -362,7 +391,6 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
   }
 
   void _quickExport(String format) {
-    // Create a sample report config for quick export
     final sampleReport = ReportConfig(
       id: 'quick-export-${DateTime.now().millisecondsSinceEpoch}',
       name: 'Schnell-Export ${format.toUpperCase()}',
@@ -370,8 +398,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
       type: ReportType.overview,
       format: ReportFormat.values.firstWhere((f) => f.name == format),
       period: ReportPeriod.monthly,
-      startDate: DateTime.now().subtract(const Duration(days: 30)),
-      endDate: DateTime.now(),
+      startDate: _dateRange.start,
+      endDate: _dateRange.end,
       createdAt: DateTime.now(),
     );
 
@@ -380,11 +408,10 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
   }
 
   void _showReportBuilder() {
-    _tabController.animateTo(2); // Switch to Report Builder tab
+    _tabController.animateTo(2);
   }
 
   void _createReportFromTemplate(dynamic template) {
-    // Switch to Report Builder and pre-fill with template
     _tabController.animateTo(2);
   }
 
@@ -396,8 +423,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
       type: template.type,
       format: template.format,
       period: ReportPeriod.monthly,
-      startDate: DateTime.now().subtract(const Duration(days: 30)),
-      endDate: DateTime.now(),
+      startDate: _dateRange.start,
+      endDate: _dateRange.end,
       columns: template.defaultColumns,
       filters: template.defaultFilters,
       createdAt: DateTime.now(),
@@ -417,7 +444,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
         backgroundColor: Colors.green,
       ),
     );
-    _tabController.animateTo(3); // Switch to History tab
+    _tabController.animateTo(3);
   }
 
   void _exportReport(ReportConfig report, ReportFormat format) {
@@ -435,7 +462,10 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
   void _handleReportAction(String action, ReportConfig report) {
     switch (action) {
       case 'edit':
-        // TODO: Edit report
+        _tabController.animateTo(2);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Report "${report.name}" im Builder geöffnet')),
+        );
         break;
       case 'duplicate':
         final duplicated = report.copyWith(

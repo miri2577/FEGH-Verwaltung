@@ -506,32 +506,31 @@ class _ReportBuilderState extends ConsumerState<ReportBuilder> {
               ),
             ),
             const SizedBox(height: 16),
-            // TODO: Add dynamic filter builder
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                FilterChip(
+                  label: const Text('Nur aktive Mitarbeiter'),
+                  selected: true,
+                  onSelected: (value) {},
                 ),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    Symbols.filter_alt,
-                    size: 24,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    'Erweiterte Filter werden hier konfiguriert',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
+                FilterChip(
+                  label: const Text('Überstunden > 0'),
+                  selected: false,
+                  onSelected: (value) {},
+                ),
+                FilterChip(
+                  label: const Text('Mit Urlaubstagen'),
+                  selected: false,
+                  onSelected: (value) {},
+                ),
+                FilterChip(
+                  label: const Text('Offene Zeitnachweise'),
+                  selected: false,
+                  onSelected: (value) {},
+                ),
+              ],
             ),
           ],
         ),

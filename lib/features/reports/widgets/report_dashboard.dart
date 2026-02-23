@@ -424,7 +424,7 @@ class ReportDashboard extends ConsumerWidget {
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      'Zeitlinien-Chart wird hier angezeigt',
+                      'Zeitlinien-Chart - Daten werden im Hauptdiagramm oben angezeigt',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
@@ -648,6 +648,29 @@ class ReportDashboard extends ConsumerWidget {
   }
 
   void _generateQuickReport(String type) {
-    // TODO: Implement quick report generation
+    final typeMap = {
+      'overtime': ReportType.timesheet,
+      'attendance': ReportType.attendance,
+      'vacation': ReportType.vacation,
+      'cost': ReportType.payroll,
+    };
+    final labels = {
+      'overtime': 'Überstunden-Report',
+      'attendance': 'Anwesenheits-Report',
+      'vacation': 'Urlaubs-Report',
+      'cost': 'Kosten-Report',
+    };
+    final config = ReportConfig(
+      id: 'quick_${type}_${DateTime.now().millisecondsSinceEpoch}',
+      name: labels[type] ?? type,
+      description: 'Schnellbericht: ${labels[type] ?? type}',
+      type: typeMap[type] ?? ReportType.overview,
+      format: ReportFormat.pdf,
+      period: ReportPeriod.monthly,
+      startDate: dateRange.start,
+      endDate: dateRange.end,
+      createdAt: DateTime.now(),
+    );
+    onReportSelected(config);
   }
 }

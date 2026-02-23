@@ -7,6 +7,7 @@ import 'package:syncfusion_flutter_calendar/calendar.dart';
 import '../../providers/vacation_provider.dart';
 import '../../providers/employee_provider.dart';
 import 'widgets/vacation_request_card.dart';
+import 'widgets/vacation_request_form_dialog.dart';
 
 class VacationScreen extends ConsumerStatefulWidget {
   const VacationScreen({super.key});
@@ -348,20 +349,16 @@ class _VacationScreenState extends ConsumerState<VacationScreen> with SingleTick
   }
 
   void _showAddVacationRequestDialog() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Urlaubsantrag-Dialog wird noch implementiert'),
-        backgroundColor: Colors.orange,
-      ),
+    showDialog(
+      context: context,
+      builder: (context) => const VacationRequestFormDialog(),
     );
   }
 
   void _showEditRequestDialog(VacationRequest request) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Bearbeiten von Antrag ${request.id} wird noch implementiert'),
-        backgroundColor: Colors.orange,
-      ),
+    showDialog(
+      context: context,
+      builder: (context) => VacationRequestFormDialog(request: request),
     );
   }
 

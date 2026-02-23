@@ -6,6 +6,9 @@ import '../../models/employee.dart';
 import '../../providers/timesheet_provider.dart';
 import '../../providers/employee_provider.dart';
 import 'widgets/timesheet_entry_form_dialog.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 
 class TimesheetDetailScreen extends ConsumerStatefulWidget {
   final String timesheetId;
@@ -647,7 +650,12 @@ class _TimesheetDetailScreenState extends ConsumerState<TimesheetDetailScreen>
       builder: (context) => TimesheetEntryFormDialog(
         timesheetId: timesheet.id,
         onSave: (entry) async {
-          // TODO: Implement entry addition
+          await ref.read(timesheetEntriesProvider.notifier).addEntry(entry);
+          if (this.context.mounted) {
+            ScaffoldMessenger.of(this.context).showSnackBar(
+              const SnackBar(content: Text('Zeiteintrag hinzugefügt')),
+            );
+          }
         },
       ),
     );
@@ -660,7 +668,12 @@ class _TimesheetDetailScreenState extends ConsumerState<TimesheetDetailScreen>
         entry: entry,
         timesheetId: timesheet.id,
         onSave: (updatedEntry) async {
-          // TODO: Implement entry update
+          await ref.read(timesheetEntriesProvider.notifier).updateEntry(updatedEntry);
+          if (this.context.mounted) {
+            ScaffoldMessenger.of(this.context).showSnackBar(
+              const SnackBar(content: Text('Zeiteintrag aktualisiert')),
+            );
+          }
         },
       ),
     );
@@ -669,18 +682,23 @@ class _TimesheetDetailScreenState extends ConsumerState<TimesheetDetailScreen>
   void _deleteTimesheetEntry(BuildContext context, Timesheet timesheet, TimesheetEntry entry) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Eintrag löschen'),
         content: const Text('Möchten Sie diesen Zeiteintrag wirklich löschen?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(),
+            onPressed: () => Navigator.of(dialogContext).pop(),
             child: const Text('Abbrechen'),
           ),
           FilledButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              // TODO: Implement entry deletion
+            onPressed: () async {
+              Navigator.of(dialogContext).pop();
+              await ref.read(timesheetEntriesProvider.notifier).deleteEntry(entry.id);
+              if (this.context.mounted) {
+                ScaffoldMessenger.of(this.context).showSnackBar(
+                  const SnackBar(content: Text('Zeiteintrag gelöscht')),
+                );
+              }
             },
             style: FilledButton.styleFrom(backgroundColor: Colors.red),
             child: const Text('Löschen'),
@@ -690,24 +708,150 @@ class _TimesheetDetailScreenState extends ConsumerState<TimesheetDetailScreen>
     );
   }
 
-  void _submitTimesheet(Timesheet timesheet) {
-    // TODO: Implement timesheet submission
+  void _submitTimesheet(Timesheet timesheet) async {
+    await ref.read(timesheetsProvider.notifier).submitTimesheet(timesheet.id, 'current_user');
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Zeitnachweis eingereicht'), backgroundColor: Colors.green),
+      );
+    }
   }
 
-  void _approveTimesheet(Timesheet timesheet) {
-    // TODO: Implement timesheet approval
+  void _approveTimesheet(Timesheet timesheet) async {
+    await ref.read(timesheetsProvider.notifier).approveTimesheet(timesheet.id, 'current_user');
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Zeitnachweis genehmigt'), backgroundColor: Colors.green),
+      );
+    }
   }
 
   void _rejectTimesheet(Timesheet timesheet) {
-    // TODO: Implement timesheet rejection
-  }
-
-  void _exportTimesheet(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('PDF-Export wird implementiert...'),
+    final reasonController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Zeitnachweis ablehnen'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Grund für die Ablehnung:'),
+            const SizedBox(height: 8),
+            TextField(
+              controller: reasonController,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                hintText: 'Begründung eingeben...',
+              ),
+              maxLines: 3,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+            onPressed: () async {
+              if (reasonController.text.trim().isNotEmpty) {
+                Navigator.of(dialogContext).pop();
+                await ref.read(timesheetsProvider.notifier).rejectTimesheet(
+                  timesheet.id,
+                  reasonController.text.trim(),
+                );
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Zeitnachweis abgelehnt'), backgroundColor: Colors.red),
+                  );
+                }
+              }
+            },
+            child: const Text('Ablehnen'),
+          ),
+        ],
       ),
     );
+  }
+
+  void _exportTimesheet(BuildContext context) async {
+    final timesheet = ref.read(timesheetByIdProvider(widget.timesheetId)).valueOrNull;
+    if (timesheet == null) return;
+
+    final employees = ref.read(employeesProvider).valueOrNull ?? [];
+    final employee = employees.where((e) => e.id == timesheet.employeeId).firstOrNull;
+    final employeeName = employee?.fullName ?? 'Unbekannt';
+
+    final pdf = pw.Document();
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        build: (context) => [
+          pw.Header(
+            level: 0,
+            child: pw.Text('Zeitnachweis', style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold)),
+          ),
+          pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: [
+              pw.Text('Mitarbeiter: $employeeName'),
+              pw.Text('Status: ${timesheet.statusLabel}'),
+            ],
+          ),
+          pw.Text('Zeitraum: ${timesheet.startDate.day}.${timesheet.startDate.month}.${timesheet.startDate.year} - ${timesheet.endDate.day}.${timesheet.endDate.month}.${timesheet.endDate.year}'),
+          pw.SizedBox(height: 16),
+          pw.TableHelper.fromTextArray(
+            headers: ['Datum', 'Typ', 'Von', 'Bis', 'Stunden', 'Beschreibung'],
+            data: timesheet.entries.map((e) => [
+              '${e.startTime.day}.${e.startTime.month}.${e.startTime.year}',
+              _getEntryTypeLabel(e.type),
+              '${e.startTime.hour}:${e.startTime.minute.toString().padLeft(2, '0')}',
+              '${e.endTime.hour}:${e.endTime.minute.toString().padLeft(2, '0')}',
+              '${e.totalHours.toStringAsFixed(1)}h',
+              e.description ?? '',
+            ]).toList(),
+            headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10),
+            cellStyle: const pw.TextStyle(fontSize: 9),
+            cellAlignment: pw.Alignment.centerLeft,
+          ),
+          pw.SizedBox(height: 16),
+          pw.Divider(),
+          pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: [
+              pw.Text('Gesamtstunden: ${timesheet.calculatedTotalHours.toStringAsFixed(1)}h',
+                style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+              pw.Text('Überstunden: ${timesheet.calculatedOvertimeHours.toStringAsFixed(1)}h'),
+              pw.Text('Vergütung: ${timesheet.calculatedTotalPay.toStringAsFixed(2)} EUR',
+                style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+            ],
+          ),
+        ],
+      ),
+    );
+
+    await Printing.sharePdf(
+      bytes: await pdf.save(),
+      filename: 'Zeitnachweis_${employeeName}_${timesheet.startDate.month}_${timesheet.startDate.year}.pdf',
+    );
+  }
+
+  String _getEntryTypeLabel(TimesheetEntryType type) {
+    switch (type) {
+      case TimesheetEntryType.regular:
+        return 'Regulär';
+      case TimesheetEntryType.overtime:
+        return 'Überstunden';
+      case TimesheetEntryType.travel:
+        return 'Fahrt';
+      case TimesheetEntryType.break_:
+        return 'Pause';
+      case TimesheetEntryType.training:
+        return 'Schulung';
+      case TimesheetEntryType.administrative:
+        return 'Verwaltung';
+    }
   }
 }
 
