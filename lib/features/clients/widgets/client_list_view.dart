@@ -7,6 +7,7 @@ import '../../../providers/client_provider.dart';
 import 'client_card.dart';
 import 'client_form_dialog.dart';
 import '../../../providers/policy_provider.dart';
+import '../client_profile_screen.dart';
 
 class ClientListView extends ConsumerStatefulWidget {
   final List<Client> clients;
@@ -287,67 +288,9 @@ class _ClientListViewState extends ConsumerState<ClientListView> {
   }
 
   void _showClientDetails(Client client) {
-    final policy = ref.read(policyProvider);
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(client.fullName),
-        content: SizedBox(
-          width: 500,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('ID: ${client.id}'),
-              if (client.email != null) Text('E-Mail: ${client.email}'),
-              if (client.phone != null) Text('Telefon: ${client.phone}'),
-              if (client.address != null) Text('Adresse: ${client.address}'),
-              Text('Geburtsdatum: ${client.dateOfBirth.toLocal().toString().split(' ')[0]}'),
-              Text('Alter: ${client.age} Jahre'),
-              Text('Status: ${client.statusDisplayName}'),
-              Text('Priorität: ${client.priorityDisplayName}'),
-              Text('Services: ${client.serviceDisplayNames.join(', ')}'),
-              if (client.caseManager != null) Text('Fallmanager: ${client.caseManager}'),
-              if (client.insuranceNumber != null) Text('Versicherungsnummer: ${client.insuranceNumber}'),
-              if (client.emergencyContact != null) Text('Notfallkontakt: ${client.emergencyContact}'),
-              if (client.emergencyPhone != null) Text('Notfall-Telefon: ${client.emergencyPhone}'),
-              if (client.notes != null) Text('Notizen: ${client.notes}'),
-              Text('Zugewiesene Mitarbeiter: ${client.assignedEmployees.length}'),
-              if (client.hilfeTyp != null || client.fachleistungsstunden != null) ...[
-                const Divider(),
-                Text('Eingliederungshilfe', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
-                const SizedBox(height: 4),
-                if (client.hilfeTyp != null) Text('Hilfe-Typ: ${client.hilfeTypDisplay}'),
-                if (client.fachleistungsstunden != null)
-                  Text('FLS: ${client.fachleistungsstunden} Std. / ${client.fachleistungsIntervallDisplay}'),
-                if (client.verbrauchteStunden > 0)
-                  Text('Verbraucht: ${client.verbrauchteStunden.toStringAsFixed(1)} Std. (${client.stundenverbrauchProzent.toStringAsFixed(0)}%)'),
-                if (client.kostenuebernahme != null) Text('Kostenträger: ${client.kostenuebernahme}'),
-                if (client.kostenuebernahmeVon != null)
-                  Text('Kostenübernahme: ${client.kostenuebernahmeVon!.day.toString().padLeft(2, '0')}.${client.kostenuebernahmeVon!.month.toString().padLeft(2, '0')}.${client.kostenuebernahmeVon!.year}'
-                      '${client.kostenuebernahmeBis != null ? ' - ${client.kostenuebernahmeBis!.day.toString().padLeft(2, '0')}.${client.kostenuebernahmeBis!.month.toString().padLeft(2, '0')}.${client.kostenuebernahmeBis!.year}' : ''}'),
-                if (client.betreuungSeit != null)
-                  Text('Betreuung seit: ${client.betreuungSeit!.day.toString().padLeft(2, '0')}.${client.betreuungSeit!.month.toString().padLeft(2, '0')}.${client.betreuungSeit!.year}'),
-                if (client.kalkulationsfaktorOverride != null) Text('Kalkulationsfaktor: ${client.kalkulationsfaktorOverride}'),
-                if (client.stundensatzOverride != null) Text('Stundensatz: ${client.stundensatzOverride!.toStringAsFixed(2)} EUR'),
-              ],
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Schließen'),
-          ),
-          if (policy.canEditClient(teamId: client.teamId))
-            FilledButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                _showEditClientDialog(client);
-              },
-              child: const Text('Bearbeiten'),
-            ),
-        ],
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => ClientProfileScreen(clientId: client.id),
       ),
     );
   }
