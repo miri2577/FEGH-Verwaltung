@@ -181,7 +181,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     onChanged: (v) async {
                       if (v == null) return;
                       final s = ref.read(appSettingsProvider);
-                      await ref.read(settingsServiceProvider).saveSettings(
+                      await ref.read(appSettingsProvider.notifier).saveSettings(
                         s.copyWith(userRole: v, updatedAt: DateTime.now()),
                       );
                       setState(() {});
@@ -213,7 +213,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     ),
                     onChanged: (v) async {
                       final s = ref.read(appSettingsProvider);
-                      await ref.read(settingsServiceProvider).saveSettings(
+                      await ref.read(appSettingsProvider.notifier).saveSettings(
                         s.copyWith(organizationId: v.trim(), updatedAt: DateTime.now()),
                       );
                     },
@@ -235,7 +235,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     controller: TextEditingController(text: ref.read(appSettingsProvider).rootSubdirectory ?? ''),
                     onSubmitted: (v) async {
                       final s = ref.read(appSettingsProvider);
-                      await ref.read(settingsServiceProvider).saveSettings(
+                      await ref.read(appSettingsProvider.notifier).saveSettings(
                         s.copyWith(rootSubdirectory: v.trim().isEmpty ? null : v.trim(), updatedAt: DateTime.now()),
                       );
                       if (mounted) setState(() {});
@@ -748,7 +748,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               value: settings.auditorCanViewDocs,
               onChanged: (value) async {
                 final s = ref.read(appSettingsProvider);
-                await ref.read(settingsServiceProvider).saveSettings(
+                await ref.read(appSettingsProvider.notifier).saveSettings(
                   s.copyWith(auditorCanViewDocs: value, updatedAt: DateTime.now()),
                 );
               },
@@ -974,9 +974,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ],
             ),
             const SizedBox(height: 20),
-            const Text('Personalverwaltung - Eingliederungshilfe'),
-            const Text('Version 1.0.0'),
-            const Text('Entwickelt für die effiziente Verwaltung von Personal in der Eingliederungshilfe'),
+            const Text('FEGH-Verwaltung'),
+            const Text('Version 0.1.0-alpha.1'),
+            const Text('Entwickler: Mirko Richter'),
+            const SizedBox(height: 4),
+            const Text('\u00a9 2025\u20132026 Mirko Richter. Alle Rechte vorbehalten.'),
+            const SizedBox(height: 8),
+            const Text('Entwickelt f\u00fcr die effiziente Verwaltung von Personal in der Eingliederungshilfe'),
             const SizedBox(height: 16),
             Row(
               children: [
@@ -1029,8 +1033,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     });
 
     try {
-      final settingsService = ref.read(settingsServiceProvider);
-      final success = await settingsService.updateHiDriveCredentials(
+      final success = await ref.read(appSettingsProvider.notifier).updateHiDriveCredentials(
         username,
         password.isNotEmpty ? password : existingPassword!,
       );
@@ -1117,8 +1120,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<void> _toggleCloudSync(bool value) async {
-    final settingsService = ref.read(settingsServiceProvider);
-    await settingsService.enableCloudSync(value);
+    await ref.read(appSettingsProvider.notifier).enableCloudSync(value);
   }
 
   Future<void> _updateSyncSettings({
@@ -1126,8 +1128,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     bool? autoSyncOnChanges,
     int? syncIntervalMinutes,
   }) async {
-    final settingsService = ref.read(settingsServiceProvider);
-    await settingsService.updateSyncSettings(
+    await ref.read(appSettingsProvider.notifier).updateSyncSettings(
       autoSyncOnStartup: autoSyncOnStartup,
       autoSyncOnChanges: autoSyncOnChanges,
       syncIntervalMinutes: syncIntervalMinutes,
@@ -1135,13 +1136,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<void> _toggleDarkMode(bool value) async {
-    final settingsService = ref.read(settingsServiceProvider);
-    await settingsService.updateUISettings(enableDarkMode: value);
+    await ref.read(appSettingsProvider.notifier).updateUISettings(enableDarkMode: value);
   }
 
   Future<void> _toggleNotifications(bool value) async {
-    final settingsService = ref.read(settingsServiceProvider);
-    await settingsService.updateUISettings(enableNotifications: value);
+    await ref.read(appSettingsProvider.notifier).updateUISettings(enableNotifications: value);
   }
 
   void _showSyncIntervalDialog() {
@@ -1286,8 +1285,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
             onPressed: () async {
               Navigator.of(context).pop();
-              final settingsService = ref.read(settingsServiceProvider);
-              await settingsService.resetSettings();
+              await ref.read(appSettingsProvider.notifier).resetSettings();
               _loadCurrentSettings();
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -1342,7 +1340,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   // Speichern wir temporär in qrData? Besser: merken im Tooltip durch appSettingsProvider.userRole
                   // Hier minimal: Writing choice to app settings for reuse
                   final s = ref.read(appSettingsProvider);
-                  ref.read(settingsServiceProvider).saveSettings(s.copyWith(userRole: v ?? s.userRole, updatedAt: DateTime.now()));
+                  ref.read(appSettingsProvider.notifier).saveSettings(s.copyWith(userRole: v ?? s.userRole, updatedAt: DateTime.now()));
                 },
                 decoration: const InputDecoration(labelText: 'Rolle (optional)'),
               ),

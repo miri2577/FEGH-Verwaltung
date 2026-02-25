@@ -40,7 +40,7 @@ void main() async {
     skipTaskbar: false,
     titleBarStyle: TitleBarStyle.normal,
     windowButtonVisibility: true,
-    title: 'Personalverwaltung - Eingliederungshilfe',
+    title: 'FEGH-Verwaltung',
   );
 
   windowManager.waitUntilReadyToShow(windowOptions, () async {
@@ -69,7 +69,7 @@ class PersonalverwaltungApp extends ConsumerWidget {
     final ui = settings.uiCustomization;
 
     return MaterialApp(
-      title: 'Personalverwaltung - Eingliederungshilfe',
+      title: 'FEGH-Verwaltung',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.createLightTheme(ui: ui),
       darkTheme: AppTheme.createDarkTheme(ui: ui),

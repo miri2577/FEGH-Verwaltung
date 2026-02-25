@@ -51,40 +51,43 @@ class _MainLayoutState extends ConsumerState<MainLayout>
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final appBarBg = isDark
+        ? Theme.of(context).colorScheme.surface
+        : Theme.of(context).colorScheme.primary;
+    final appBarFg = isDark
+        ? Theme.of(context).colorScheme.onSurface
+        : Colors.white;
+    final appBarFgMuted = isDark
+        ? Theme.of(context).colorScheme.onSurface.withOpacity(0.6)
+        : Colors.white70;
+
     return Scaffold(
       appBar: AppBar(
         title: Row(
           children: [
             Icon(
               Symbols.business,
-              color: Colors.white,
+              color: appBarFg,
               size: 28,
             ),
             const SizedBox(width: 12),
-            const Text(
-              'Personalverwaltung',
+            Text(
+              'FEGH-Verwaltung',
               style: TextStyle(
                 fontWeight: FontWeight.w600,
                 fontSize: 20,
-              ),
-            ),
-            const Spacer(),
-            Text(
-              'Eingliederungshilfe',
-              style: TextStyle(
-                color: Colors.white70,
-                fontSize: 14,
-                fontWeight: FontWeight.w400,
+                color: appBarFg,
               ),
             ),
           ],
         ),
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        foregroundColor: Colors.white,
+        backgroundColor: appBarBg,
+        foregroundColor: appBarFg,
         elevation: 0,
         actions: [
-          const NotificationBell(
-            iconColor: Colors.white,
+          NotificationBell(
+            iconColor: appBarFg,
           ),
           const SizedBox(width: 8),
           IconButton(
@@ -147,10 +150,10 @@ class _MainLayoutState extends ConsumerState<MainLayout>
         bottom: TabBar(
           controller: _tabController,
           isScrollable: false,
-          indicatorColor: Colors.white,
+          indicatorColor: appBarFg,
           indicatorWeight: 3,
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.white60,
+          labelColor: appBarFg,
+          unselectedLabelColor: appBarFgMuted,
           labelStyle: const TextStyle(
             fontWeight: FontWeight.w600,
             fontSize: 13,
@@ -226,7 +229,7 @@ class _MainLayoutState extends ConsumerState<MainLayout>
             ),
             const SizedBox(width: 24),
             Text(
-              'v1.0.0',
+              'v0.1.0-alpha.1',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                 color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.6),
               ),
@@ -286,25 +289,27 @@ class _MainLayoutState extends ConsumerState<MainLayout>
   void _showAboutDialog() {
     showAboutDialog(
       context: context,
-      applicationName: 'Personalverwaltung',
-      applicationVersion: '1.0.0',
-      applicationLegalese: '© 2025 Eingliederungshilfe Enterprise',
+      applicationName: 'FEGH-Verwaltung',
+      applicationVersion: '0.1.0-alpha.1',
+      applicationLegalese: '\u00a9 2025\u20132026 Mirko Richter. Alle Rechte vorbehalten.',
       children: [
         const SizedBox(height: 16),
         const Text(
-          'Enterprise Personalverwaltung für Eingliederungshilfe-Einrichtungen. '
-          'Entwickelt mit Flutter für maximale Performance und Benutzerfreundlichkeit.',
+          'FEGH-Verwaltung - Enterprise Personalverwaltung f\u00fcr Eingliederungshilfe-Einrichtungen. '
+          'Entwickelt mit Flutter f\u00fcr maximale Performance und Benutzerfreundlichkeit.',
         ),
+        const SizedBox(height: 8),
+        const Text('Entwickler: Mirko Richter'),
         const SizedBox(height: 16),
         const Text(
           'Features:',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
-        const Text('• ICF-Klassifikation nach SGB IX'),
-        const Text('• Berliner TIB-System Integration'),
-        const Text('• Professionelle PDF-Berichte'),
-        const Text('• Cloud-Synchronisation'),
-        const Text('• DSGVO-konforme Datenhaltung'),
+        const Text('\u2022 ICF-Klassifikation nach SGB IX'),
+        const Text('\u2022 Berliner TIB-System Integration'),
+        const Text('\u2022 Professionelle PDF-Berichte'),
+        const Text('\u2022 Cloud-Synchronisation'),
+        const Text('\u2022 DSGVO-konforme Datenhaltung'),
       ],
     );
   }
