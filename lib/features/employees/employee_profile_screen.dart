@@ -148,6 +148,9 @@ class _EmployeeProfileScreenState extends ConsumerState<EmployeeProfileScreen>
             ],
             bottom: TabBar(
               controller: _tabController,
+              labelColor: Theme.of(context).colorScheme.onPrimary,
+              unselectedLabelColor: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.7),
+              indicatorColor: Theme.of(context).colorScheme.onPrimary,
               tabs: const [
                 Tab(icon: Icon(Symbols.person), text: 'Profil'),
                 Tab(icon: Icon(Symbols.analytics), text: 'Statistiken'),
