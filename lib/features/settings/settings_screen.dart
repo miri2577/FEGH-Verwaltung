@@ -9,6 +9,7 @@ import 'package:material_symbols_icons/symbols.dart';
 import '../../providers/settings_provider.dart';
 import '../../services/settings_service.dart';
 import '../../models/app_settings.dart';
+import '../../models/ui_customization.dart';
 import '../../providers/hidrive_provider.dart';
 import '../../providers/employee_provider.dart';
 import '../../services/team_key_admin_service.dart';
@@ -707,6 +708,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Widget _buildUISettingsSection(AppSettings settings) {
+    final ui = settings.uiCustomization;
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -739,7 +742,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               value: settings.enableNotifications,
               onChanged: (value) => _toggleNotifications(value),
             ),
-            const SizedBox(height: 8),
             SwitchListTile(
               title: const Text('Auditor darf Dokumentation lesen'),
               subtitle: const Text('Erlaubt Lesezugriff auf ICF/TIB für Org‑Auditoren'),
@@ -751,24 +753,204 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 );
               },
             ),
+            const Divider(height: 32),
+
+            // UI-Dichte Preset
+            Text('UI-Dichte', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+            const SizedBox(height: 8),
+            SegmentedButton<UIDensityPreset>(
+              segments: const [
+                ButtonSegment(value: UIDensityPreset.compact, label: Text('Kompakt'), icon: Icon(Icons.density_small)),
+                ButtonSegment(value: UIDensityPreset.standard, label: Text('Standard'), icon: Icon(Icons.density_medium)),
+                ButtonSegment(value: UIDensityPreset.comfortable, label: Text('Komfortabel'), icon: Icon(Icons.density_large)),
+              ],
+              selected: {ui.densityPreset},
+              onSelectionChanged: (selected) {
+                final preset = selected.first;
+                final newUi = UICustomization.fromPreset(preset).copyWith(
+                  tabDisplayMode: ui.tabDisplayMode,
+                  cardStyle: ui.cardStyle,
+                );
+                _updateUICustomization(newUi);
+              },
+            ),
+            const SizedBox(height: 24),
+
+            // Feineinstellungen
+            ExpansionTile(
+              leading: const Icon(Icons.tune),
+              title: const Text('Feineinstellungen'),
+              tilePadding: EdgeInsets.zero,
+              children: [
+                _buildSliderRow('Schriftgroesse', ui.fontScale, 0.8, 1.4, 12,
+                    '${(ui.fontScale * 100).round()}%',
+                    UICustomization.fromPreset(ui.densityPreset).fontScale,
+                    (v) => _updateUICustomization(ui.copyWith(fontScale: v))),
+                _buildSliderRow('Zeilenabstand', ui.lineHeightScale, 1.0, 1.6, 6,
+                    ui.lineHeightScale.toStringAsFixed(1),
+                    UICustomization.fromPreset(ui.densityPreset).lineHeightScale,
+                    (v) => _updateUICustomization(ui.copyWith(lineHeightScale: v))),
+                _buildSliderRow('Abstaende/Padding', ui.spacingScale, 0.7, 1.5, 16,
+                    '${(ui.spacingScale * 100).round()}%',
+                    UICustomization.fromPreset(ui.densityPreset).spacingScale,
+                    (v) => _updateUICustomization(ui.copyWith(spacingScale: v))),
+                _buildSliderRow('Tabellenzeilen-Hoehe', ui.tableRowHeight, 36, 64, 7,
+                    '${ui.tableRowHeight.round()} px',
+                    UICustomization.fromPreset(ui.densityPreset).tableRowHeight,
+                    (v) => _updateUICustomization(ui.copyWith(tableRowHeight: v))),
+              ],
+            ),
             const SizedBox(height: 16),
+
+            // Layout-Praeferenzen
+            ExpansionTile(
+              leading: const Icon(Icons.view_quilt),
+              title: const Text('Layout-Praeferenzen'),
+              tilePadding: EdgeInsets.zero,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Tab-Darstellung'),
+                      const SizedBox(height: 8),
+                      SegmentedButton<TabDisplayMode>(
+                        segments: const [
+                          ButtonSegment(value: TabDisplayMode.iconAndText, label: Text('Icon+Text')),
+                          ButtonSegment(value: TabDisplayMode.iconOnly, label: Text('Nur Icon')),
+                          ButtonSegment(value: TabDisplayMode.textOnly, label: Text('Nur Text')),
+                        ],
+                        selected: {ui.tabDisplayMode},
+                        onSelectionChanged: (s) => _updateUICustomization(ui.copyWith(tabDisplayMode: s.first)),
+                      ),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Karten-Stil'),
+                      const SizedBox(height: 8),
+                      SegmentedButton<CardStyle>(
+                        segments: const [
+                          ButtonSegment(value: CardStyle.outlined, label: Text('Rahmen')),
+                          ButtonSegment(value: CardStyle.elevated, label: Text('Erhoeht')),
+                          ButtonSegment(value: CardStyle.flat, label: Text('Flach')),
+                        ],
+                        selected: {ui.cardStyle},
+                        onSelectionChanged: (s) => _updateUICustomization(ui.copyWith(cardStyle: s.first)),
+                      ),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Tabellen-Dichte'),
+                      const SizedBox(height: 8),
+                      SegmentedButton<TableDensity>(
+                        segments: const [
+                          ButtonSegment(value: TableDensity.compact, label: Text('Kompakt')),
+                          ButtonSegment(value: TableDensity.standard, label: Text('Standard')),
+                          ButtonSegment(value: TableDensity.comfortable, label: Text('Grosszuegig')),
+                        ],
+                        selected: {ui.tableDensity},
+                        onSelectionChanged: (s) {
+                          final rowHeight = switch (s.first) {
+                            TableDensity.compact => 36.0,
+                            TableDensity.standard => 48.0,
+                            TableDensity.comfortable => 56.0,
+                          };
+                          _updateUICustomization(ui.copyWith(tableDensity: s.first, tableRowHeight: rowHeight));
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // Vorschau
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Vorschau', style: Theme.of(context).textTheme.titleSmall),
+                    const SizedBox(height: 8),
+                    Text('Dies ist ein Beispieltext in der aktuellen Schriftgroesse.', style: Theme.of(context).textTheme.bodyMedium),
+                    const SizedBox(height: 4),
+                    Text('Kleinerer Text als Referenz.', style: Theme.of(context).textTheme.bodySmall),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // Zuruecksetzen
+            OutlinedButton.icon(
+              onPressed: () => _updateUICustomization(const UICustomization()),
+              icon: const Icon(Icons.restore),
+              label: const Text('UI auf Standard zuruecksetzen'),
+            ),
+            const SizedBox(height: 16),
+
             Row(
               children: [
-                Text(
-                  'Sprache: ${settings.language}',
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
+                Text('Sprache: ${settings.language}', style: Theme.of(context).textTheme.bodyMedium),
                 const Spacer(),
-                Text(
-                  'Datumsformat: ${settings.dateFormat}',
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
+                Text('Datumsformat: ${settings.dateFormat}', style: Theme.of(context).textTheme.bodyMedium),
               ],
             ),
           ],
         ),
       ),
     );
+  }
+
+  Widget _buildSliderRow(String label, double value, double min, double max, int divisions,
+      String displayValue, double defaultValue, ValueChanged<double> onChanged) {
+    final isDefault = (value - defaultValue).abs() < 0.01;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(child: Text(label)),
+              Text(displayValue, style: Theme.of(context).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600)),
+              if (!isDefault)
+                IconButton(
+                  icon: const Icon(Icons.restore, size: 18),
+                  onPressed: () => onChanged(defaultValue),
+                  tooltip: 'Zuruecksetzen',
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                ),
+            ],
+          ),
+          Slider(
+            value: value.clamp(min, max),
+            min: min,
+            max: max,
+            divisions: divisions,
+            onChanged: onChanged,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _updateUICustomization(UICustomization ui) async {
+    await ref.read(appSettingsProvider.notifier).updateUICustomization(ui);
   }
 
   Widget _buildAboutSection() {

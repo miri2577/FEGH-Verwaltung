@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/foundation.dart';
 import '../models/app_settings.dart';
+import '../models/ui_customization.dart';
 import '../services/settings_service.dart';
 
 final settingsServiceProvider = Provider<SettingsService>((ref) {
@@ -93,6 +94,14 @@ class AppSettingsNotifier extends StateNotifier<AppSettings> {
     return success;
   }
 
+  Future<bool> updateUICustomization(UICustomization uiCustomization) async {
+    final success = await _settingsService.updateUICustomization(uiCustomization);
+    if (success) {
+      state = _settingsService.settings;
+    }
+    return success;
+  }
+
   Future<bool> updateWindowSettings({
     double? windowWidth,
     double? windowHeight,
@@ -145,4 +154,9 @@ final cloudSyncReadyProvider = Provider<bool>((ref) {
 final darkModeProvider = Provider<bool>((ref) {
   final settings = ref.watch(appSettingsProvider);
   return settings.enableDarkMode;
+});
+
+final uiCustomizationProvider = Provider<UICustomization>((ref) {
+  final settings = ref.watch(appSettingsProvider);
+  return settings.uiCustomization;
 });

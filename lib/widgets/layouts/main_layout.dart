@@ -14,6 +14,7 @@ import '../../features/reports/reports_screen.dart';
 import '../../features/capacity/capacity_screen.dart';
 import '../../features/settings/settings_screen.dart';
 import '../../features/notifications/widgets/notification_bell.dart';
+import '../../models/ui_customization.dart';
 import '../../providers/hidrive_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../providers/employee_provider.dart';
@@ -158,52 +159,7 @@ class _MainLayoutState extends ConsumerState<MainLayout>
             fontWeight: FontWeight.w400,
             fontSize: 13,
           ),
-          tabs: const [
-            Tab(
-              icon: Icon(Symbols.dashboard, size: 20),
-              text: 'Dashboard',
-            ),
-            Tab(
-              icon: Icon(Symbols.group, size: 20),
-              text: 'Mitarbeiter',
-            ),
-            Tab(
-              icon: Icon(Symbols.corporate_fare, size: 20),
-              text: 'Teams',
-            ),
-            Tab(
-              icon: Icon(Symbols.people, size: 20),
-              text: 'Klienten',
-            ),
-            Tab(
-              icon: Icon(Symbols.schedule, size: 20),
-              text: 'Schichten',
-            ),
-            Tab(
-              icon: Icon(Symbols.assignment, size: 20),
-              text: 'Zeiten',
-            ),
-            Tab(
-              icon: Icon(Symbols.beach_access, size: 20),
-              text: 'Urlaub',
-            ),
-            Tab(
-              icon: Icon(Symbols.health_and_safety, size: 20),
-              text: 'ICF/TIB',
-            ),
-            Tab(
-              icon: Icon(Symbols.assessment, size: 20),
-              text: 'Berichte',
-            ),
-            Tab(
-              icon: Icon(Symbols.analytics, size: 20),
-              text: 'Kapazität',
-            ),
-            Tab(
-              icon: Icon(Symbols.settings, size: 20),
-              text: 'Einstellungen',
-            ),
-          ],
+          tabs: _buildTabs(ref.watch(appSettingsProvider).uiCustomization.tabDisplayMode),
         ),
       ),
       body: TabBarView(
@@ -351,5 +307,32 @@ class _MainLayoutState extends ConsumerState<MainLayout>
         const Text('• DSGVO-konforme Datenhaltung'),
       ],
     );
+  }
+
+  List<Tab> _buildTabs(TabDisplayMode mode) {
+    const tabData = <({IconData icon, String label})>[
+      (icon: Symbols.dashboard, label: 'Dashboard'),
+      (icon: Symbols.group, label: 'Mitarbeiter'),
+      (icon: Symbols.corporate_fare, label: 'Teams'),
+      (icon: Symbols.people, label: 'Klienten'),
+      (icon: Symbols.schedule, label: 'Schichten'),
+      (icon: Symbols.assignment, label: 'Zeiten'),
+      (icon: Symbols.beach_access, label: 'Urlaub'),
+      (icon: Symbols.health_and_safety, label: 'ICF/TIB'),
+      (icon: Symbols.assessment, label: 'Berichte'),
+      (icon: Symbols.analytics, label: 'Kapazitaet'),
+      (icon: Symbols.settings, label: 'Einstellungen'),
+    ];
+
+    return tabData.map((t) {
+      switch (mode) {
+        case TabDisplayMode.iconAndText:
+          return Tab(icon: Icon(t.icon, size: 20), text: t.label);
+        case TabDisplayMode.iconOnly:
+          return Tab(icon: Icon(t.icon, size: 20));
+        case TabDisplayMode.textOnly:
+          return Tab(text: t.label);
+      }
+    }).toList();
   }
 }

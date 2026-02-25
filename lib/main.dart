@@ -66,11 +66,13 @@ class PersonalverwaltungApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final settings = ref.watch(appSettingsProvider);
 
+    final ui = settings.uiCustomization;
+
     return MaterialApp(
       title: 'Personalverwaltung - Eingliederungshilfe',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
+      theme: AppTheme.createLightTheme(ui: ui),
+      darkTheme: AppTheme.createDarkTheme(ui: ui),
       themeMode: settings.enableDarkMode ? ThemeMode.dark : ThemeMode.light,
       home: const MainLayout(),
     );

@@ -3,6 +3,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/foundation.dart';
 import '../models/app_settings.dart';
+import '../models/ui_customization.dart';
 
 class SettingsService {
   static const String _settingsKey = 'personalverwaltung_settings';
@@ -190,6 +191,17 @@ class SettingsService {
       timeFormat: timeFormat,
       enableDarkMode: enableDarkMode,
       enableNotifications: enableNotifications,
+      updatedAt: DateTime.now(),
+    );
+
+    return await saveSettings(updatedSettings);
+  }
+
+  Future<bool> updateUICustomization(UICustomization uiCustomization) async {
+    if (_currentSettings == null) return false;
+
+    final updatedSettings = _currentSettings!.copyWith(
+      uiCustomization: uiCustomization,
       updatedAt: DateTime.now(),
     );
 

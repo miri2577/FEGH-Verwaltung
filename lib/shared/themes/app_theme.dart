@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../models/ui_customization.dart';
 
 class AppTheme {
   // Corporate Colors - Eingliederungshilfe Color Scheme
-  static const primaryColor = Color(0xFF4A6FA5); // Gedämpftes Blau wie in der Eingliederungshilfe-App
+  static const primaryColor = Color(0xFF4A6FA5);
   static const primaryVariant = Color(0xFF2E4B72);
   static const secondaryColor = Color(0xFF5C7A9B);
   static const accentColor = Color(0xFF7B9CC2);
@@ -24,12 +25,62 @@ class AppTheme {
   static const darkBackgroundColor = Color(0xFF1E1E1E);
   static const darkCardColor = Color(0xFF2D2D2D);
 
-  static ThemeData get lightTheme {
+  static ThemeData get lightTheme => createLightTheme();
+  static ThemeData get darkTheme => createDarkTheme();
+
+  static ThemeData createLightTheme({UICustomization ui = const UICustomization()}) {
+    final fs = ui.fontScale;
+    final ss = ui.spacingScale;
+    final brs = ui.borderRadiusScale;
+    final ics = ui.iconScale;
+    final lh = ui.lineHeightScale;
+
+    // Card style
+    CardThemeData cardTheme;
+    switch (ui.cardStyle) {
+      case CardStyle.outlined:
+        cardTheme = CardThemeData(
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20 * brs),
+            side: BorderSide(
+              color: Colors.grey.shade200,
+              width: 1,
+            ),
+          ),
+          color: cardColor,
+          shadowColor: Colors.black.withOpacity(0.05),
+          surfaceTintColor: Colors.transparent,
+        );
+        break;
+      case CardStyle.elevated:
+        cardTheme = CardThemeData(
+          elevation: 2,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20 * brs),
+          ),
+          color: cardColor,
+          shadowColor: Colors.black.withOpacity(0.1),
+          surfaceTintColor: Colors.transparent,
+        );
+        break;
+      case CardStyle.flat:
+        cardTheme = CardThemeData(
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20 * brs),
+          ),
+          color: Colors.grey.shade50,
+          shadowColor: Colors.transparent,
+          surfaceTintColor: Colors.transparent,
+        );
+        break;
+    }
+
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
 
-      // Color Scheme
       colorScheme: const ColorScheme.light(
         primary: primaryColor,
         primaryContainer: Color(0xFFD7E4F2),
@@ -48,87 +99,82 @@ class AppTheme {
         surfaceTint: primaryColor,
       ),
 
-      // AppBar Theme
-      appBarTheme: const AppBarTheme(
+      appBarTheme: AppBarTheme(
         elevation: 0,
         backgroundColor: primaryColor,
         foregroundColor: Colors.white,
         systemOverlayStyle: SystemUiOverlayStyle.light,
         titleTextStyle: TextStyle(
           color: Colors.white,
-          fontSize: 20,
+          fontSize: 20 * fs,
           fontWeight: FontWeight.w500,
+          height: lh,
+        ),
+        iconTheme: IconThemeData(
+          color: Colors.white,
+          size: 24 * ics,
         ),
       ),
 
-      // Card Theme - Moderne Cards mit abgerundeten Ecken
-      cardTheme: CardThemeData(
-        elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-          side: BorderSide(
-            color: Colors.grey.shade200,
-            width: 1,
-          ),
-        ),
-        color: cardColor,
-        shadowColor: Colors.black.withOpacity(0.05),
-        surfaceTintColor: Colors.transparent,
-      ),
+      cardTheme: cardTheme,
 
-      // Tab Bar Theme
-      tabBarTheme: const TabBarThemeData(
+      tabBarTheme: TabBarThemeData(
         labelColor: primaryColor,
         unselectedLabelColor: Colors.grey,
         indicatorColor: primaryColor,
         indicatorSize: TabBarIndicatorSize.label,
         labelStyle: TextStyle(
           fontWeight: FontWeight.w600,
-          fontSize: 14,
+          fontSize: 14 * fs,
+          height: lh,
         ),
         unselectedLabelStyle: TextStyle(
           fontWeight: FontWeight.w400,
-          fontSize: 14,
+          fontSize: 14 * fs,
+          height: lh,
         ),
       ),
 
-      // Data Table Theme
       dataTableTheme: DataTableThemeData(
-        headingRowColor: MaterialStateProperty.all(Color(0xFFF5F5F5)),
-        dataRowColor: MaterialStateProperty.resolveWith((states) {
-          if (states.contains(MaterialState.selected)) {
+        headingRowColor: WidgetStateProperty.all(const Color(0xFFF5F5F5)),
+        dataRowColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
             return primaryColor.withOpacity(0.1);
           }
           return null;
         }),
-        headingTextStyle: const TextStyle(
+        headingTextStyle: TextStyle(
           fontWeight: FontWeight.w600,
-          fontSize: 14,
-          color: Color(0xFF37474F),
+          fontSize: 14 * fs,
+          color: const Color(0xFF37474F),
+          height: lh,
         ),
-        dataTextStyle: const TextStyle(
-          fontSize: 14,
-          color: Color(0xFF212121),
+        dataTextStyle: TextStyle(
+          fontSize: 14 * fs,
+          color: const Color(0xFF212121),
+          height: lh,
         ),
-        horizontalMargin: 24,
-        columnSpacing: 56,
+        horizontalMargin: 24 * ss,
+        columnSpacing: 56 * ss,
         dividerThickness: 1,
+        dataRowMinHeight: ui.tableRowHeight,
+        dataRowMaxHeight: ui.tableRowHeight + 16,
       ),
 
-      // Button Themes - Moderne abgerundete Buttons
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: primaryColor,
           foregroundColor: Colors.white,
           elevation: 0,
           shadowColor: Colors.transparent,
-          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+          padding: EdgeInsets.symmetric(horizontal: 32 * ss, vertical: 16 * ss),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(16 * brs),
           ),
-          textStyle: const TextStyle(
+          textStyle: TextStyle(
             fontWeight: FontWeight.w600,
-            fontSize: 14,
+            fontSize: 14 * fs,
+            height: lh,
           ),
         ),
       ),
@@ -137,13 +183,14 @@ class AppTheme {
         style: FilledButton.styleFrom(
           backgroundColor: primaryColor,
           foregroundColor: Colors.white,
-          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+          padding: EdgeInsets.symmetric(horizontal: 32 * ss, vertical: 16 * ss),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(16 * brs),
           ),
-          textStyle: const TextStyle(
+          textStyle: TextStyle(
             fontWeight: FontWeight.w600,
-            fontSize: 14,
+            fontSize: 14 * fs,
+            height: lh,
           ),
         ),
       ),
@@ -151,175 +198,145 @@ class AppTheme {
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: primaryColor,
-          side: BorderSide(color: primaryColor, width: 1.5),
-          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+          side: const BorderSide(color: primaryColor, width: 1.5),
+          padding: EdgeInsets.symmetric(horizontal: 32 * ss, vertical: 16 * ss),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(16 * brs),
           ),
-          textStyle: const TextStyle(
+          textStyle: TextStyle(
             fontWeight: FontWeight.w600,
-            fontSize: 14,
+            fontSize: 14 * fs,
+            height: lh,
           ),
         ),
       ),
 
-      // Input Decoration Theme - Moderne Input Fields
       inputDecorationTheme: InputDecorationTheme(
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(16 * brs),
           borderSide: BorderSide.none,
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(16 * brs),
           borderSide: BorderSide(color: Colors.grey.shade300, width: 1),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(16 * brs),
           borderSide: const BorderSide(color: primaryColor, width: 2),
         ),
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(16 * brs),
           borderSide: const BorderSide(color: errorColor, width: 1),
         ),
         focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(16 * brs),
           borderSide: const BorderSide(color: errorColor, width: 2),
         ),
         filled: true,
         fillColor: Colors.grey.shade50,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        contentPadding: EdgeInsets.symmetric(horizontal: 20 * ss, vertical: 16 * ss),
         labelStyle: TextStyle(
           color: Colors.grey[700],
-          fontSize: 14,
+          fontSize: 14 * fs,
           fontWeight: FontWeight.w500,
+          height: lh,
         ),
         hintStyle: TextStyle(
           color: Colors.grey[500],
-          fontSize: 14,
+          fontSize: 14 * fs,
+          height: lh,
         ),
-        floatingLabelStyle: const TextStyle(
+        floatingLabelStyle: TextStyle(
           color: primaryColor,
           fontWeight: FontWeight.w600,
+          fontSize: 14 * fs,
+          height: lh,
         ),
       ),
 
-      // Typography
-      textTheme: const TextTheme(
-        displayLarge: TextStyle(
-          fontSize: 32,
-          fontWeight: FontWeight.w400,
-          letterSpacing: -0.25,
-          color: Color(0xFF1C1B1F),
-        ),
-        displayMedium: TextStyle(
-          fontSize: 28,
-          fontWeight: FontWeight.w400,
-          letterSpacing: 0,
-          color: Color(0xFF1C1B1F),
-        ),
-        displaySmall: TextStyle(
-          fontSize: 24,
-          fontWeight: FontWeight.w400,
-          letterSpacing: 0,
-          color: Color(0xFF1C1B1F),
-        ),
-        headlineLarge: TextStyle(
-          fontSize: 22,
-          fontWeight: FontWeight.w600,
-          letterSpacing: 0,
-          color: Color(0xFF1C1B1F),
-        ),
-        headlineMedium: TextStyle(
-          fontSize: 20,
-          fontWeight: FontWeight.w600,
-          letterSpacing: 0,
-          color: Color(0xFF1C1B1F),
-        ),
-        headlineSmall: TextStyle(
-          fontSize: 18,
-          fontWeight: FontWeight.w600,
-          letterSpacing: 0,
-          color: Color(0xFF1C1B1F),
-        ),
-        titleLarge: TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.w600,
-          letterSpacing: 0.15,
-          color: Color(0xFF1C1B1F),
-        ),
-        titleMedium: TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.w500,
-          letterSpacing: 0.1,
-          color: Color(0xFF1C1B1F),
-        ),
-        titleSmall: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w500,
-          letterSpacing: 0.1,
-          color: Color(0xFF1C1B1F),
-        ),
-        bodyLarge: TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.w400,
-          letterSpacing: 0.5,
-          color: Color(0xFF1C1B1F),
-        ),
-        bodyMedium: TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.w400,
-          letterSpacing: 0.25,
-          color: Color(0xFF1C1B1F),
-        ),
-        bodySmall: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w400,
-          letterSpacing: 0.4,
-          color: Color(0xFF49454F),
-        ),
-        labelLarge: TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.w500,
-          letterSpacing: 0.1,
-          color: Color(0xFF1C1B1F),
-        ),
-        labelMedium: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w500,
-          letterSpacing: 0.5,
-          color: Color(0xFF1C1B1F),
-        ),
-        labelSmall: TextStyle(
-          fontSize: 10,
-          fontWeight: FontWeight.w500,
-          letterSpacing: 0.5,
-          color: Color(0xFF1C1B1F),
-        ),
+      textTheme: TextTheme(
+        displayLarge: TextStyle(fontSize: 32 * fs, fontWeight: FontWeight.w400, letterSpacing: -0.25, color: const Color(0xFF1C1B1F), height: lh),
+        displayMedium: TextStyle(fontSize: 28 * fs, fontWeight: FontWeight.w400, letterSpacing: 0, color: const Color(0xFF1C1B1F), height: lh),
+        displaySmall: TextStyle(fontSize: 24 * fs, fontWeight: FontWeight.w400, letterSpacing: 0, color: const Color(0xFF1C1B1F), height: lh),
+        headlineLarge: TextStyle(fontSize: 22 * fs, fontWeight: FontWeight.w600, letterSpacing: 0, color: const Color(0xFF1C1B1F), height: lh),
+        headlineMedium: TextStyle(fontSize: 20 * fs, fontWeight: FontWeight.w600, letterSpacing: 0, color: const Color(0xFF1C1B1F), height: lh),
+        headlineSmall: TextStyle(fontSize: 18 * fs, fontWeight: FontWeight.w600, letterSpacing: 0, color: const Color(0xFF1C1B1F), height: lh),
+        titleLarge: TextStyle(fontSize: 16 * fs, fontWeight: FontWeight.w600, letterSpacing: 0.15, color: const Color(0xFF1C1B1F), height: lh),
+        titleMedium: TextStyle(fontSize: 14 * fs, fontWeight: FontWeight.w500, letterSpacing: 0.1, color: const Color(0xFF1C1B1F), height: lh),
+        titleSmall: TextStyle(fontSize: 12 * fs, fontWeight: FontWeight.w500, letterSpacing: 0.1, color: const Color(0xFF1C1B1F), height: lh),
+        bodyLarge: TextStyle(fontSize: 16 * fs, fontWeight: FontWeight.w400, letterSpacing: 0.5, color: const Color(0xFF1C1B1F), height: lh),
+        bodyMedium: TextStyle(fontSize: 14 * fs, fontWeight: FontWeight.w400, letterSpacing: 0.25, color: const Color(0xFF1C1B1F), height: lh),
+        bodySmall: TextStyle(fontSize: 12 * fs, fontWeight: FontWeight.w400, letterSpacing: 0.4, color: const Color(0xFF49454F), height: lh),
+        labelLarge: TextStyle(fontSize: 14 * fs, fontWeight: FontWeight.w500, letterSpacing: 0.1, color: const Color(0xFF1C1B1F), height: lh),
+        labelMedium: TextStyle(fontSize: 12 * fs, fontWeight: FontWeight.w500, letterSpacing: 0.5, color: const Color(0xFF1C1B1F), height: lh),
+        labelSmall: TextStyle(fontSize: 10 * fs, fontWeight: FontWeight.w500, letterSpacing: 0.5, color: const Color(0xFF1C1B1F), height: lh),
       ),
 
-      // Icon Theme
-      iconTheme: const IconThemeData(
-        color: Color(0xFF49454F),
-        size: 24,
+      iconTheme: IconThemeData(
+        color: const Color(0xFF49454F),
+        size: 24 * ics,
       ),
 
-      // Divider Theme
       dividerTheme: const DividerThemeData(
         color: Color(0xFFE0E0E0),
         thickness: 1,
         space: 1,
       ),
 
-      // List Tile Theme
-      listTileTheme: const ListTileThemeData(
-        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      listTileTheme: ListTileThemeData(
+        contentPadding: EdgeInsets.symmetric(horizontal: 16 * ss, vertical: 4 * ss),
         dense: true,
         visualDensity: VisualDensity.compact,
       ),
     );
   }
 
-  static ThemeData get darkTheme {
+  static ThemeData createDarkTheme({UICustomization ui = const UICustomization()}) {
+    final fs = ui.fontScale;
+    final ss = ui.spacingScale;
+    final brs = ui.borderRadiusScale;
+    final ics = ui.iconScale;
+    final lh = ui.lineHeightScale;
+
+    // Card style
+    CardThemeData cardTheme;
+    switch (ui.cardStyle) {
+      case CardStyle.outlined:
+        cardTheme = CardThemeData(
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12 * brs),
+            side: BorderSide(
+              color: Colors.grey.shade700,
+              width: 1,
+            ),
+          ),
+          color: darkCardColor,
+          shadowColor: Colors.black54,
+        );
+        break;
+      case CardStyle.elevated:
+        cardTheme = CardThemeData(
+          elevation: 2,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12 * brs),
+          ),
+          color: darkCardColor,
+          shadowColor: Colors.black54,
+        );
+        break;
+      case CardStyle.flat:
+        cardTheme = CardThemeData(
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12 * brs),
+          ),
+          color: const Color(0xFF252525),
+          shadowColor: Colors.transparent,
+        );
+        break;
+    }
+
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
@@ -342,57 +359,116 @@ class AppTheme {
         surfaceTint: Color(0xFF90CAF9),
       ),
 
-      appBarTheme: const AppBarTheme(
+      appBarTheme: AppBarTheme(
         elevation: 0,
         backgroundColor: darkSurfaceColor,
-        foregroundColor: Color(0xFFE6E1E5),
+        foregroundColor: const Color(0xFFE6E1E5),
         systemOverlayStyle: SystemUiOverlayStyle.light,
+        titleTextStyle: TextStyle(
+          fontSize: 20 * fs,
+          fontWeight: FontWeight.w500,
+          color: const Color(0xFFE6E1E5),
+          height: lh,
+        ),
+        iconTheme: IconThemeData(
+          color: const Color(0xFFE6E1E5),
+          size: 24 * ics,
+        ),
       ),
 
-      cardTheme: const CardThemeData(
-        elevation: 2,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.all(Radius.circular(12)),
+      cardTheme: cardTheme,
+
+      tabBarTheme: TabBarThemeData(
+        labelColor: const Color(0xFF90CAF9),
+        unselectedLabelColor: Colors.grey,
+        indicatorColor: const Color(0xFF90CAF9),
+        indicatorSize: TabBarIndicatorSize.label,
+        labelStyle: TextStyle(
+          fontWeight: FontWeight.w600,
+          fontSize: 14 * fs,
+          height: lh,
         ),
-        color: darkCardColor,
-        shadowColor: Colors.black54,
+        unselectedLabelStyle: TextStyle(
+          fontWeight: FontWeight.w400,
+          fontSize: 14 * fs,
+          height: lh,
+        ),
       ),
 
       dataTableTheme: DataTableThemeData(
-        headingRowColor: MaterialStateProperty.all(Color(0xFF37474F)),
-        dataRowColor: MaterialStateProperty.resolveWith((states) {
-          if (states.contains(MaterialState.selected)) {
-            return Color(0xFF90CAF9).withOpacity(0.1);
+        headingRowColor: WidgetStateProperty.all(const Color(0xFF37474F)),
+        dataRowColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return const Color(0xFF90CAF9).withOpacity(0.1);
           }
           return null;
         }),
-        headingTextStyle: const TextStyle(
+        headingTextStyle: TextStyle(
           fontWeight: FontWeight.w600,
-          fontSize: 14,
-          color: Color(0xFFE6E1E5),
+          fontSize: 14 * fs,
+          color: const Color(0xFFE6E1E5),
+          height: lh,
         ),
-        dataTextStyle: const TextStyle(
-          fontSize: 14,
-          color: Color(0xFFE6E1E5),
+        dataTextStyle: TextStyle(
+          fontSize: 14 * fs,
+          color: const Color(0xFFE6E1E5),
+          height: lh,
         ),
+        dataRowMinHeight: ui.tableRowHeight,
+        dataRowMaxHeight: ui.tableRowHeight + 16,
       ),
 
       inputDecorationTheme: InputDecorationTheme(
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(8 * brs),
           borderSide: const BorderSide(color: Color(0xFF49454F)),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(8 * brs),
           borderSide: const BorderSide(color: Color(0xFF49454F)),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(8 * brs),
           borderSide: const BorderSide(color: Color(0xFF90CAF9), width: 2),
         ),
         filled: true,
         fillColor: const Color(0xFF2D2D2D),
-        contentPadding: const EdgeInsets.all(16),
+        contentPadding: EdgeInsets.symmetric(horizontal: 16 * ss, vertical: 16 * ss),
+      ),
+
+      textTheme: TextTheme(
+        displayLarge: TextStyle(fontSize: 32 * fs, fontWeight: FontWeight.w400, color: const Color(0xFFE6E1E5), height: lh),
+        displayMedium: TextStyle(fontSize: 28 * fs, fontWeight: FontWeight.w400, color: const Color(0xFFE6E1E5), height: lh),
+        displaySmall: TextStyle(fontSize: 24 * fs, fontWeight: FontWeight.w400, color: const Color(0xFFE6E1E5), height: lh),
+        headlineLarge: TextStyle(fontSize: 22 * fs, fontWeight: FontWeight.w600, color: const Color(0xFFE6E1E5), height: lh),
+        headlineMedium: TextStyle(fontSize: 20 * fs, fontWeight: FontWeight.w600, color: const Color(0xFFE6E1E5), height: lh),
+        headlineSmall: TextStyle(fontSize: 18 * fs, fontWeight: FontWeight.w600, color: const Color(0xFFE6E1E5), height: lh),
+        titleLarge: TextStyle(fontSize: 16 * fs, fontWeight: FontWeight.w600, color: const Color(0xFFE6E1E5), height: lh),
+        titleMedium: TextStyle(fontSize: 14 * fs, fontWeight: FontWeight.w500, color: const Color(0xFFE6E1E5), height: lh),
+        titleSmall: TextStyle(fontSize: 12 * fs, fontWeight: FontWeight.w500, color: const Color(0xFFE6E1E5), height: lh),
+        bodyLarge: TextStyle(fontSize: 16 * fs, fontWeight: FontWeight.w400, color: const Color(0xFFE6E1E5), height: lh),
+        bodyMedium: TextStyle(fontSize: 14 * fs, fontWeight: FontWeight.w400, color: const Color(0xFFE6E1E5), height: lh),
+        bodySmall: TextStyle(fontSize: 12 * fs, fontWeight: FontWeight.w400, color: const Color(0xFFB0B0B0), height: lh),
+        labelLarge: TextStyle(fontSize: 14 * fs, fontWeight: FontWeight.w500, color: const Color(0xFFE6E1E5), height: lh),
+        labelMedium: TextStyle(fontSize: 12 * fs, fontWeight: FontWeight.w500, color: const Color(0xFFE6E1E5), height: lh),
+        labelSmall: TextStyle(fontSize: 10 * fs, fontWeight: FontWeight.w500, color: const Color(0xFFE6E1E5), height: lh),
+      ),
+
+      iconTheme: IconThemeData(
+        color: const Color(0xFFE6E1E5),
+        size: 24 * ics,
+      ),
+
+      dividerTheme: const DividerThemeData(
+        color: Color(0xFF333333),
+        thickness: 1,
+        space: 1,
+      ),
+
+      listTileTheme: ListTileThemeData(
+        contentPadding: EdgeInsets.symmetric(horizontal: 16 * ss, vertical: 4 * ss),
+        dense: true,
+        visualDensity: VisualDensity.compact,
       ),
     );
   }

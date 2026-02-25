@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'ui_customization.dart';
 
 class AppSettings {
   final String? hidriveUsername;
@@ -20,6 +21,7 @@ class AppSettings {
   final double windowWidth;
   final double windowHeight;
   final bool maximizeWindow;
+  final UICustomization uiCustomization;
   final DateTime updatedAt;
 
   AppSettings({
@@ -42,6 +44,7 @@ class AppSettings {
     this.windowWidth = 1400,
     this.windowHeight = 900,
     this.maximizeWindow = false,
+    this.uiCustomization = const UICustomization(),
     required this.updatedAt,
   });
 
@@ -71,6 +74,7 @@ class AppSettings {
       'windowWidth': windowWidth,
       'windowHeight': windowHeight,
       'maximizeWindow': maximizeWindow,
+      'uiCustomization': uiCustomization.toJson(),
       'updatedAt': updatedAt.toIso8601String(),
     };
   }
@@ -96,6 +100,9 @@ class AppSettings {
       windowWidth: json['windowWidth']?.toDouble() ?? 1400,
       windowHeight: json['windowHeight']?.toDouble() ?? 900,
       maximizeWindow: json['maximizeWindow'] ?? false,
+      uiCustomization: json['uiCustomization'] != null
+          ? UICustomization.fromJson(json['uiCustomization'] as Map<String, dynamic>)
+          : const UICustomization(),
       updatedAt: json['updatedAt'] != null
           ? DateTime.parse(json['updatedAt'])
           : DateTime.now(),
@@ -129,6 +136,7 @@ class AppSettings {
     double? windowWidth,
     double? windowHeight,
     bool? maximizeWindow,
+    UICustomization? uiCustomization,
     DateTime? updatedAt,
   }) {
     return AppSettings(
@@ -151,6 +159,7 @@ class AppSettings {
       windowWidth: windowWidth ?? this.windowWidth,
       windowHeight: windowHeight ?? this.windowHeight,
       maximizeWindow: maximizeWindow ?? this.maximizeWindow,
+      uiCustomization: uiCustomization ?? this.uiCustomization,
       updatedAt: updatedAt ?? DateTime.now(),
     );
   }
