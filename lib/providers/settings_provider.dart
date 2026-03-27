@@ -126,6 +126,14 @@ class AppSettingsNotifier extends StateNotifier<AppSettings> {
     return success;
   }
 
+  Future<bool> saveSettings(AppSettings settings) async {
+    final success = await _settingsService.saveSettings(settings);
+    if (success) {
+      state = _settingsService.settings;
+    }
+    return success;
+  }
+
   Future<bool> resetSettings() async {
     final success = await _settingsService.resetSettings();
     if (success) {
