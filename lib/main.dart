@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart';
@@ -29,24 +30,26 @@ void main() async {
     print('❌ Failed to initialize core services: $e');
   }
 
-  // Desktop Window Configuration
-  await windowManager.ensureInitialized();
+  // Desktop Window Configuration (nicht im Web)
+  if (!kIsWeb) {
+    await windowManager.ensureInitialized();
 
-  WindowOptions windowOptions = const WindowOptions(
-    size: Size(1400, 900),
-    minimumSize: Size(1200, 800),
-    center: true,
-    backgroundColor: Colors.transparent,
-    skipTaskbar: false,
-    titleBarStyle: TitleBarStyle.normal,
-    windowButtonVisibility: true,
-    title: 'FEGH-Verwaltung',
-  );
+    WindowOptions windowOptions = const WindowOptions(
+      size: Size(1400, 900),
+      minimumSize: Size(1200, 800),
+      center: true,
+      backgroundColor: Colors.transparent,
+      skipTaskbar: false,
+      titleBarStyle: TitleBarStyle.normal,
+      windowButtonVisibility: true,
+      title: 'FEGH-Verwaltung',
+    );
 
-  windowManager.waitUntilReadyToShow(windowOptions, () async {
-    await windowManager.show();
-    await windowManager.focus();
-  });
+    windowManager.waitUntilReadyToShow(windowOptions, () async {
+      await windowManager.show();
+      await windowManager.focus();
+    });
+  }
 
   runApp(
     ProviderScope(
