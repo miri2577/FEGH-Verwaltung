@@ -11,6 +11,7 @@ import 'providers/employee_provider.dart';
 import 'providers/notification_provider.dart';
 import 'services/local_storage_service.dart';
 import 'services/crypto_storage.dart';
+import 'services/demo_data_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -77,7 +78,62 @@ class PersonalverwaltungApp extends ConsumerWidget {
       theme: AppTheme.createLightTheme(ui: ui),
       darkTheme: AppTheme.createDarkTheme(ui: ui),
       themeMode: settings.enableDarkMode ? ThemeMode.dark : ThemeMode.light,
-      home: const MainLayout(),
+      home: const _DemoWrapper(),
     );
+  }
+}
+
+class _DemoWrapper extends ConsumerStatefulWidget {
+  const _DemoWrapper();
+
+  @override
+  ConsumerState<_DemoWrapper> createState() => _DemoWrapperState();
+}
+
+class _DemoWrapperState extends ConsumerState<_DemoWrapper> {
+  bool _demoShown = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_demoShown) {
+        _demoShown = true;
+        _showDemoDialog();
+      }
+    });
+  }
+
+  void _showDemoDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        icon: const Icon(Icons.info_outline, size: 48, color: Colors.orange),
+        title: const Text('Demo-Modus'),
+        content: const Text(
+          'Willkommen in der FEGH-Verwaltung Demo.\n\n'
+          'Bitte geben Sie keine echten personenbezogenen Daten ein. '
+          'Die Daten werden nur lokal gespeichert und '
+          'können jederzeit verloren gehen.\n\n'
+          'Diese App befindet sich in einer frühen Beta-Phase. '
+          'Es werden Demo-Daten mit fiktiven Mitarbeitern und Klienten geladen.',
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await DemoDataService.loadDemoData(ref);
+            },
+            child: const Text('Verstanden – Demo starten'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return const MainLayout();
   }
 }
