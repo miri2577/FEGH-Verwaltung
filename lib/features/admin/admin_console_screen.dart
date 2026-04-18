@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:typed_data';
+import 'package:fegh_crypto/fegh_crypto.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_symbols_icons/symbols.dart';
@@ -583,6 +584,7 @@ class _AdminConsoleScreenState extends ConsumerState<AdminConsoleScreen>
     String role = 'team_member';
     final teamsCtrl = TextEditingController();
     final appPwdCtrl = TextEditingController();
+    final pinCtrl = TextEditingController();
     Uint8List? qrPng;
     String? payload;
     showDialog(
@@ -611,6 +613,17 @@ class _AdminConsoleScreenState extends ConsumerState<AdminConsoleScreen>
                 TextField(controller: teamsCtrl, decoration: const InputDecoration(labelText: 'Teams (kommagetrennt, z. B. team-a,team-b)')),
                 const SizedBox(height: 8),
                 TextField(controller: appPwdCtrl, decoration: const InputDecoration(labelText: 'HiDrive App‑Passwort (optional)'), obscureText: true),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: pinCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Schutz-PIN (6 Ziffern)',
+                    helperText: 'Der Mitarbeiter gibt diese PIN in der Doku-App beim Scannen ein',
+                  ),
+                  keyboardType: TextInputType.number,
+                  maxLength: 6,
+                  obscureText: true,
+                ),
                 const SizedBox(height: 12),
                 if (qrPng != null)
                   Image.memory(qrPng!, width: 220, height: 220),
@@ -658,26 +671,34 @@ class _AdminConsoleScreenState extends ConsumerState<AdminConsoleScreen>
                   if (k != null && k.isNotEmpty) teamKeys[t] = k;
                 }
                 final appPwd = appPwdCtrl.text.trim();
-                final now = DateTime.now().toUtc();
-                final obj = {
-                  'type': 'egh-provisioning-v1',
-                  'org': org,
-                  'user': email,
-                  'role': role,
-                  'teams': teams,
-                  'teamKeys': teamKeys,
-                  'hidrive': {
-                    'username': email,
-                    if (appPwd.isNotEmpty) 'appPassword': appPwd,
-                  },
-                  'flags': {
+                final pin = pinCtrl.text.trim();
+                if (pin.length < 6) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('PIN muss mindestens 6 Ziffern haben')),
+                    );
+                  }
+                  return;
+                }
+                // Token mit PIN verschluesseln (Format kompatibel zur Doku-App)
+                final token = ProvisioningToken(
+                  org: org,
+                  user: email,
+                  role: role,
+                  teams: teams,
+                  teamKeys: teamKeys,
+                  hidrive: HidriveCredentials(
+                    username: email,
+                    appPassword: appPwd.isEmpty ? null : appPwd,
+                  ),
+                  flags: const {
                     'managed': true,
                     'hideCredentials': true,
                     'forceInitialSync': true,
                   },
-                  'ts': now.toIso8601String(),
-                };
-                final data = jsonEncode(obj);
+                  ts: DateTime.now().toUtc(),
+                );
+                final data = await token.encryptWithPin(pin);
                 payload = data;
                 try {
                   final painter = QrPainter(data: data, version: QrVersions.auto, gapless: true);
