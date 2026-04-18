@@ -1,0 +1,80 @@
+site_name: FEGH-Verwaltung Wiki
+site_description: Personalverwaltung fuer Eingliederungshilfe - Desktop-Admin-Tool
+site_url: https://miri2577.github.io/FEGH-Verwaltung/
+repo_url: https://github.com/miri2577/FEGH-Verwaltung
+repo_name: miri2577/FEGH-Verwaltung
+
+theme:
+  name: material
+  language: de
+  palette:
+    - scheme: default
+      primary: teal
+      accent: teal
+      toggle:
+        icon: material/brightness-7
+        name: Dunkelmodus
+    - scheme: slate
+      primary: teal
+      accent: teal
+      toggle:
+        icon: material/brightness-4
+        name: Hellmodus
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+  icon:
+    repo: fontawesome/brands/github
+
+plugins:
+  - search:
+      lang: de
+
+markdown_extensions:
+  - tables
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - attr_list
+  - md_in_html
+  - toc:
+      permalink: true
+
+nav:
+  - Start: index.md
+  - Anleitung:
+    - Erste Schritte: anleitung/erste-schritte.md
+    - Mitarbeiter verwalten: anleitung/mitarbeiter.md
+    - Teams organisieren: anleitung/teams.md
+    - Dienstplanung: anleitung/dienstplanung.md
+    - Arbeitszeiten: anleitung/arbeitszeiten.md
+    - Urlaub und Abwesenheiten: anleitung/urlaub.md
+    - Kapazitaetsplanung: anleitung/kapazitaet.md
+    - Berichte: anleitung/berichte.md
+    - Einstellungen: anleitung/einstellungen.md
+  - Features:
+    - Dashboard und KPIs: features/dashboard.md
+    - Rechnungsmodul: features/rechnungen.md
+    - Audit-Log: features/audit.md
+    - Backup und Recovery: features/backup.md
+  - Administration:
+    - Admin-Console: admin/console.md
+    - Organisation einrichten: admin/organisation.md
+    - Mitarbeiter-Einladung (QR): admin/einladung.md
+    - Rollen und Berechtigungen: admin/rollen.md
+    - Team-Keys verwalten: admin/team-keys.md
+    - Sync-Diagnose: admin/sync-diagnose.md
+  - Technik:
+    - Architektur: technik/architektur.md
+    - Zusammenspiel mit FEGH-Dokumentation: technik/zusammenspiel.md
+    - Shared-Packages: technik/shared-packages.md
+    - Cloud-Storage: technik/cloud-storage.md
+    - State-Management (Riverpod): technik/state.md
+  - Doku-App: https://miri2577.github.io/FEGH-Dokumentation/
