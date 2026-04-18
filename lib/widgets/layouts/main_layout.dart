@@ -11,6 +11,7 @@ import '../../features/timesheets/timesheets_screen.dart';
 import '../../features/vacation/vacation_screen.dart';
 import '../../features/icf/icf_screen.dart';
 import '../../features/reports/reports_screen.dart';
+import '../../features/billing/billing_screen.dart';
 import '../../features/capacity/capacity_screen.dart';
 import '../../features/settings/settings_screen.dart';
 import '../../features/notifications/widgets/notification_bell.dart';
@@ -35,7 +36,7 @@ class _MainLayoutState extends ConsumerState<MainLayout>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 11, vsync: this);
+    _tabController = TabController(length: 12, vsync: this);
     _tabController.addListener(() {
       setState(() {
         _currentIndex = _tabController.index;
@@ -177,6 +178,7 @@ class _MainLayoutState extends ConsumerState<MainLayout>
           VacationScreen(),
           ICFScreen(),
           ReportsScreen(),
+          BillingScreen(),
           CapacityScreen(),
           SettingsScreen(),
         ],
@@ -325,6 +327,7 @@ class _MainLayoutState extends ConsumerState<MainLayout>
       (icon: Symbols.beach_access, label: 'Urlaub'),
       (icon: Symbols.health_and_safety, label: 'ICF/TIB'),
       (icon: Symbols.assessment, label: 'Berichte'),
+      (icon: Symbols.receipt_long, label: 'Rechnungen'),
       (icon: Symbols.analytics, label: 'Kapazitaet'),
       (icon: Symbols.settings, label: 'Einstellungen'),
     ];
