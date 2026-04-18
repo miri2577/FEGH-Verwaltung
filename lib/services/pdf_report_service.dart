@@ -1,425 +1,483 @@
 import 'dart:io';
 import 'dart:typed_data';
-import 'package:flutter/services.dart';
-import 'package:path_provider/path_provider.dart';
-import '../models/timesheet.dart';
-import '../models/employee.dart';
-import '../models/capacity_analytics.dart';
 
+import 'package:fegh_pdf_kit/fegh_pdf_kit.dart';
+import 'package:intl/intl.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+
+import '../models/capacity_analytics.dart';
+import '../models/employee.dart';
+import '../models/timesheet.dart';
+
+/// Erzeugt die Report-PDFs der FEGH-Verwaltung.
+///
+/// Das Design kommt aus dem gemeinsamen `fegh_pdf_kit`, die Inhalte
+/// (Zeitnachweise, Kapazitaet, Team-Status, Monatsberichte) sind
+/// verwaltungsspezifisch.
 class PdfReportService {
-  static const String _companyName = 'Eingliederungshilfe Enterprise';
-  static const String _companyAddress = 'Musterstraße 123, 12345 Berlin';
+  static const String _appName = 'FEGH-Verwaltung';
+  static const String _appTagline = 'Personalverwaltung Eingliederungshilfe';
+
+  // ── Zeitnachweis einzeln ─────────────────────────────────────────
 
   Future<String> generateTimesheetReport({
     required Timesheet timesheet,
     required Employee employee,
     List<TimesheetEntry>? entries,
   }) async {
-    try {
-      // For this implementation, we'll create a detailed text-based report
-      // In a real implementation, you would use packages like pdf or printing
-
-      final reportContent = _buildTimesheetReportContent(timesheet, employee, entries ?? []);
-
-      // Save to documents directory
-      final directory = await getApplicationDocumentsDirectory();
-      final file = File('${directory.path}/zeitnachweis_${timesheet.id}.txt');
-      await file.writeAsString(reportContent);
-
-      return file.path;
-    } catch (e) {
-      throw Exception('Fehler beim Erstellen des PDF-Berichts: $e');
-    }
+    final bytes = await _buildTimesheetPdf(timesheet, employee, entries ?? []);
+    return _writeBytes(bytes, 'zeitnachweis_${timesheet.id}.pdf');
   }
+
+  // ── Kapazitaetsanalyse ───────────────────────────────────────────
 
   Future<String> generateCapacityReport({
     required WorkforceAnalytics analytics,
     DateTime? reportDate,
   }) async {
-    try {
-      final reportContent = _buildCapacityReportContent(analytics, reportDate ?? DateTime.now());
-
-      final directory = await getApplicationDocumentsDirectory();
-      final fileName = 'kapazitaetsbericht_${DateTime.now().millisecondsSinceEpoch}.txt';
-      final file = File('${directory.path}/$fileName');
-      await file.writeAsString(reportContent);
-
-      return file.path;
-    } catch (e) {
-      throw Exception('Fehler beim Erstellen des Kapazitätsberichts: $e');
-    }
+    final bytes = await _buildCapacityPdf(analytics, reportDate ?? DateTime.now());
+    return _writeBytes(
+      bytes,
+      'kapazitaetsbericht_${DateTime.now().millisecondsSinceEpoch}.pdf',
+    );
   }
+
+  // ── Teamkapazitaeten ─────────────────────────────────────────────
 
   Future<String> generateTeamCapacityReport({
     required List<TeamCapacity> teamCapacities,
     DateTime? reportDate,
   }) async {
-    try {
-      final reportContent = _buildTeamCapacityReportContent(teamCapacities, reportDate ?? DateTime.now());
-
-      final directory = await getApplicationDocumentsDirectory();
-      final fileName = 'team_kapazitaet_${DateTime.now().millisecondsSinceEpoch}.txt';
-      final file = File('${directory.path}/$fileName');
-      await file.writeAsString(reportContent);
-
-      return file.path;
-    } catch (e) {
-      throw Exception('Fehler beim Erstellen des Team-Berichts: $e');
-    }
+    final bytes = await _buildTeamCapacityPdf(teamCapacities, reportDate ?? DateTime.now());
+    return _writeBytes(
+      bytes,
+      'team_kapazitaet_${DateTime.now().millisecondsSinceEpoch}.pdf',
+    );
   }
+
+  // ── Monatsbericht ────────────────────────────────────────────────
 
   Future<String> generateMonthlyTimesheetSummary({
     required List<Timesheet> timesheets,
     required DateTime month,
     Map<String, Employee>? employees,
   }) async {
-    try {
-      final reportContent = _buildMonthlyTimesheetSummary(timesheets, month, employees ?? {});
-
-      final directory = await getApplicationDocumentsDirectory();
-      final fileName = 'monatsbericht_${month.year}_${month.month.toString().padLeft(2, '0')}.txt';
-      final file = File('${directory.path}/$fileName');
-      await file.writeAsString(reportContent);
-
-      return file.path;
-    } catch (e) {
-      throw Exception('Fehler beim Erstellen des Monatsberichts: $e');
-    }
+    final bytes = await _buildMonthlyPdf(timesheets, month, employees ?? {});
+    return _writeBytes(
+      bytes,
+      'monatsbericht_${month.year}_${month.month.toString().padLeft(2, '0')}.pdf',
+    );
   }
 
-  String _buildTimesheetReportContent(Timesheet timesheet, Employee employee, List<TimesheetEntry> entries) {
-    final buffer = StringBuffer();
+  // ═════════════════════════════════════════════════════════════════
+  // PDF-Bauten
+  // ═════════════════════════════════════════════════════════════════
 
-    // Header
-    buffer.writeln('═══════════════════════════════════════════════════════════════');
-    buffer.writeln('                    ZEITNACHWEIS BERICHT');
-    buffer.writeln('═══════════════════════════════════════════════════════════════');
-    buffer.writeln();
-    buffer.writeln('Unternehmen: $_companyName');
-    buffer.writeln('Adresse:     $_companyAddress');
-    buffer.writeln('Erstellt am: ${DateTime.now().day}.${DateTime.now().month}.${DateTime.now().year} ${DateTime.now().hour}:${DateTime.now().minute.toString().padLeft(2, '0')}');
-    buffer.writeln();
+  Future<Uint8List> _buildTimesheetPdf(
+    Timesheet t,
+    Employee e,
+    List<TimesheetEntry> entries,
+  ) async {
+    final theme = await PdfFontCache.theme();
+    final pdf = pw.Document(theme: theme);
+    final df = DateFormat('dd.MM.yyyy');
+    final euro = NumberFormat.currency(locale: 'de_DE', symbol: '\u20AC');
 
-    // Employee Information
-    buffer.writeln('───────────────────────────────────────────────────────────────');
-    buffer.writeln('MITARBEITER INFORMATIONEN');
-    buffer.writeln('───────────────────────────────────────────────────────────────');
-    buffer.writeln('Name:            ${employee.fullName}');
-    buffer.writeln('Personalnummer:  ${employee.employeeNumber}');
-    buffer.writeln('Abteilung:       ${employee.department}');
-    buffer.writeln('Position:        ${employee.position}');
-    buffer.writeln('E-Mail:          ${employee.email}');
-    buffer.writeln();
-
-    // Timesheet Information
-    buffer.writeln('───────────────────────────────────────────────────────────────');
-    buffer.writeln('ZEITNACHWEIS DETAILS');
-    buffer.writeln('───────────────────────────────────────────────────────────────');
-    buffer.writeln('Zeitnachweis-ID: ${timesheet.id}');
-    buffer.writeln('Status:          ${timesheet.statusLabel}');
-    buffer.writeln('Zeitraum:        ${timesheet.startDate.day}.${timesheet.startDate.month}.${timesheet.startDate.year} - ${timesheet.endDate.day}.${timesheet.endDate.month}.${timesheet.endDate.year}');
-    buffer.writeln('Erstellt:        ${timesheet.createdAt.day}.${timesheet.createdAt.month}.${timesheet.createdAt.year}');
-
-    if (timesheet.submittedAt != null) {
-      buffer.writeln('Eingereicht:     ${timesheet.submittedAt!.day}.${timesheet.submittedAt!.month}.${timesheet.submittedAt!.year}');
-    }
-    if (timesheet.approvedAt != null) {
-      buffer.writeln('Genehmigt:       ${timesheet.approvedAt!.day}.${timesheet.approvedAt!.month}.${timesheet.approvedAt!.year}');
-    }
-    buffer.writeln();
-
-    // Summary
-    buffer.writeln('───────────────────────────────────────────────────────────────');
-    buffer.writeln('ZUSAMMENFASSUNG');
-    buffer.writeln('───────────────────────────────────────────────────────────────');
-    buffer.writeln('Gesamtstunden:    ${timesheet.calculatedTotalHours.toStringAsFixed(2)} h');
-    buffer.writeln('Reguläre Stunden: ${timesheet.calculatedRegularHours.toStringAsFixed(2)} h');
-    buffer.writeln('Überstunden:      ${timesheet.calculatedOvertimeHours.toStringAsFixed(2)} h');
-    buffer.writeln('Gesamtvergütung:  €${timesheet.calculatedTotalPay.toStringAsFixed(2)}');
-    buffer.writeln();
-
-    // Entries
-    if (entries.isNotEmpty) {
-      buffer.writeln('───────────────────────────────────────────────────────────────');
-      buffer.writeln('ARBEITSZEIT EINTRÄGE');
-      buffer.writeln('───────────────────────────────────────────────────────────────');
-
-      for (int i = 0; i < entries.length; i++) {
-        final entry = entries[i];
-        buffer.writeln('${i + 1}. ${_getTypeLabel(entry.type)}');
-        buffer.writeln('   Datum:        ${entry.startTime.day}.${entry.startTime.month}.${entry.startTime.year}');
-        buffer.writeln('   Zeit:         ${entry.startTime.hour}:${entry.startTime.minute.toString().padLeft(2, '0')} - ${entry.endTime.hour}:${entry.endTime.minute.toString().padLeft(2, '0')}');
-        buffer.writeln('   Arbeitszeit:  ${entry.totalHours.toStringAsFixed(2)} h');
-        buffer.writeln('   Vergütung:    €${entry.calculatedPay.toStringAsFixed(2)}');
-
-        if (entry.description != null && entry.description!.isNotEmpty) {
-          buffer.writeln('   Beschreibung: ${entry.description}');
-        }
-        if (entry.location != null && entry.location!.isNotEmpty) {
-          buffer.writeln('   Ort:          ${entry.location}');
-        }
-        if (entry.breakDurationMinutes != null && entry.breakDurationMinutes! > 0) {
-          buffer.writeln('   Pause:        ${entry.breakDurationMinutes!.toStringAsFixed(0)} min');
-        }
-        buffer.writeln();
-      }
-    }
-
-    // Notes
-    if (timesheet.notes != null && timesheet.notes!.isNotEmpty) {
-      buffer.writeln('───────────────────────────────────────────────────────────────');
-      buffer.writeln('NOTIZEN');
-      buffer.writeln('───────────────────────────────────────────────────────────────');
-      buffer.writeln(timesheet.notes);
-      buffer.writeln();
-    }
-
-    // Footer
-    buffer.writeln('───────────────────────────────────────────────────────────────');
-    buffer.writeln('Dieser Bericht wurde automatisch generiert durch das');
-    buffer.writeln('Personalverwaltungssystem von $_companyName');
-    buffer.writeln('───────────────────────────────────────────────────────────────');
-
-    return buffer.toString();
+    pdf.addPage(pw.MultiPage(
+      pageFormat: PdfPageFormat.a4,
+      margin: const pw.EdgeInsets.fromLTRB(50, 40, 50, 50),
+      header: (ctx) => buildHeader(
+        title: 'Zeitnachweis',
+        appName: _appName,
+        appTagline: _appTagline,
+        aktenzeichen: t.id,
+      ),
+      footer: buildFooter(appName: _appName),
+      build: (ctx) => [
+        pw.SizedBox(height: 20),
+        buildHero(
+          label: 'MITARBEITER',
+          title: e.fullName,
+          subtitle:
+              '${e.position} | ${e.department} | Pers.-Nr. ${e.employeeNumber}',
+        ),
+        pw.SizedBox(height: 32),
+        buildKpiRow([
+          PdfKpi(
+            label: 'Gesamtstunden',
+            value: '${t.calculatedTotalHours.toStringAsFixed(1)} h',
+            color: PdfDesignTokens.primaer,
+            hero: true,
+          ),
+          PdfKpi(
+            label: 'Regulaer',
+            value: '${t.calculatedRegularHours.toStringAsFixed(1)} h',
+            color: PdfDesignTokens.text,
+          ),
+          PdfKpi(
+            label: 'Ueberstunden',
+            value: '${t.calculatedOvertimeHours.toStringAsFixed(1)} h',
+            color: t.calculatedOvertimeHours > 0
+                ? PdfDesignTokens.warnSoft
+                : PdfDesignTokens.text,
+          ),
+          PdfKpi(
+            label: 'Verguetung',
+            value: euro.format(t.calculatedTotalPay),
+            color: PdfDesignTokens.accent,
+          ),
+        ]),
+        pw.SizedBox(height: 32),
+        buildSectionHeading('I', 'Zeitraum und Status'),
+        pw.SizedBox(height: 14),
+        _keyValueTable([
+          ['Zeitraum', '${df.format(t.startDate)} - ${df.format(t.endDate)}'],
+          ['Status', t.statusLabel],
+          ['Erstellt', df.format(t.createdAt)],
+          if (t.submittedAt != null) ['Eingereicht', df.format(t.submittedAt!)],
+          if (t.approvedAt != null) ['Genehmigt', df.format(t.approvedAt!)],
+        ]),
+        if (entries.isNotEmpty) ...[
+          pw.SizedBox(height: 24),
+          buildSectionHeading('II', 'Eintraege'),
+          pw.SizedBox(height: 14),
+          pw.Table(
+            columnWidths: const {
+              0: pw.FlexColumnWidth(1.1),
+              1: pw.FlexColumnWidth(1.2),
+              2: pw.FlexColumnWidth(2.2),
+              3: pw.FlexColumnWidth(0.9),
+              4: pw.FlexColumnWidth(0.9),
+            },
+            children: [
+              buildTableHeader(
+                ['Datum', 'Zeit', 'Typ', 'Stunden', 'Verguetung'],
+                alignRight: const [false, false, false, true, true],
+              ),
+              ...entries.map((entry) => buildTableRow([
+                    df.format(entry.startTime),
+                    '${DateFormat('HH:mm').format(entry.startTime)} - ${DateFormat('HH:mm').format(entry.endTime)}',
+                    _typeLabel(entry.type),
+                    '${entry.totalHours.toStringAsFixed(2)} h',
+                    euro.format(entry.calculatedPay),
+                  ], alignRight: const [false, false, false, true, true])),
+            ],
+          ),
+        ],
+        if (t.notes != null && t.notes!.isNotEmpty) ...[
+          pw.SizedBox(height: 24),
+          buildSectionHeading(entries.isNotEmpty ? 'III' : 'II', 'Notizen'),
+          pw.SizedBox(height: 8),
+          pw.Text(t.notes!,
+              style: pw.TextStyle(fontSize: 10, color: PdfDesignTokens.text)),
+        ],
+        pw.SizedBox(height: 40),
+        buildSignatureRow(authorName: e.fullName),
+      ],
+    ));
+    return pdf.save();
   }
 
-  String _buildCapacityReportContent(WorkforceAnalytics analytics, DateTime reportDate) {
-    final buffer = StringBuffer();
+  Future<Uint8List> _buildCapacityPdf(
+    WorkforceAnalytics a,
+    DateTime reportDate,
+  ) async {
+    final theme = await PdfFontCache.theme();
+    final pdf = pw.Document(theme: theme);
+    final df = DateFormat('dd.MM.yyyy HH:mm');
 
-    // Header
-    buffer.writeln('═══════════════════════════════════════════════════════════════');
-    buffer.writeln('                KAPAZITÄTSANALYSE BERICHT');
-    buffer.writeln('═══════════════════════════════════════════════════════════════');
-    buffer.writeln();
-    buffer.writeln('Unternehmen: $_companyName');
-    buffer.writeln('Adresse:     $_companyAddress');
-    buffer.writeln('Erstellt am: ${reportDate.day}.${reportDate.month}.${reportDate.year} ${reportDate.hour}:${reportDate.minute.toString().padLeft(2, '0')}');
-    buffer.writeln();
-
-    // Executive Summary
-    buffer.writeln('───────────────────────────────────────────────────────────────');
-    buffer.writeln('EXECUTIVE SUMMARY');
-    buffer.writeln('───────────────────────────────────────────────────────────────');
-    buffer.writeln('Gesamtmitarbeiter:     ${analytics.totalEmployees}');
-    buffer.writeln('Aktive Mitarbeiter:    ${analytics.activeEmployees}');
-    buffer.writeln('Verfügbarkeitsrate:    ${analytics.availabilityRate.toStringAsFixed(1)}%');
-    buffer.writeln('Gesamtkapazität:       ${analytics.overallCapacity.toStringAsFixed(1)}%');
-    buffer.writeln('Durchschn. Arbeitszeit: ${analytics.averageWorkload.toStringAsFixed(1)} h');
-    buffer.writeln('Überstundenrate:       ${analytics.overtimePercentage.toStringAsFixed(1)}%');
-    buffer.writeln();
-
-    // Team Analysis
-    buffer.writeln('───────────────────────────────────────────────────────────────');
-    buffer.writeln('TEAM ANALYSE');
-    buffer.writeln('───────────────────────────────────────────────────────────────');
-    buffer.writeln('Anzahl Teams:          ${analytics.teamCapacities.length}');
-    buffer.writeln('Kritische Teams:       ${analytics.criticalTeams}');
-    buffer.writeln('Unterbesetzte Teams:   ${analytics.understaffedTeams}');
-    buffer.writeln();
-
-    // Team Details
-    if (analytics.teamCapacities.isNotEmpty) {
-      buffer.writeln('TEAM DETAILS:');
-      buffer.writeln();
-
-      for (final team in analytics.teamCapacities) {
-        buffer.writeln('${team.teamName}:');
-        buffer.writeln('  Status:           ${team.statusLabel}');
-        buffer.writeln('  Kapazität:        ${team.capacityPercentage.toStringAsFixed(1)}%');
-        buffer.writeln('  Verfügbar/Benötigt: ${team.availableStaff}/${team.requiredStaff}');
-        buffer.writeln('  Aktive Mitarbeiter: ${team.activeStaff}');
-
-        if (team.warnings.isNotEmpty) {
-          buffer.writeln('  Warnungen:');
-          for (final warning in team.warnings) {
-            buffer.writeln('    - $warning');
-          }
-        }
-        buffer.writeln();
-      }
-    }
-
-    // Critical Alerts
-    if (analytics.criticalAlerts.isNotEmpty) {
-      buffer.writeln('───────────────────────────────────────────────────────────────');
-      buffer.writeln('KRITISCHE WARNUNGEN');
-      buffer.writeln('───────────────────────────────────────────────────────────────');
-
-      for (int i = 0; i < analytics.criticalAlerts.length; i++) {
-        buffer.writeln('${i + 1}. ${analytics.criticalAlerts[i]}');
-      }
-      buffer.writeln();
-    }
-
-    // Department Distribution
-    if (analytics.departmentDistribution.isNotEmpty) {
-      buffer.writeln('───────────────────────────────────────────────────────────────');
-      buffer.writeln('ABTEILUNGSVERTEILUNG');
-      buffer.writeln('───────────────────────────────────────────────────────────────');
-
-      analytics.departmentDistribution.forEach((department, count) {
-        buffer.writeln('${department.padRight(25)}: $count Mitarbeiter');
-      });
-      buffer.writeln();
-    }
-
-    // Skills Gaps
-    if (analytics.skillsGaps.isNotEmpty) {
-      buffer.writeln('───────────────────────────────────────────────────────────────');
-      buffer.writeln('QUALIFIKATIONSLÜCKEN');
-      buffer.writeln('───────────────────────────────────────────────────────────────');
-
-      analytics.skillsGaps.forEach((skill, gap) {
-        buffer.writeln('${skill.padRight(25)}: ${gap.toStringAsFixed(1)}% Lücke');
-      });
-      buffer.writeln();
-    }
-
-    // Recommendations
-    buffer.writeln('───────────────────────────────────────────────────────────────');
-    buffer.writeln('EMPFEHLUNGEN');
-    buffer.writeln('───────────────────────────────────────────────────────────────');
-
-    final recommendations = _generateCapacityRecommendations(analytics);
-    for (int i = 0; i < recommendations.length; i++) {
-      buffer.writeln('${i + 1}. ${recommendations[i]}');
-    }
-    buffer.writeln();
-
-    // Footer
-    buffer.writeln('───────────────────────────────────────────────────────────────');
-    buffer.writeln('Dieser Bericht wurde automatisch generiert durch das');
-    buffer.writeln('Kapazitätsanalysesystem von $_companyName');
-    buffer.writeln('Analyse basiert auf Daten vom ${analytics.generatedAt.day}.${analytics.generatedAt.month}.${analytics.generatedAt.year}');
-    buffer.writeln('───────────────────────────────────────────────────────────────');
-
-    return buffer.toString();
+    pdf.addPage(pw.MultiPage(
+      pageFormat: PdfPageFormat.a4,
+      margin: const pw.EdgeInsets.fromLTRB(50, 40, 50, 50),
+      header: (ctx) => buildHeader(
+        title: 'Kapazitaetsanalyse',
+        appName: _appName,
+        appTagline: _appTagline,
+      ),
+      footer: buildFooter(appName: _appName),
+      build: (ctx) => [
+        pw.SizedBox(height: 20),
+        buildHero(
+          label: 'STICHTAG',
+          title: 'Workforce Analytics',
+          subtitle: df.format(reportDate),
+        ),
+        pw.SizedBox(height: 32),
+        buildKpiRow([
+          PdfKpi(
+            label: 'Mitarbeiter',
+            value: '${a.activeEmployees} / ${a.totalEmployees}',
+            color: PdfDesignTokens.primaer,
+            hero: true,
+          ),
+          PdfKpi(
+            label: 'Verfuegbarkeit',
+            value: '${a.availabilityRate.toStringAsFixed(1)} %',
+            color: a.availabilityRate >= 85
+                ? PdfDesignTokens.accent
+                : PdfDesignTokens.warn,
+          ),
+          PdfKpi(
+            label: 'Kapazitaet',
+            value: '${a.overallCapacity.toStringAsFixed(1)} %',
+            color: PdfDesignTokens.text,
+          ),
+          PdfKpi(
+            label: 'Ueberstunden',
+            value: '${a.overtimePercentage.toStringAsFixed(1)} %',
+            color: a.overtimePercentage > 15
+                ? PdfDesignTokens.warn
+                : PdfDesignTokens.text,
+          ),
+        ]),
+        pw.SizedBox(height: 32),
+        buildSectionHeading('I', 'Team-Status'),
+        pw.SizedBox(height: 14),
+        if (a.teamCapacities.isEmpty)
+          buildEmptyState('Keine Team-Daten vorhanden.')
+        else
+          pw.Table(
+            columnWidths: const {
+              0: pw.FlexColumnWidth(2),
+              1: pw.FlexColumnWidth(1.3),
+              2: pw.FlexColumnWidth(1.2),
+              3: pw.FlexColumnWidth(1.2),
+            },
+            children: [
+              buildTableHeader(
+                ['Team', 'Status', 'Kapazitaet', 'Personal'],
+                alignRight: const [false, false, true, true],
+              ),
+              ...a.teamCapacities.map((team) => buildTableRow(
+                    [
+                      team.teamName,
+                      team.statusLabel,
+                      '${team.capacityPercentage.toStringAsFixed(0)} %',
+                      '${team.availableStaff} / ${team.requiredStaff}',
+                    ],
+                    alignRight: const [false, false, true, true],
+                    warnIdx: team.capacityPercentage < 75 ? 2 : null,
+                  )),
+            ],
+          ),
+        if (a.departmentDistribution.isNotEmpty) ...[
+          pw.SizedBox(height: 24),
+          buildSectionHeading('II', 'Abteilungsverteilung'),
+          pw.SizedBox(height: 14),
+          buildHorizontalBarList(
+            a.departmentDistribution.map((k, v) => MapEntry(k, v.toDouble())),
+            total: a.departmentDistribution.values.fold(0, (s, v) => s + v).toDouble(),
+            unit: 'MA',
+          ),
+        ],
+        if (a.criticalAlerts.isNotEmpty) ...[
+          pw.SizedBox(height: 24),
+          buildSectionHeading('III', 'Kritische Warnungen'),
+          pw.SizedBox(height: 8),
+          ...a.criticalAlerts.map((alert) => pw.Padding(
+                padding: const pw.EdgeInsets.symmetric(vertical: 3),
+                child: pw.Text('\u2022 $alert',
+                    style: pw.TextStyle(
+                        fontSize: 10, color: PdfDesignTokens.warn)),
+              )),
+        ],
+        pw.SizedBox(height: 40),
+        buildSignatureRow(),
+      ],
+    ));
+    return pdf.save();
   }
 
-  String _buildTeamCapacityReportContent(List<TeamCapacity> teamCapacities, DateTime reportDate) {
-    final buffer = StringBuffer();
+  Future<Uint8List> _buildTeamCapacityPdf(
+    List<TeamCapacity> teams,
+    DateTime reportDate,
+  ) async {
+    final theme = await PdfFontCache.theme();
+    final pdf = pw.Document(theme: theme);
+    final df = DateFormat('dd.MM.yyyy');
 
-    buffer.writeln('═══════════════════════════════════════════════════════════════');
-    buffer.writeln('                  TEAM KAPAZITÄTS BERICHT');
-    buffer.writeln('═══════════════════════════════════════════════════════════════');
-    buffer.writeln();
-    buffer.writeln('Erstellt am: ${reportDate.day}.${reportDate.month}.${reportDate.year}');
-    buffer.writeln('Anzahl Teams: ${teamCapacities.length}');
-    buffer.writeln();
-
-    for (final team in teamCapacities) {
-      buffer.writeln('───────────────────────────────────────────────────────────────');
-      buffer.writeln('TEAM: ${team.teamName.toUpperCase()}');
-      buffer.writeln('───────────────────────────────────────────────────────────────');
-      buffer.writeln('Status:               ${team.statusLabel}');
-      buffer.writeln('Kapazität:            ${team.capacityPercentage.toStringAsFixed(1)}%');
-      buffer.writeln('Benötigte Mitarbeiter: ${team.requiredStaff}');
-      buffer.writeln('Verfügbare Mitarbeiter: ${team.availableStaff}');
-      buffer.writeln('Aktive Mitarbeiter:   ${team.activeStaff}');
-      buffer.writeln('Berechnet am:         ${team.calculatedAt.day}.${team.calculatedAt.month}.${team.calculatedAt.year}');
-
-      if (team.warnings.isNotEmpty) {
-        buffer.writeln();
-        buffer.writeln('WARNUNGEN:');
-        for (final warning in team.warnings) {
-          buffer.writeln('• $warning');
-        }
-      }
-
-      buffer.writeln();
-      buffer.writeln('ARBEITSBELASTUNG:');
-      team.workloadDistribution.forEach((type, percentage) {
-        final label = _getWorkloadTypeLabel(type);
-        buffer.writeln('  ${label.padRight(20)}: ${percentage.toStringAsFixed(1)}%');
-      });
-      buffer.writeln();
-    }
-
-    return buffer.toString();
+    pdf.addPage(pw.MultiPage(
+      pageFormat: PdfPageFormat.a4,
+      margin: const pw.EdgeInsets.fromLTRB(50, 40, 50, 50),
+      header: (ctx) => buildHeader(
+        title: 'Team-Kapazitaeten',
+        appName: _appName,
+        appTagline: _appTagline,
+      ),
+      footer: buildFooter(appName: _appName),
+      build: (ctx) => [
+        pw.SizedBox(height: 20),
+        buildHero(
+          label: 'STICHTAG',
+          title: 'Team-Kapazitaeten',
+          subtitle: '${teams.length} Teams | ${df.format(reportDate)}',
+        ),
+        pw.SizedBox(height: 28),
+        if (teams.isEmpty) buildEmptyState('Keine Teams vorhanden.'),
+        ...teams.map((team) => pw.Padding(
+              padding: const pw.EdgeInsets.symmetric(vertical: 10),
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  buildSectionHeading(
+                    teams.indexOf(team).toString().padLeft(2, '0'),
+                    team.teamName,
+                  ),
+                  pw.SizedBox(height: 10),
+                  _keyValueTable([
+                    ['Status', team.statusLabel],
+                    ['Kapazitaet', '${team.capacityPercentage.toStringAsFixed(1)} %'],
+                    ['Benoetigt', '${team.requiredStaff}'],
+                    ['Verfuegbar', '${team.availableStaff}'],
+                    ['Aktiv', '${team.activeStaff}'],
+                  ]),
+                  if (team.warnings.isNotEmpty) ...[
+                    pw.SizedBox(height: 8),
+                    ...team.warnings.map((w) => pw.Padding(
+                          padding: const pw.EdgeInsets.symmetric(vertical: 2),
+                          child: pw.Text('\u26A0 $w',
+                              style: pw.TextStyle(
+                                  fontSize: 9, color: PdfDesignTokens.warn)),
+                        )),
+                  ],
+                ],
+              ),
+            )),
+      ],
+    ));
+    return pdf.save();
   }
 
-  String _buildMonthlyTimesheetSummary(List<Timesheet> timesheets, DateTime month, Map<String, Employee> employees) {
-    final buffer = StringBuffer();
+  Future<Uint8List> _buildMonthlyPdf(
+    List<Timesheet> timesheets,
+    DateTime month,
+    Map<String, Employee> employees,
+  ) async {
+    final theme = await PdfFontCache.theme();
+    final pdf = pw.Document(theme: theme);
+    final euro = NumberFormat.currency(locale: 'de_DE', symbol: '\u20AC');
 
-    buffer.writeln('═══════════════════════════════════════════════════════════════');
-    buffer.writeln('               MONATSBERICHT ZEITNACHWEISE');
-    buffer.writeln('═══════════════════════════════════════════════════════════════');
-    buffer.writeln();
-    buffer.writeln('Monat: ${month.month.toString().padLeft(2, '0')}/${month.year}');
-    buffer.writeln('Erstellt am: ${DateTime.now().day}.${DateTime.now().month}.${DateTime.now().year}');
-    buffer.writeln('Anzahl Zeitnachweise: ${timesheets.length}');
-    buffer.writeln();
-
-    // Summary by status
     final byStatus = <TimesheetStatus, int>{};
     double totalHours = 0;
     double totalPay = 0;
-
-    for (final timesheet in timesheets) {
-      byStatus[timesheet.status] = (byStatus[timesheet.status] ?? 0) + 1;
-      totalHours += timesheet.calculatedTotalHours;
-      totalPay += timesheet.calculatedTotalPay;
+    for (final t in timesheets) {
+      byStatus[t.status] = (byStatus[t.status] ?? 0) + 1;
+      totalHours += t.calculatedTotalHours;
+      totalPay += t.calculatedTotalPay;
     }
 
-    buffer.writeln('ÜBERSICHT NACH STATUS:');
-    byStatus.forEach((status, count) {
-      buffer.writeln('  ${_getStatusLabel(status).padRight(15)}: $count');
-    });
-    buffer.writeln();
-    buffer.writeln('GESAMT STATISTIKEN:');
-    buffer.writeln('  Gesamtstunden:    ${totalHours.toStringAsFixed(2)} h');
-    buffer.writeln('  Gesamtvergütung:  €${totalPay.toStringAsFixed(2)}');
-    buffer.writeln();
+    final monthLabel = DateFormat('MMMM yyyy', 'de_DE').format(month);
 
-    // Details per timesheet
-    buffer.writeln('───────────────────────────────────────────────────────────────');
-    buffer.writeln('DETAILS');
-    buffer.writeln('───────────────────────────────────────────────────────────────');
-
-    for (final timesheet in timesheets) {
-      final employee = employees[timesheet.employeeId];
-      buffer.writeln('${timesheet.id} | ${employee?.fullName ?? 'Unbekannt'} | ${timesheet.statusLabel} | ${timesheet.calculatedTotalHours.toStringAsFixed(1)}h | €${timesheet.calculatedTotalPay.toStringAsFixed(2)}');
-    }
-
-    return buffer.toString();
+    pdf.addPage(pw.MultiPage(
+      pageFormat: PdfPageFormat.a4,
+      margin: const pw.EdgeInsets.fromLTRB(50, 40, 50, 50),
+      header: (ctx) => buildHeader(
+        title: 'Monatsbericht Zeitnachweise',
+        appName: _appName,
+        appTagline: _appTagline,
+      ),
+      footer: buildFooter(appName: _appName),
+      build: (ctx) => [
+        pw.SizedBox(height: 20),
+        buildHero(
+          label: 'ZEITRAUM',
+          title: monthLabel,
+          subtitle: '${timesheets.length} Zeitnachweise',
+        ),
+        pw.SizedBox(height: 32),
+        buildKpiRow([
+          PdfKpi(
+            label: 'Zeitnachweise',
+            value: '${timesheets.length}',
+            color: PdfDesignTokens.primaer,
+            hero: true,
+          ),
+          PdfKpi(
+            label: 'Gesamtstunden',
+            value: '${totalHours.toStringAsFixed(0)} h',
+            color: PdfDesignTokens.text,
+          ),
+          PdfKpi(
+            label: 'Verguetung',
+            value: euro.format(totalPay),
+            color: PdfDesignTokens.accent,
+          ),
+        ]),
+        pw.SizedBox(height: 32),
+        buildSectionHeading('I', 'Verteilung nach Status'),
+        pw.SizedBox(height: 14),
+        _keyValueTable([
+          for (final entry in byStatus.entries)
+            [_statusLabel(entry.key), '${entry.value}'],
+        ]),
+        pw.SizedBox(height: 24),
+        buildSectionHeading('II', 'Einzelnachweis'),
+        pw.SizedBox(height: 14),
+        pw.Table(
+          columnWidths: const {
+            0: pw.FlexColumnWidth(1.4),
+            1: pw.FlexColumnWidth(2.4),
+            2: pw.FlexColumnWidth(1.4),
+            3: pw.FlexColumnWidth(0.9),
+            4: pw.FlexColumnWidth(1.1),
+          },
+          children: [
+            buildTableHeader(
+              ['ID', 'Mitarbeiter', 'Status', 'Stunden', 'Verguetung'],
+              alignRight: const [false, false, false, true, true],
+            ),
+            ...timesheets.map((t) {
+              final e = employees[t.employeeId];
+              return buildTableRow(
+                [
+                  t.id,
+                  e?.fullName ?? 'Unbekannt',
+                  t.statusLabel,
+                  '${t.calculatedTotalHours.toStringAsFixed(1)} h',
+                  euro.format(t.calculatedTotalPay),
+                ],
+                alignRight: const [false, false, false, true, true],
+              );
+            }),
+          ],
+        ),
+      ],
+    ));
+    return pdf.save();
   }
 
-  List<String> _generateCapacityRecommendations(WorkforceAnalytics analytics) {
-    final recommendations = <String>[];
+  // ─────────────────────────────────────────────────────────────────
+  // Helfer
+  // ─────────────────────────────────────────────────────────────────
 
-    if (analytics.criticalTeams > 0) {
-      recommendations.add('Sofortige Personalmaßnahmen für ${analytics.criticalTeams} kritische Teams erforderlich');
-    }
-
-    if (analytics.understaffedTeams > 0) {
-      recommendations.add('Personalaufstockung für ${analytics.understaffedTeams} unterbesetzte Teams planen');
-    }
-
-    if (analytics.overtimePercentage > 15) {
-      recommendations.add('Überstundenrate von ${analytics.overtimePercentage.toStringAsFixed(1)}% durch Effizienzmaßnahmen reduzieren');
-    }
-
-    if (analytics.availabilityRate < 85) {
-      recommendations.add('Verfügbarkeitsrate von ${analytics.availabilityRate.toStringAsFixed(1)}% durch Gesundheitsmaßnahmen verbessern');
-    }
-
-    if (analytics.skillsGaps.isNotEmpty) {
-      recommendations.add('Weiterbildungsprogramme für identifizierte Qualifikationslücken entwickeln');
-    }
-
-    if (recommendations.isEmpty) {
-      recommendations.add('Aktuelle Kapazitätssituation ist zufriedenstellend - regelmäßige Überwachung fortsetzen');
-    }
-
-    return recommendations;
+  pw.Widget _keyValueTable(List<List<String>> rows) {
+    return pw.Table(
+      columnWidths: const {
+        0: pw.FlexColumnWidth(1),
+        1: pw.FlexColumnWidth(2),
+      },
+      children: [
+        for (final r in rows)
+          buildTableRow([r[0], r[1]], alignRight: const [false, false]),
+      ],
+    );
   }
 
-  String _getTypeLabel(TimesheetEntryType type) {
-    switch (type) {
+  Future<String> _writeBytes(Uint8List bytes, String filename) async {
+    final dir = await getApplicationDocumentsDirectory();
+    final file = File('${dir.path}/$filename');
+    await file.writeAsBytes(bytes);
+    return file.path;
+  }
+
+  String _typeLabel(TimesheetEntryType t) {
+    switch (t) {
       case TimesheetEntryType.regular:
-        return 'Reguläre Arbeitszeit';
+        return 'Regulaere Arbeitszeit';
       case TimesheetEntryType.overtime:
-        return 'Überstunden';
+        return 'Ueberstunden';
       case TimesheetEntryType.travel:
         return 'Fahrtzeit';
       case TimesheetEntryType.break_:
@@ -431,23 +489,8 @@ class PdfReportService {
     }
   }
 
-  String _getWorkloadTypeLabel(WorkloadType type) {
-    switch (type) {
-      case WorkloadType.regular:
-        return 'Regulär';
-      case WorkloadType.overtime:
-        return 'Überstunden';
-      case WorkloadType.vacation:
-        return 'Urlaub';
-      case WorkloadType.sick:
-        return 'Krankheit';
-      case WorkloadType.training:
-        return 'Schulung';
-    }
-  }
-
-  String _getStatusLabel(TimesheetStatus status) {
-    switch (status) {
+  String _statusLabel(TimesheetStatus s) {
+    switch (s) {
       case TimesheetStatus.draft:
         return 'Entwurf';
       case TimesheetStatus.submitted:

@@ -71,6 +71,9 @@ dependencies:
   # Compliance: Audit-Log + DSGVO-Services
   fegh_compliance:
     path: ../fegh-shared/fegh_compliance
+  # Gemeinsames PDF-Toolkit (Design-Tokens, Layout-Bausteine, Preview)
+  fegh_pdf_kit:
+    path: ../fegh-shared/fegh_pdf_kit
   flutter_secure_storage: ^9.2.2
   logger: ^2.4.0
   shared_preferences: ^2.2.3
@@ -112,6 +115,10 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+
+  assets:
+    - assets/fonts/Roboto-Regular.ttf
+    - assets/fonts/Roboto-Bold.ttf
 
   # To add assets to your application, add an assets section, like this:
   # assets:
