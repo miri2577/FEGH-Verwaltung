@@ -1,6 +1,4 @@
-import 'dart:convert';
-import 'dart:io';
-import 'package:http/http.dart' as http;
+import 'package:fegh_cloud/fegh_cloud.dart' as cloud;
 import 'package:flutter/foundation.dart';
 import 'package:xml/xml.dart';
 
@@ -88,208 +86,109 @@ class HiDriveWebDAVClient {
   final String username;
   final String password;
   final String baseUrl;
-  late final http.Client _client;
+  late final cloud.HidriveAdapter _adapter;
 
   HiDriveWebDAVClient({
     required this.username,
     required this.password,
     String? customBaseUrl,
   }) : baseUrl = customBaseUrl ?? HiDriveConfig.buildWebDAVUrl(username) {
-    _client = http.Client();
+    _adapter = cloud.HidriveAdapter(
+      username: username,
+      password: password,
+      baseUrlOverride: baseUrl,
+    );
   }
 
-  Map<String, String> get _headers {
-    final credentials = base64Encode(utf8.encode('$username:$password'));
-    return {
-      'Authorization': 'Basic $credentials',
-      'User-Agent': 'PersonalverwaltungApp/1.0.0',
-      'Accept': '*/*',
-    };
-  }
-
+  // propfind bleibt als detaillierte Abfrage bestehen; intern delegiert sie
+  // an adapter.list und mappt auf die PV-Modellklasse WebDAVResource.
   Future<WebDAVResult<List<WebDAVResource>>> propfind(String path, {int depth = 1}) async {
-    try {
-      final url = '$baseUrl/$path'.replaceAll('//', '/').replaceFirst(':/', '://');
-
-      final propfindBody = '''<?xml version="1.0" encoding="utf-8"?>
-<d:propfind xmlns:d="DAV:">
-  <d:prop>
-    <d:displayname/>
-    <d:getcontentlength/>
-    <d:getcontenttype/>
-    <d:getlastmodified/>
-    <d:resourcetype/>
-  </d:prop>
-</d:propfind>''';
-
-      final response = await _client.send(http.Request('PROPFIND', Uri.parse(url))
-        ..headers.addAll(_headers)
-        ..headers['Content-Type'] = 'application/xml'
-        ..headers['Depth'] = depth.toString()
-        ..body = propfindBody);
-
-      final responseBody = await response.stream.bytesToString();
-
-      if (response.statusCode == 207) { // Multi-Status
-        final document = XmlDocument.parse(responseBody);
-        final responses = document.findAllElements('d:response');
-
-        final resources = responses.map((element) => WebDAVResource.fromXml(element)).toList();
-        return WebDAVResult.success(resources);
-      } else {
-        return WebDAVResult.failure(
-          'PROPFIND failed: ${response.reasonPhrase}',
-          response.statusCode,
-        );
-      }
-    } catch (e) {
-      return WebDAVResult.failure('PROPFIND error: $e');
+    final result = await _adapter.list(path);
+    if (!result.isSuccess) {
+      return WebDAVResult.failure(
+        result.error ?? 'PROPFIND fehlgeschlagen',
+        result.statusCode,
+      );
     }
+    final resources = result.data!
+        .map((e) => WebDAVResource(
+              href: e.path,
+              displayName: e.name,
+              lastModified: e.lastModified,
+              contentLength: e.size,
+              contentType: e.isDirectory
+                  ? 'httpd/unix-directory'
+                  : 'application/octet-stream',
+              isCollection: e.isDirectory,
+            ))
+        .toList();
+    return WebDAVResult.success(resources);
   }
 
-  // Convenience: list children with details (filters out the queried folder itself)
   Future<WebDAVResult<List<WebDAVResource>>> listDetailed(String path) async {
-    final res = await propfind(path, depth: 1);
-    if (!res.success || res.data == null) return WebDAVResult.failure(res.error, res.statusCode);
-    final items = List<WebDAVResource>.from(res.data!);
-    // Most PROPFIND responses include the directory itself as the first item.
-    if (items.isNotEmpty) items.removeAt(0);
-    return WebDAVResult.success(items);
+    return await propfind(path, depth: 1);
   }
 
-  // Convenience: list plain file names (non-collections) in a directory
   Future<WebDAVResult<List<String>>> list(String path) async {
-    final res = await listDetailed(path);
-    if (!res.success || res.data == null) return WebDAVResult.failure(res.error, res.statusCode);
+    final res = await propfind(path, depth: 1);
+    if (!res.success || res.data == null) {
+      return WebDAVResult.failure(res.error, res.statusCode);
+    }
     final names = res.data!
         .where((e) => !e.isCollection)
         .map((e) => e.displayName)
-        .where((name) => name.isNotEmpty)
+        .where((n) => n.isNotEmpty)
         .toList();
     return WebDAVResult.success(names);
   }
 
   Future<WebDAVResult<void>> put(String path, List<int> data) async {
-    try {
-      final url = '$baseUrl/$path'.replaceAll('//', '/').replaceFirst(':/', '://');
-      final sw = Stopwatch()..start();
-      debugPrint('[WebDAV] PUT $url (${data.length}B)');
-
-      final response = await _client
-          .put(
-        Uri.parse(url),
-        headers: {
-          ..._headers,
-          'Content-Type': 'application/octet-stream',
-          'Content-Length': data.length.toString(),
-        },
-        body: data,
-      )
-          .timeout(const Duration(seconds: 12));
-
-      if (response.statusCode == 201 || response.statusCode == 204) {
-        debugPrint('[WebDAV] PUT OK ${sw.elapsedMilliseconds}ms');
-        return WebDAVResult.success(null);
-      } else {
-        debugPrint('[WebDAV] PUT FAIL ${response.statusCode} ${response.reasonPhrase} ${sw.elapsedMilliseconds}ms');
-        return WebDAVResult.failure(
-          'PUT failed: ${response.reasonPhrase}',
-          response.statusCode,
-        );
-      }
-    } catch (e) {
-      debugPrint('[WebDAV] PUT error: $e');
-      return WebDAVResult.failure('PUT error: $e');
+    final sw = Stopwatch()..start();
+    debugPrint('[WebDAV] PUT $path (${data.length}B)');
+    final result = await _adapter.upload(path, Uint8List.fromList(data));
+    if (result.isSuccess) {
+      debugPrint('[WebDAV] PUT OK ${sw.elapsedMilliseconds}ms');
+      return WebDAVResult.success(null);
     }
+    debugPrint('[WebDAV] PUT FAIL ${result.error}');
+    return WebDAVResult.failure(result.error, result.statusCode);
   }
 
   Future<WebDAVResult<List<int>>> get(String path) async {
-    try {
-      final url = '$baseUrl/$path'.replaceAll('//', '/').replaceFirst(':/', '://');
-      final sw = Stopwatch()..start();
-      debugPrint('[WebDAV] GET $url');
-
-      final response = await _client
-          .get(
-        Uri.parse(url),
-        headers: _headers,
-      )
-          .timeout(const Duration(seconds: 12));
-
-      if (response.statusCode == 200) {
-        debugPrint('[WebDAV] GET OK ${response.bodyBytes.length}B ${sw.elapsedMilliseconds}ms');
-        return WebDAVResult.success(response.bodyBytes);
-      } else if (response.statusCode == 404) {
-        debugPrint('[WebDAV] GET 404 ${sw.elapsedMilliseconds}ms');
-        return WebDAVResult.failure('File not found', response.statusCode);
-      } else {
-        debugPrint('[WebDAV] GET FAIL ${response.statusCode} ${response.reasonPhrase} ${sw.elapsedMilliseconds}ms');
-        return WebDAVResult.failure(
-          'GET failed: ${response.reasonPhrase}',
-          response.statusCode,
-        );
-      }
-    } catch (e) {
-      debugPrint('[WebDAV] GET error: $e');
-      return WebDAVResult.failure('GET error: $e');
+    final sw = Stopwatch()..start();
+    debugPrint('[WebDAV] GET $path');
+    final result = await _adapter.download(path);
+    if (result.isSuccess) {
+      debugPrint('[WebDAV] GET OK ${result.data!.length}B ${sw.elapsedMilliseconds}ms');
+      return WebDAVResult.success(result.data!);
     }
+    if (result.statusCode == 404) {
+      debugPrint('[WebDAV] GET 404 ${sw.elapsedMilliseconds}ms');
+      return WebDAVResult.failure('File not found', 404);
+    }
+    debugPrint('[WebDAV] GET FAIL ${result.error}');
+    return WebDAVResult.failure(result.error, result.statusCode);
   }
 
   Future<WebDAVResult<void>> delete(String path) async {
-    try {
-      final url = '$baseUrl/$path'.replaceAll('//', '/').replaceFirst(':/', '://');
-
-      final response = await _client.delete(
-        Uri.parse(url),
-        headers: _headers,
-      );
-
-      if (response.statusCode == 204 || response.statusCode == 404) {
-        return WebDAVResult.success(null);
-      } else {
-        return WebDAVResult.failure(
-          'DELETE failed: ${response.reasonPhrase}',
-          response.statusCode,
-        );
-      }
-    } catch (e) {
-      return WebDAVResult.failure('DELETE error: $e');
-    }
+    final result = await _adapter.delete(path);
+    if (result.isSuccess) return WebDAVResult.success(null);
+    return WebDAVResult.failure(result.error, result.statusCode);
   }
 
   Future<WebDAVResult<void>> mkcol(String path) async {
-    try {
-      final url = '$baseUrl/$path'.replaceAll('//', '/').replaceFirst(':/', '://');
-
-      final response = await _client.send(http.Request('MKCOL', Uri.parse(url))
-        ..headers.addAll(_headers));
-
-      final statusCode = response.statusCode;
-      if (statusCode == 201 || statusCode == 405) { // 405 means already exists
-        return WebDAVResult.success(null);
-      } else {
-        return WebDAVResult.failure(
-          'MKCOL failed: ${response.reasonPhrase}',
-          statusCode,
-        );
-      }
-    } catch (e) {
-      return WebDAVResult.failure('MKCOL error: $e');
-    }
+    final result = await _adapter.createDirectory(path);
+    if (result.isSuccess) return WebDAVResult.success(null);
+    return WebDAVResult.failure(result.error, result.statusCode);
   }
 
   Future<WebDAVResult<bool>> exists(String path) async {
-    final result = await propfind(path, depth: 0);
-    if (result.success) {
-      return WebDAVResult.success(true);
-    } else if (result.statusCode == 404) {
-      return WebDAVResult.success(false);
-    } else {
-      return WebDAVResult.failure(result.error);
-    }
+    final result = await _adapter.exists(path);
+    if (result.isSuccess) return WebDAVResult.success(result.data!);
+    return WebDAVResult.failure(result.error, result.statusCode);
   }
 
   void dispose() {
-    _client.close();
+    _adapter.dispose();
   }
 }
