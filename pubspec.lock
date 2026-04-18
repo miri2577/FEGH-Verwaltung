@@ -191,6 +191,13 @@ packages:
       relative: true
     source: path
     version: "0.1.0"
+  fegh_compliance:
+    dependency: "direct main"
+    description:
+      path: "../fegh-shared/fegh_compliance"
+      relative: true
+    source: path
+    version: "0.1.0"
   fegh_crypto:
     dependency: "direct main"
     description:

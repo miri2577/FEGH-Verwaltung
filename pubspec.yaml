@@ -68,6 +68,9 @@ dependencies:
   # Rechnungsmodul (Models + XRechnung UBL 2.1)
   fegh_billing:
     path: ../fegh-shared/fegh_billing
+  # Compliance: Audit-Log + DSGVO-Services
+  fegh_compliance:
+    path: ../fegh-shared/fegh_compliance
   flutter_secure_storage: ^9.2.2
   logger: ^2.4.0
   shared_preferences: ^2.2.3

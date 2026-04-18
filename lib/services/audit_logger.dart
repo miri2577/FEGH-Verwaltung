@@ -1,36 +1,23 @@
-import 'dart:convert';
-import 'dart:io';
-import 'package:path_provider/path_provider.dart';
+import 'package:fegh_compliance/fegh_compliance.dart' as shared;
 
+/// Verwaltungs-Fassade fuer den gemeinsamen AuditLogger.
+///
+/// Die Legacy-API der Verwaltung (static `log` und `tail`) wird hier
+/// 1:1 erhalten, intern delegiert alles an den Shared-Logger
+/// `fegh_compliance.AuditLogger` (Singleton).
+///
+/// Damit loggen beide Apps (Doku + Verwaltung) in die gleiche
+/// JSON-Lines-Datei im Application-Support-Verzeichnis, mit
+/// identischem Schema (ts, action, userId, ctx).
 class AuditLogger {
-  static Future<File> _file() async {
-    final dir = await getApplicationSupportDirectory();
-    final f = File('${dir.path}/audit.log');
-    if (!(await f.exists())) await f.create(recursive: true);
-    return f;
+  /// Schreibt einen Audit-Eintrag. Default-userId `system` fuer
+  /// Verwaltungs-Aufrufe ohne expliziten User.
+  static Future<void> log(String action, {Map<String, dynamic>? context}) {
+    return shared.AuditLogger.logStatic(action, context: context);
   }
 
-  static Future<void> log(String action, {Map<String, dynamic>? context}) async {
-    try {
-      final f = await _file();
-      final line = jsonEncode({
-        'ts': DateTime.now().toUtc().toIso8601String(),
-        'action': action,
-        'ctx': context ?? {},
-      });
-      await f.writeAsString(line + '\n', mode: FileMode.append, flush: true);
-    } catch (_) {}
-  }
-
-  static Future<List<String>> tail({int lines = 200}) async {
-    try {
-      final f = await _file();
-      final content = await f.readAsLines();
-      if (content.length <= lines) return content;
-      return content.sublist(content.length - lines);
-    } catch (_) {
-      return [];
-    }
+  /// Liefert die letzten [lines] Eintraege als JSON-Strings.
+  static Future<List<String>> tail({int lines = 200}) {
+    return shared.AuditLogger.tail(lines: lines);
   }
 }
-
