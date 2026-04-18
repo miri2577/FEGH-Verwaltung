@@ -27,6 +27,7 @@ dependencies:
 
   # Charts & Visualizations
   syncfusion_flutter_charts: ^32.1.23
+  fl_chart: ^0.69.0
   syncfusion_flutter_gauges: ^32.1.23
   syncfusion_flutter_calendar: ^32.1.23
   syncfusion_flutter_datepicker: ^32.1.23

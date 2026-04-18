@@ -507,7 +507,7 @@ class _BulkShiftDialogState extends ConsumerState<BulkShiftDialog> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.warningContainer,
+                  color: Theme.of(context).colorScheme.tertiaryContainer,
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Row(
@@ -515,14 +515,14 @@ class _BulkShiftDialogState extends ConsumerState<BulkShiftDialog> {
                     Icon(
                       Symbols.warning,
                       size: 16,
-                      color: Theme.of(context).colorScheme.onWarningContainer,
+                      color: Theme.of(context).colorScheme.onTertiaryContainer,
                     ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         'Es werden viele Schichten erstellt. Dies kann einige Zeit dauern.',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.onWarningContainer,
+                          color: Theme.of(context).colorScheme.onTertiaryContainer,
                         ),
                       ),
                     ),
@@ -664,12 +664,17 @@ class _BulkShiftDialogState extends ConsumerState<BulkShiftDialog> {
             _endTime.minute,
           );
 
+          final now = DateTime.now();
           final shift = Shift(
-            id: DateTime.now().millisecondsSinceEpoch.toString() + employeeId + currentDate.day.toString(),
+            id: now.millisecondsSinceEpoch.toString() + employeeId + currentDate.day.toString(),
             employeeId: employeeId,
             startTime: startDateTime,
             endTime: endDateTime,
-            shiftType: _shiftType,
+            status: ShiftStatus.scheduled,
+            type: _shiftType,
+            hourlyRate: 0,
+            createdAt: now,
+            updatedAt: now,
           );
 
           shifts.add(shift);
