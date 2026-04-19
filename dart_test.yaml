@@ -1,0 +1,12 @@
+# Tag-Deklaration fuer dart-/flutter-test.
+#
+# Tests mit `@Tags(['integration'])` laufen nur gegen externe Tools
+# (KoSIT, dufs, ...) und werden automatisch geskipt, wenn die
+# Umgebungsvariablen nicht gesetzt sind. Sie sind kein Teil der
+# Default-Suite.
+tags:
+  integration:
+    description: >
+      Integrationstests gegen externe Tools (KoSIT-Validator via Java,
+      dufs WebDAV). Benoetigen die per scripts/install-test-tools
+      installierten Tools und eine geladene Env-Datei.

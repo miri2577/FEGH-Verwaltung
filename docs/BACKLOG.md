@@ -51,8 +51,8 @@ Das groesste strukturelle Defizit: Beide Apps teilen sich Wire-Format und Cloud,
 
 - [x] Wohnraum-Service Unit-Tests (12 Tests)
 - [x] BTM-Service: erweiterte Test-Faelle (stockOverview, Vernichtungs-Validierung, Audit) — 11 Tests
-- [ ] XRechnung: echter KoSIT-Schematron-Test (lokales Tool oder CI-Pipeline)
-- [ ] Cross-App-Interop-Test nach `fegh_core`
+- [x] XRechnung: echter KoSIT-Schematron-Test (Java-Subprozess, skipt ohne FEGH_KOSIT_* Env)
+- [x] Cross-App-Interop-Test nach `fegh_core` (WebDAV-Roundtrip Client-JSON ueber GenericWebdavAdapter, skipt ohne dufs)
 
 ---
 
