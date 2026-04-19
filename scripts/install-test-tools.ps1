@@ -1,5 +1,5 @@
 # FEGH Test-Tools Installer (Windows PowerShell)
-# ----------------------------------------------
+# -----------------------------------------------
 # Installiert KoSIT Validator + XRechnung-Konfiguration + dufs (WebDAV)
 # fuer XRechnung-Validierung und Cross-App-Interop-Tests.
 #
@@ -21,26 +21,26 @@ $BinDir      = Join-Path $InstallRoot 'bin'
 $EnvFile     = Join-Path $HOME '.fegh-tools.env.ps1'
 
 # --- Helpers ----------------------------------------------------
-function Write-Step($msg) { Write-Host ""; Write-Host "==> $msg" -ForegroundColor Cyan }
-function Write-OK($msg)   { Write-Host "OK " -ForegroundColor Green -NoNewline; Write-Host $msg }
-function Write-Warn2($msg){ Write-Host "!! " -ForegroundColor Yellow -NoNewline; Write-Host $msg }
-function Write-Err2($msg) { Write-Host "KO " -ForegroundColor Red -NoNewline; Write-Host $msg }
+function Write-Step { param($msg) Write-Host ""; Write-Host "==> $msg" -ForegroundColor Cyan }
+function Write-OK   { param($msg) Write-Host "OK " -ForegroundColor Green -NoNewline; Write-Host $msg }
+function Write-Warn2{ param($msg) Write-Host "!! " -ForegroundColor Yellow -NoNewline; Write-Host $msg }
+function Write-Err2 { param($msg) Write-Host "KO " -ForegroundColor Red -NoNewline; Write-Host $msg }
 
-function Test-Command($name) {
-    return [bool](Get-Command $name -ErrorAction SilentlyContinue)
-}
+function Test-Command { param($name) return [bool](Get-Command $name -ErrorAction SilentlyContinue) }
 
-function Confirm-Yes($prompt) {
+function Confirm-Yes {
+    param($prompt)
     $ans = Read-Host "$prompt (y/N)"
     return $ans -match '^[Yy]$'
 }
 
-function Download-File($url, $out) {
+function Download-File {
+    param($url, $out)
     Write-Host "    Download: $url"
     Invoke-WebRequest -Uri $url -OutFile $out -UseBasicParsing
 }
 
-# --- OS-Auswahl (Kompatibilitaet mit der Bash-Variante) --------
+# --- Start ------------------------------------------------------
 Write-Host ""
 Write-Host "===== FEGH Test-Tools Installer =====" -ForegroundColor White
 Write-Host "Installiert KoSIT Validator + XRechnung-Konfig + dufs (WebDAV)"
@@ -109,7 +109,7 @@ if ($scenarioFile) {
     Write-OK "Scenarios-Datei gefunden: $($scenarioFile.FullName)"
     $scenarioPath = $scenarioFile.FullName
 } else {
-    Write-Warn2 "scenarios.xml nicht gefunden — bitte Inhalt pruefen."
+    Write-Warn2 "scenarios.xml nicht gefunden - bitte Inhalt pruefen."
     $scenarioPath = ''
 }
 
@@ -134,24 +134,25 @@ if (Test-Command dufs) {
 
 # --- Env-Datei schreiben ---------------------------------------
 Write-Step "Env-Datei schreiben"
-$envContent = @"
-# FEGH Test-Tools — $(Get-Date -Format 'yyyy-MM-dd')
-# Aktivieren (PowerShell):  . $EnvFile
 
-`$env:FEGH_KOSIT_HOME       = '$KositHome'
-`$env:FEGH_KOSIT_JAR        = '$validatorJar'
-`$env:FEGH_XRECHNUNG_SCENARIO = '$scenarioPath'
+$envLines = @()
+$envLines += '# FEGH Test-Tools'
+$envLines += '# Aktivieren (PowerShell):  . ' + $EnvFile
+$envLines += ''
+$envLines += "`$env:FEGH_KOSIT_HOME        = '$KositHome'"
+$envLines += "`$env:FEGH_KOSIT_JAR         = '$validatorJar'"
+$envLines += "`$env:FEGH_XRECHNUNG_SCENARIO = '$scenarioPath'"
+$envLines += ''
+$envLines += "`$env:FEGH_WEBDAV_URL  = 'http://localhost:5000'"
+$envLines += "`$env:FEGH_WEBDAV_USER = 'fegh-test'"
+$envLines += "`$env:FEGH_WEBDAV_PASS = 'fegh-test'"
+$envLines += "`$env:FEGH_WEBDAV_DIR  = Join-Path `$env:TEMP 'fegh-webdav'"
+$envLines += ''
+$envLines += "if (-not (`$env:Path -split ';' | Where-Object { `$_ -eq '$BinDir' })) {"
+$envLines += "    `$env:Path = '$BinDir;' + `$env:Path"
+$envLines += '}'
 
-`$env:FEGH_WEBDAV_URL  = 'http://localhost:5000'
-`$env:FEGH_WEBDAV_USER = 'fegh-test'
-`$env:FEGH_WEBDAV_PASS = 'fegh-test'
-`$env:FEGH_WEBDAV_DIR  = Join-Path `$env:TEMP 'fegh-webdav'
-
-if (-not (`$env:Path -split ';' | Where-Object { `$_ -eq '$BinDir' })) {
-    `$env:Path = '$BinDir;' + `$env:Path
-}
-"@
-Set-Content -Path $EnvFile -Value $envContent -Encoding UTF8
+Set-Content -Path $EnvFile -Value $envLines -Encoding UTF8
 Write-OK "Env-Datei geschrieben: $EnvFile"
 
 # --- Abschluss -------------------------------------------------
@@ -160,26 +161,22 @@ Write-Host "========================================================="
 Write-Host " Fertig. Naechste Schritte:"
 Write-Host "========================================================="
 Write-Host ""
-Write-Host "1) Env aktivieren (in jedem neuen Terminal):"
+Write-Host "1) Env aktivieren in jedem neuen Terminal:"
 Write-Host "     . $EnvFile" -ForegroundColor White
 Write-Host ""
 Write-Host "   Dauerhaft in dein PowerShell-Profil einbinden:"
-Write-Host "     Add-Content `$PROFILE `"`n. $EnvFile`""
+Write-Host "     Add-Content `$PROFILE `". $EnvFile`""
 Write-Host ""
-Write-Host "2) WebDAV-Server starten (eigenes Terminal):"
-Write-Host '     mkdir -Force $env:FEGH_WEBDAV_DIR | Out-Null'
-Write-Host '     dufs $env:FEGH_WEBDAV_DIR `'
-Write-Host '       --auth "$env:FEGH_WEBDAV_USER`:$env:FEGH_WEBDAV_PASS@/:rw" `'
-Write-Host '       --port 5000'
+Write-Host "2) WebDAV-Server starten in eigenem Terminal:"
+Write-Host '     New-Item -ItemType Directory -Force -Path $env:FEGH_WEBDAV_DIR | Out-Null'
+Write-Host '     dufs $env:FEGH_WEBDAV_DIR --auth "${env:FEGH_WEBDAV_USER}:${env:FEGH_WEBDAV_PASS}@/:rw" --port 5000'
 Write-Host ""
 Write-Host "3) XRechnung-XML validieren:"
-Write-Host '     java -jar $env:FEGH_KOSIT_JAR `'
-Write-Host '       -r $env:FEGH_XRECHNUNG_SCENARIO `'
-Write-Host '       <pfad\zur\rechnung.xml>'
+Write-Host '     java -jar $env:FEGH_KOSIT_JAR -r $env:FEGH_XRECHNUNG_SCENARIO pfad\zur\rechnung.xml'
 Write-Host ""
 Write-Host "4) Flutter-Tests ausfuehren:"
 Write-Host "     flutter test test/xrechnung_kosit_test.dart"
 Write-Host "     flutter test test/cross_app_interop_test.dart"
-Write-Host "     (Diese Tests bauen wir im naechsten Schritt.)"
+Write-Host "     Diese Tests bauen wir im naechsten Schritt."
 Write-Host ""
 Write-Host "========================================================="
