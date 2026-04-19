@@ -112,8 +112,26 @@ In der Env-Datei stehen:
 
 ```bash
 java -jar "$FEGH_KOSIT_JAR" \
-  -r "$FEGH_XRECHNUNG_SCENARIO" \
+  -s "$FEGH_XRECHNUNG_SCENARIO" \
   pfad/zur/rechnung.xml
+```
+
+> Das Flag ist `-s` (scenarios.xml), **nicht** `-r` (repository).
+> Repository-Pfade erkennt der Validator automatisch relativ zur
+> scenarios.xml.
+
+Beispiel mit einer mitgelieferten Test-Rechnung:
+
+```bash
+# Bash:
+java -jar "$FEGH_KOSIT_JAR" \
+  -s "$FEGH_XRECHNUNG_SCENARIO" \
+  "$(dirname $FEGH_XRECHNUNG_SCENARIO)/test/instances/xrechnung-3.0/UBL/XRechnung-O.xml"
+
+# PowerShell:
+$sampleDir = Split-Path $env:FEGH_XRECHNUNG_SCENARIO
+java -jar $env:FEGH_KOSIT_JAR -s $env:FEGH_XRECHNUNG_SCENARIO `
+  (Join-Path $sampleDir 'test\instances\xrechnung-3.0\UBL\XRechnung-O.xml')
 ```
 
 ### dufs starten

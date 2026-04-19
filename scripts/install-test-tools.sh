@@ -310,9 +310,9 @@ print_next_steps() {
        --auth "\$FEGH_WEBDAV_USER:\$FEGH_WEBDAV_PASS@/:rw" \\
        --port 5000
 
-3) XRechnung-XML validieren:
+3) XRechnung-XML validieren (ersetze <pfad> mit Datei):
      java -jar "\$FEGH_KOSIT_JAR" \\
-       -r "\$FEGH_XRECHNUNG_SCENARIO" \\
+       -s "\$FEGH_XRECHNUNG_SCENARIO" \\
        <pfad/zur/rechnung.xml>
 
 4) Flutter-Tests ausfuehren (greifen die Env-Variablen auf):

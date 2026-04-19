@@ -175,8 +175,8 @@ Write-Host "2) WebDAV-Server starten in eigenem Terminal:"
 Write-Host '     New-Item -ItemType Directory -Force -Path $env:FEGH_WEBDAV_DIR | Out-Null'
 Write-Host '     dufs $env:FEGH_WEBDAV_DIR --auth "${env:FEGH_WEBDAV_USER}:${env:FEGH_WEBDAV_PASS}@/:rw" --port 5000'
 Write-Host ""
-Write-Host "3) XRechnung-XML validieren:"
-Write-Host '     java -jar $env:FEGH_KOSIT_JAR -r $env:FEGH_XRECHNUNG_SCENARIO pfad\zur\rechnung.xml'
+Write-Host "3) XRechnung-XML validieren (ersetze <pfad> mit Datei):"
+Write-Host '     java -jar $env:FEGH_KOSIT_JAR -s $env:FEGH_XRECHNUNG_SCENARIO <pfad\zu\rechnung.xml>'
 Write-Host ""
 Write-Host "4) Flutter-Tests ausfuehren:"
 Write-Host "     flutter test test/xrechnung_kosit_test.dart"
