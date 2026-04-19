@@ -194,9 +194,11 @@ install_kosit() {
   if [ -n "$scenario" ]; then
     ok "Scenarios-Datei gefunden: $scenario"
     FEGH_XRECHNUNG_SCENARIO="$scenario"
+    FEGH_XRECHNUNG_REPO="$(dirname "$scenario")"
   else
-    warn "scenarios.xml nicht gefunden — bitte Inhalt pruefen."
+    warn "scenarios.xml nicht gefunden - bitte Inhalt pruefen."
     FEGH_XRECHNUNG_SCENARIO=""
+    FEGH_XRECHNUNG_REPO=""
   fi
 }
 
@@ -292,6 +294,7 @@ write_env() {
 export FEGH_KOSIT_HOME="$KOSIT_HOME"
 export FEGH_KOSIT_JAR="$jar"
 export FEGH_XRECHNUNG_SCENARIO="${FEGH_XRECHNUNG_SCENARIO:-}"
+export FEGH_XRECHNUNG_REPO="${FEGH_XRECHNUNG_REPO:-}"
 export FEGH_XRECHNUNG_SAMPLE="${FEGH_XRECHNUNG_SAMPLE:-}"
 
 export FEGH_WEBDAV_URL="http://localhost:5000"
@@ -332,6 +335,7 @@ print_next_steps() {
 
 3) Smoke-Test XRechnung-Validator (mitgeliefertes Sample):
      java -jar "\$FEGH_KOSIT_JAR" \\
+       -r "\$FEGH_XRECHNUNG_REPO" \\
        -s "\$FEGH_XRECHNUNG_SCENARIO" \\
        "\$FEGH_XRECHNUNG_SAMPLE"
    Erwartet: <accepted>true</accepted> im Report.

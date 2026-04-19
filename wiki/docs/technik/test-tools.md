@@ -112,37 +112,36 @@ In der Env-Datei stehen:
 
 ```bash
 java -jar "$FEGH_KOSIT_JAR" \
+  -r "$FEGH_XRECHNUNG_REPO" \
   -s "$FEGH_XRECHNUNG_SCENARIO" \
   pfad/zur/rechnung.xml
 ```
 
-> Das Flag ist `-s` (scenarios.xml), **nicht** `-r` (repository).
-> Repository-Pfade erkennt der Validator automatisch relativ zur
-> scenarios.xml.
+> `-s` nennt die Szenario-Datei; `-r` nennt das Repository-Verzeichnis
+> (enthaelt `resources/` mit XSD/XSL/Schematron). Beide sind noetig —
+> das Install-Script setzt `FEGH_XRECHNUNG_REPO` automatisch.
 
 Die Validator-Konfiguration enthaelt **keine** Test-Rechnungen — die
 leben im separaten Repo `itplr-kosit/xrechnung-testsuite`. Eine
 offizielle Sample-Rechnung holen und validieren:
 
+Das Install-Script legt bereits eine Sample-Rechnung nach
+`~/.fegh-tools/samples/xrechnung-sample.xml` ab und exportiert den
+Pfad als `FEGH_XRECHNUNG_SAMPLE`. Smoke-Test:
+
 **Bash:**
 
 ```bash
-mkdir -p ~/.fegh-tools/samples
-curl -fsSL -o ~/.fegh-tools/samples/xrechnung-sample.xml \
-  https://raw.githubusercontent.com/itplr-kosit/xrechnung-testsuite/master/src/test/business-cases/standard/01.01a-INVOICE_ubl.xml
-java -jar "$FEGH_KOSIT_JAR" -s "$FEGH_XRECHNUNG_SCENARIO" \
-  ~/.fegh-tools/samples/xrechnung-sample.xml
+java -jar "$FEGH_KOSIT_JAR" \
+  -r "$FEGH_XRECHNUNG_REPO" \
+  -s "$FEGH_XRECHNUNG_SCENARIO" \
+  "$FEGH_XRECHNUNG_SAMPLE"
 ```
 
 **PowerShell:**
 
 ```powershell
-$samples = Join-Path $HOME '.fegh-tools\samples'
-New-Item -ItemType Directory -Path $samples -Force | Out-Null
-Invoke-WebRequest `
-  -Uri 'https://raw.githubusercontent.com/itplr-kosit/xrechnung-testsuite/master/src/test/business-cases/standard/01.01a-INVOICE_ubl.xml' `
-  -OutFile "$samples\xrechnung-sample.xml"
-java -jar $env:FEGH_KOSIT_JAR -s $env:FEGH_XRECHNUNG_SCENARIO "$samples\xrechnung-sample.xml"
+java -jar $env:FEGH_KOSIT_JAR -r $env:FEGH_XRECHNUNG_REPO -s $env:FEGH_XRECHNUNG_SCENARIO $env:FEGH_XRECHNUNG_SAMPLE
 ```
 
 Erwartete Ausgabe: XML-Report mit `<accepted>true</accepted>`.

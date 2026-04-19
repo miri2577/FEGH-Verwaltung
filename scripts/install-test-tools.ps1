@@ -115,9 +115,11 @@ $scenarioFile = Get-ChildItem -Path $xrCfgDir -Recurse -Filter 'scenarios.xml' -
 if ($scenarioFile) {
     Write-OK "Scenarios-Datei gefunden: $($scenarioFile.FullName)"
     $scenarioPath = $scenarioFile.FullName
+    $scenarioRepo = Split-Path $scenarioPath
 } else {
     Write-Warn2 "scenarios.xml nicht gefunden - bitte Inhalt pruefen."
     $scenarioPath = ''
+    $scenarioRepo = ''
 }
 
 # --- dufs ------------------------------------------------------
@@ -160,9 +162,10 @@ $envLines = @()
 $envLines += '# FEGH Test-Tools'
 $envLines += '# Aktivieren (PowerShell):  . ' + $EnvFile
 $envLines += ''
-$envLines += "`$env:FEGH_KOSIT_HOME        = '$KositHome'"
-$envLines += "`$env:FEGH_KOSIT_JAR         = '$validatorJar'"
+$envLines += "`$env:FEGH_KOSIT_HOME         = '$KositHome'"
+$envLines += "`$env:FEGH_KOSIT_JAR          = '$validatorJar'"
 $envLines += "`$env:FEGH_XRECHNUNG_SCENARIO = '$scenarioPath'"
+$envLines += "`$env:FEGH_XRECHNUNG_REPO     = '$scenarioRepo'"
 $envLines += ''
 $envLines += "`$env:FEGH_WEBDAV_URL  = 'http://localhost:5000'"
 $envLines += "`$env:FEGH_WEBDAV_USER = 'fegh-test'"
@@ -196,7 +199,7 @@ Write-Host '     New-Item -ItemType Directory -Force -Path $env:FEGH_WEBDAV_DIR 
 Write-Host '     dufs $env:FEGH_WEBDAV_DIR --auth "${env:FEGH_WEBDAV_USER}:${env:FEGH_WEBDAV_PASS}@/:rw" --port 5000'
 Write-Host ""
 Write-Host "3) Smoke-Test XRechnung-Validator (mitgeliefertes Sample):"
-Write-Host '     java -jar $env:FEGH_KOSIT_JAR -s $env:FEGH_XRECHNUNG_SCENARIO $env:FEGH_XRECHNUNG_SAMPLE'
+Write-Host '     java -jar $env:FEGH_KOSIT_JAR -r $env:FEGH_XRECHNUNG_REPO -s $env:FEGH_XRECHNUNG_SCENARIO $env:FEGH_XRECHNUNG_SAMPLE'
 Write-Host "   Erwartet: <accepted>true</accepted> im Report."
 Write-Host ""
 Write-Host "4) Flutter-Tests ausfuehren:"
