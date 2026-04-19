@@ -3,6 +3,9 @@
 *.log
 *.pyc
 *.swp
+
+# Integrationstest-Artefakte (KoSIT-Reports)
+*-report.xml
 .DS_Store
 .atom/
 .build/
