@@ -13,6 +13,8 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
+import '../../services/pdf_report_service.dart';
+
 class ShiftPlanningScreen extends ConsumerStatefulWidget {
   const ShiftPlanningScreen({super.key});
 
@@ -43,7 +45,12 @@ class _ShiftPlanningScreenState extends ConsumerState<ShiftPlanningScreen> {
           IconButton(
             onPressed: () => _exportSchedule(),
             icon: const Icon(Symbols.download),
-            tooltip: 'Exportieren',
+            tooltip: 'Exportieren (Liste)',
+          ),
+          IconButton(
+            onPressed: () => _exportAushang(),
+            icon: const Icon(Symbols.print),
+            tooltip: 'Wochen-Aushang (PDF)',
           ),
           IconButton(
             onPressed: () => _showPlanningSettings(),
@@ -373,6 +380,34 @@ class _ShiftPlanningScreenState extends ConsumerState<ShiftPlanningScreen> {
       bytes: await pdf.save(),
       filename: 'Schichtplan_${_getPeriodTitle().replaceAll(' ', '_')}.pdf',
     );
+  }
+
+  Future<void> _exportAushang() async {
+    final messenger = ScaffoldMessenger.of(context);
+    final shifts = ref.read(shiftsProvider).valueOrNull ?? [];
+    final employees = ref.read(employeesProvider).valueOrNull ?? [];
+
+    // Aktueller Montag der Auswahl
+    final monday = _selectedDate
+        .subtract(Duration(days: _selectedDate.weekday - 1));
+    final weekStart = DateTime(monday.year, monday.month, monday.day);
+    final empMap = {for (final e in employees) e.id: e};
+
+    try {
+      final path = await PdfReportService().generateShiftScheduleAushang(
+        teamName: 'Dienstplan',
+        weekStart: weekStart,
+        shifts: shifts,
+        employees: empMap,
+      );
+      messenger.showSnackBar(
+        SnackBar(content: Text('Aushang gespeichert: $path')),
+      );
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(content: Text('Fehler beim Aushang: $e')),
+      );
+    }
   }
 
   void _showPlanningSettings() {

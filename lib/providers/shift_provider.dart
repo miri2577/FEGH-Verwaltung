@@ -5,6 +5,7 @@ import '../models/app_settings.dart';
 import '../services/local_storage_service.dart';
 import '../services/hidrive_sync_service.dart';
 import '../services/crypto_storage.dart';
+import '../services/shift_conflict_checker.dart';
 import 'settings_provider.dart';
 import 'employee_provider.dart';
 
@@ -260,6 +261,13 @@ class ShiftsNotifier extends StateNotifier<AsyncValue<List<Shift>>> {
 
   Future<void> refresh() async {
     await _loadShifts();
+  }
+
+  /// Prueft eine geplante Schicht gegen den aktuellen State.
+  /// Kann synchron aus UI-Code aufgerufen werden.
+  List<ShiftConflict> validateShift(Shift shift) {
+    final list = state.asData?.value ?? const <Shift>[];
+    return ShiftConflictChecker.check(shift, list);
   }
 }
 

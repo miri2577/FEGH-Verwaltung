@@ -4,6 +4,9 @@ import 'package:material_symbols_icons/symbols.dart';
 import '../../../models/shift.dart';
 import '../../../models/employee.dart';
 import '../../../providers/employee_provider.dart';
+import '../../../providers/shift_provider.dart';
+import '../../../services/shift_conflict_checker.dart';
+import '../shift_conflicts_widget.dart';
 
 class ShiftFormDialog extends ConsumerStatefulWidget {
   final Shift? shift;
@@ -214,6 +217,8 @@ class _ShiftFormDialogState extends ConsumerState<ShiftFormDialog> {
                       ),
                       const SizedBox(height: 16),
                       _buildCalculatedFields(),
+                      const SizedBox(height: 16),
+                      _buildConflictPanel(),
                     ],
                   ),
                 ),
@@ -450,6 +455,97 @@ class _ShiftFormDialogState extends ConsumerState<ShiftFormDialog> {
     }
   }
 
+  /// Baut die aktuelle Schicht aus den Formular-Feldern.
+  /// Gibt `null` zurueck, wenn Pflichtfelder fehlen.
+  Shift? _buildPlannedShift() {
+    if (_selectedEmployeeId == null) return null;
+
+    final startDateTime = DateTime(
+      _selectedDate.year,
+      _selectedDate.month,
+      _selectedDate.day,
+      _startTime.hour,
+      _startTime.minute,
+    );
+    var endDateTime = DateTime(
+      _selectedDate.year,
+      _selectedDate.month,
+      _selectedDate.day,
+      _endTime.hour,
+      _endTime.minute,
+    );
+    if (endDateTime.isBefore(startDateTime)) {
+      endDateTime = endDateTime.add(const Duration(days: 1));
+    }
+    final breakDurationMinutes = _breakDuration != null
+        ? (_breakDuration!.hour.clamp(0, 23) * 60 +
+                _breakDuration!.minute.clamp(0, 59))
+            .toDouble()
+        : null;
+    return Shift(
+      id: widget.shift?.id ?? '',
+      employeeId: _selectedEmployeeId!,
+      startTime: startDateTime,
+      endTime: endDateTime,
+      type: _selectedType,
+      status: widget.shift?.status ?? ShiftStatus.scheduled,
+      breakDurationMinutes: breakDurationMinutes,
+      hourlyRate: 15.0,
+      notes:
+          _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
+      createdAt: widget.shift?.createdAt ?? DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
+  }
+
+  /// Live-Panel der aktuellen ArbZG-/Overlap-Konflikte.
+  Widget _buildConflictPanel() {
+    final planned = _buildPlannedShift();
+    if (planned == null) return const SizedBox.shrink();
+    final conflicts = ref.read(shiftsProvider.notifier).validateShift(planned);
+    return ShiftConflictsWidget(conflicts: conflicts);
+  }
+
+  Future<bool> _confirmWarnings(List<ShiftConflict> warnings) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Warnungen bestaetigen'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Folgende Hinweise liegen vor:'),
+            const SizedBox(height: 8),
+            ...warnings.map((w) => Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 2),
+                  child: Text('\u2022 ${w.message}'),
+                )),
+            const SizedBox(height: 12),
+            const Text('Trotzdem planen?'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Trotzdem planen'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Planung abgebrochen.')),
+      );
+    }
+    return confirmed == true;
+  }
+
   Future<void> _saveShift() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -458,44 +554,29 @@ class _ShiftFormDialogState extends ConsumerState<ShiftFormDialog> {
     });
 
     try {
-      final startDateTime = DateTime(
-        _selectedDate.year,
-        _selectedDate.month,
-        _selectedDate.day,
-        _startTime.hour,
-        _startTime.minute,
-      );
-
-      var endDateTime = DateTime(
-        _selectedDate.year,
-        _selectedDate.month,
-        _selectedDate.day,
-        _endTime.hour,
-        _endTime.minute,
-      );
-
-      // Handle overnight shifts
-      if (endDateTime.isBefore(startDateTime)) {
-        endDateTime = endDateTime.add(const Duration(days: 1));
+      final shift = _buildPlannedShift();
+      if (shift == null) {
+        throw StateError('Mitarbeiter fehlt');
       }
 
-      final breakDurationMinutes = _breakDuration != null
-          ? (_breakDuration!.hour.clamp(0, 23) * 60 + _breakDuration!.minute.clamp(0, 59)).toDouble()
-          : null;
-
-      final shift = Shift(
-        id: widget.shift?.id ?? '',
-        employeeId: _selectedEmployeeId!,
-        startTime: startDateTime,
-        endTime: endDateTime,
-        type: _selectedType,
-        status: widget.shift?.status ?? ShiftStatus.scheduled,
-        breakDurationMinutes: breakDurationMinutes,
-        hourlyRate: 15.0, // Default hourly rate
-        notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
-        createdAt: widget.shift?.createdAt ?? DateTime.now(),
-        updatedAt: DateTime.now(),
-      );
+      final conflicts =
+          ref.read(shiftsProvider.notifier).validateShift(shift);
+      if (ShiftConflictsWidget.hasBlocking(conflicts)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Schicht verletzt ArbZG-Vorgaben und wurde nicht gespeichert.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        setState(() => _isLoading = false);
+        return;
+      }
+      if (conflicts.isNotEmpty) {
+        setState(() => _isLoading = false);
+        final ok = await _confirmWarnings(conflicts);
+        if (!ok) return;
+        setState(() => _isLoading = true);
+      }
 
       await widget.onSave(shift);
 

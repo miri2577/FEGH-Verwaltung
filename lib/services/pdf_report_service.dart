@@ -9,6 +9,7 @@ import 'package:pdf/widgets.dart' as pw;
 
 import '../models/capacity_analytics.dart';
 import '../models/employee.dart';
+import '../models/shift.dart';
 import '../models/timesheet.dart';
 
 /// Erzeugt die Report-PDFs der FEGH-Verwaltung.
@@ -69,6 +70,22 @@ class PdfReportService {
       bytes,
       'monatsbericht_${month.year}_${month.month.toString().padLeft(2, '0')}.pdf',
     );
+  }
+
+  // ── Dienstplan-Aushang ────────────────────────────────────────────
+
+  /// Aushang-PDF fuer einen Wochendienstplan: Mitarbeiter × 7 Tage,
+  /// Zellen mit Zeiten und Schichttyp. A4 quer.
+  Future<String> generateShiftScheduleAushang({
+    required String teamName,
+    required DateTime weekStart, // Montag
+    required List<Shift> shifts,
+    required Map<String, Employee> employees,
+  }) async {
+    final bytes = await _buildAushangPdf(teamName, weekStart, shifts, employees);
+    final ymd =
+        '${weekStart.year}_${weekStart.month.toString().padLeft(2, '0')}_${weekStart.day.toString().padLeft(2, '0')}';
+    return _writeBytes(bytes, 'dienstplan_${_slug(teamName)}_$ymd.pdf');
   }
 
   // ═════════════════════════════════════════════════════════════════
@@ -446,6 +463,132 @@ class PdfReportService {
       ],
     ));
     return pdf.save();
+  }
+
+  Future<Uint8List> _buildAushangPdf(
+    String teamName,
+    DateTime weekStart,
+    List<Shift> shifts,
+    Map<String, Employee> employees,
+  ) async {
+    final theme = await PdfFontCache.theme();
+    final pdf = pw.Document(theme: theme);
+    final df = DateFormat('dd.MM.');
+
+    final weekDays = List<DateTime>.generate(
+      7,
+      (i) => DateTime(weekStart.year, weekStart.month, weekStart.day + i),
+    );
+    final weekEnd = weekDays.last;
+
+    // Gruppiere Schichten pro Mitarbeiter (nur Mitarbeiter mit Schichten)
+    final byEmployee = <String, List<Shift>>{};
+    for (final s in shifts) {
+      if (s.status == ShiftStatus.cancelled) continue;
+      if (!s.startTime.isAfter(weekEnd.add(const Duration(days: 1))) &&
+          !s.endTime.isBefore(weekStart)) {
+        byEmployee.putIfAbsent(s.employeeId, () => []).add(s);
+      }
+    }
+    final sortedEmployees = byEmployee.keys.toList()
+      ..sort((a, b) => (employees[a]?.fullName ?? a)
+          .compareTo(employees[b]?.fullName ?? b));
+
+    pdf.addPage(pw.MultiPage(
+      pageFormat: PdfPageFormat.a4.landscape,
+      margin: const pw.EdgeInsets.fromLTRB(30, 30, 30, 30),
+      header: (ctx) => buildHeader(
+        title: 'Dienstplan Aushang',
+        appName: _appName,
+        appTagline: _appTagline,
+      ),
+      footer: buildFooter(appName: _appName),
+      build: (ctx) => [
+        pw.SizedBox(height: 12),
+        buildHero(
+          label: 'TEAM',
+          title: teamName,
+          subtitle:
+              'Woche ${df.format(weekStart)} bis ${df.format(weekEnd)}.${weekEnd.year}',
+        ),
+        pw.SizedBox(height: 20),
+        if (sortedEmployees.isEmpty)
+          buildEmptyState('Keine Schichten in dieser Woche.')
+        else
+          pw.Table(
+            columnWidths: {
+              0: const pw.FlexColumnWidth(2),
+              for (var i = 0; i < 7; i++) (i + 1): const pw.FlexColumnWidth(1.3),
+            },
+            children: [
+              buildTableHeader([
+                'Mitarbeiter',
+                ..._weekdayLabels(weekDays),
+              ]),
+              ...sortedEmployees.map((empId) {
+                final name = employees[empId]?.fullName ?? empId;
+                final row = <String>[name];
+                for (final d in weekDays) {
+                  row.add(_cellText(byEmployee[empId]!, d));
+                }
+                return buildTableRow(row);
+              }),
+            ],
+          ),
+        pw.SizedBox(height: 18),
+        pw.Text(
+          'Legende: F = Frueh, S = Spaet, N = Nacht, U = Urlaub, ! = gekuerzte Ruhezeit',
+          style: pw.TextStyle(fontSize: 8, color: PdfDesignTokens.muted),
+        ),
+      ],
+    ));
+    return pdf.save();
+  }
+
+  List<String> _weekdayLabels(List<DateTime> days) {
+    const names = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
+    return [
+      for (var i = 0; i < days.length; i++)
+        '${names[i]} ${days[i].day.toString().padLeft(2, '0')}.${days[i].month.toString().padLeft(2, '0')}.',
+    ];
+  }
+
+  String _cellText(List<Shift> shifts, DateTime day) {
+    final matching = shifts.where((s) =>
+        s.startTime.year == day.year &&
+        s.startTime.month == day.month &&
+        s.startTime.day == day.day).toList();
+    if (matching.isEmpty) return '';
+    matching.sort((a, b) => a.startTime.compareTo(b.startTime));
+    return matching
+        .map((s) =>
+            '${_tt(s.startTime)}-${_tt(s.endTime)} ${_shortType(s.type)}')
+        .join('\n');
+  }
+
+  String _tt(DateTime d) =>
+      '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+
+  String _shortType(ShiftType t) {
+    switch (t) {
+      case ShiftType.regular:
+        return '';
+      case ShiftType.overtime:
+        return 'ÜS';
+      case ShiftType.holiday:
+        return 'FT';
+      case ShiftType.night:
+        return 'N';
+      case ShiftType.weekend:
+        return 'WE';
+    }
+  }
+
+  String _slug(String s) {
+    return s
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^a-z0-9]+'), '_')
+        .replaceAll(RegExp(r'^_+|_+$'), '');
   }
 
   // ─────────────────────────────────────────────────────────────────
