@@ -136,7 +136,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   child: TextField(
                     controller: _cloudUsernameController,
                     decoration: const InputDecoration(
-                      labelText: 'HiDrive Benutzername',
+                      labelText: 'Cloud-Benutzername',
                       hintText: 'ihre-email@example.com',
                       prefixIcon: Icon(Symbols.account_circle),
                       border: OutlineInputBorder(),
@@ -149,7 +149,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     controller: _cloudPasswordController,
                     obscureText: !_passwordVisible,
                     decoration: InputDecoration(
-                      labelText: 'HiDrive Passwort',
+                      labelText: 'Cloud-Passwort',
                       hintText: settings.cloudPassword != null ? 'Gespeichert – neu eingeben zum Ändern' : 'Passwort eingeben',
                       prefixIcon: const Icon(Symbols.lock),
                       border: const OutlineInputBorder(),

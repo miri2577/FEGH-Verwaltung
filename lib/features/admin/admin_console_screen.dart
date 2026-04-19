@@ -149,7 +149,7 @@ class _AdminConsoleScreenState extends ConsumerState<AdminConsoleScreen>
               _healthRow('Rollen‑Policy vorhanden (roles.json)', checks['roles_policy_exists'] == true),
               _healthRow('Schreibrechte (Testdatei)', checks['write_access'] == true),
               const SizedBox(height: 8),
-              Text('HiDrive Benutzer: ${settings.cloudUsername ?? '–'}'),
+              Text('Cloud-Benutzer: ${settings.cloudUsername ?? '–'}'),
               const SizedBox(height: 16),
               const Text('Hinweise:'),
               const Text('• Clients werden team‑scoped gespeichert (teams/<team>/clients)'),
@@ -597,7 +597,7 @@ class _AdminConsoleScreenState extends ConsumerState<AdminConsoleScreen>
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(controller: emailCtrl, decoration: const InputDecoration(labelText: 'HiDrive Benutzer (E‑Mail/login)')),
+                TextField(controller: emailCtrl, decoration: const InputDecoration(labelText: 'Cloud-Benutzer (E-Mail/Login)')),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<String>(
                   value: role,
@@ -612,7 +612,7 @@ class _AdminConsoleScreenState extends ConsumerState<AdminConsoleScreen>
                 const SizedBox(height: 8),
                 TextField(controller: teamsCtrl, decoration: const InputDecoration(labelText: 'Teams (kommagetrennt, z. B. team-a,team-b)')),
                 const SizedBox(height: 8),
-                TextField(controller: appPwdCtrl, decoration: const InputDecoration(labelText: 'HiDrive App‑Passwort (optional)'), obscureText: true),
+                TextField(controller: appPwdCtrl, decoration: const InputDecoration(labelText: 'Cloud-App-Passwort (optional)'), obscureText: true),
                 const SizedBox(height: 8),
                 TextField(
                   controller: pinCtrl,

@@ -73,20 +73,22 @@ class _ClientProfileScreenState extends ConsumerState<ClientProfileScreen>
               icon: const Icon(Symbols.edit),
               tooltip: 'Bearbeiten',
             ),
-          IconButton(
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => MedicationPlanScreen(
-                    clientId: client.id,
-                    clientName: client.fullName,
+          if (policy.canEditClient(teamId: client.teamId) ||
+              policy.canViewDocumentationForTeam(client.teamId))
+            IconButton(
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => MedicationPlanScreen(
+                      clientId: client.id,
+                      clientName: client.fullName,
+                    ),
                   ),
-                ),
-              );
-            },
-            icon: const Icon(Symbols.medication),
-            tooltip: 'Medikationsplan',
-          ),
+                );
+              },
+              icon: const Icon(Symbols.medication),
+              tooltip: 'Medikationsplan',
+            ),
           PopupMenuButton<String>(
             itemBuilder: (context) => [
               const PopupMenuItem(
