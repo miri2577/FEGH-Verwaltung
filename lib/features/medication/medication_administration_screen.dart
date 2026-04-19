@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:material_symbols_icons/symbols.dart';
 
+import 'package:uuid/uuid.dart';
+
+import '../../models/btm_entry.dart';
 import '../../models/client.dart';
 import '../../models/employee.dart';
 import '../../models/medication_administration.dart';
@@ -10,6 +13,7 @@ import '../../providers/client_provider.dart';
 import '../../providers/employee_provider.dart';
 import '../../providers/medication_provider.dart';
 import '../../providers/settings_provider.dart';
+import '../../services/btm_service.dart';
 
 /// Hauptansicht fuer Mitarbeiter: heutige Medikationsgaben.
 class MedicationAdministrationScreen extends ConsumerStatefulWidget {
@@ -255,22 +259,78 @@ class _MedicationAdministrationScreenState
     if (employee == null) return;
     if (!mounted) return;
 
+    final isBtm = slot.medication.requiresBtmLog;
+
     final confirmed = await showDialog<_GivenResult>(
       context: context,
       builder: (_) => _GivenDialog(
         medicationName: slot.medication.name,
         dosage: slot.medication.dosage,
         employeeName: employee.fullName,
+        isBtm: isBtm,
       ),
     );
     if (confirmed == null) return;
 
+    _BtmConfirmation? btm;
+    if (isBtm) {
+      if (!mounted) return;
+      final lastStock = await BtmService()
+          .letzterRestbestand(slot.medication.id);
+      if (!mounted) return;
+      btm = await showDialog<_BtmConfirmation>(
+        context: context,
+        builder: (_) => _BtmDialog(
+          medicationName: slot.medication.name,
+          defaultDosage: slot.medication.dosage,
+          witnessCandidates: employees.where((e) => e.id != employee.id).toList(),
+          previousStock: lastStock,
+        ),
+      );
+      if (btm == null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text(
+              'BtM-Gabe abgebrochen — kein Zeuge oder Bestand erfasst.'),
+        ));
+        return;
+      }
+    }
+
     final ok = await ref
         .read(administrationActionProvider.notifier)
         .administer(slot, employeeId: employee.id, notes: confirmed.notes);
+    if (!ok) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Speichern fehlgeschlagen.'),
+      ));
+      return;
+    }
+
+    if (btm != null) {
+      final administrationId = slot.existing?.id ??
+          '${slot.medicationId}-${slot.scheduledAt.toIso8601String()}';
+      await BtmService().addEntry(BtmEntry(
+        id: const Uuid().v4(),
+        administrationId: administrationId,
+        medicationId: slot.medication.id,
+        clientId: slot.clientId,
+        menge: btm.menge,
+        restbestand: btm.restbestand,
+        witnessEmployeeId: btm.witnessId,
+        verordnenderArzt: slot.medication.prescribedBy,
+        belegnummer: btm.belegnummer,
+        notizen: btm.notizen,
+        createdAt: DateTime.now(),
+      ));
+    }
+
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(ok ? 'Gabe quittiert.' : 'Speichern fehlgeschlagen.'),
+      content: Text(isBtm
+          ? 'Gabe + BtM-Zusatzdokumentation gespeichert.'
+          : 'Gabe quittiert.'),
     ));
   }
 
@@ -336,10 +396,12 @@ class _GivenDialog extends StatefulWidget {
   final String medicationName;
   final String dosage;
   final String employeeName;
+  final bool isBtm;
   const _GivenDialog({
     required this.medicationName,
     required this.dosage,
     required this.employeeName,
+    this.isBtm = false,
   });
 
   @override
@@ -352,13 +414,25 @@ class _GivenDialogState extends State<_GivenDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Gabe quittieren'),
+      title: Text(widget.isBtm
+          ? 'BtM-Gabe quittieren (Schritt 1/2)'
+          : 'Gabe quittieren'),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('Medikament: ${widget.medicationName} (${widget.dosage})'),
           Text('Bestaetigt durch: ${widget.employeeName}'),
+          if (widget.isBtm) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Im Anschluss: Zeuge und Restbestand (§13 BtMG).',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.error,
+                fontSize: 12,
+              ),
+            ),
+          ],
           const SizedBox(height: 12),
           TextField(
             controller: _notes,
@@ -420,6 +494,175 @@ class _ReasonDialogState extends State<_ReasonDialog> {
             Navigator.of(context).pop(r);
           },
           child: const Text('Speichern'),
+        ),
+      ],
+    );
+  }
+}
+
+class _BtmConfirmation {
+  final String witnessId;
+  final String menge;
+  final double restbestand;
+  final String? belegnummer;
+  final String? notizen;
+  _BtmConfirmation({
+    required this.witnessId,
+    required this.menge,
+    required this.restbestand,
+    this.belegnummer,
+    this.notizen,
+  });
+}
+
+class _BtmDialog extends StatefulWidget {
+  final String medicationName;
+  final String defaultDosage;
+  final List<Employee> witnessCandidates;
+  final double? previousStock;
+
+  const _BtmDialog({
+    required this.medicationName,
+    required this.defaultDosage,
+    required this.witnessCandidates,
+    this.previousStock,
+  });
+
+  @override
+  State<_BtmDialog> createState() => _BtmDialogState();
+}
+
+class _BtmDialogState extends State<_BtmDialog> {
+  String? _witnessId;
+  late final TextEditingController _menge =
+      TextEditingController(text: widget.defaultDosage);
+  late final TextEditingController _rest = TextEditingController(
+      text: widget.previousStock?.toStringAsFixed(1) ?? '');
+  final TextEditingController _beleg = TextEditingController();
+  final TextEditingController _notizen = TextEditingController();
+
+  @override
+  void dispose() {
+    _menge.dispose();
+    _rest.dispose();
+    _beleg.dispose();
+    _notizen.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return AlertDialog(
+      title: const Text('BtM-Zusatzprotokoll (Schritt 2/2)'),
+      content: SizedBox(
+        width: 520,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Card(
+                color: theme.colorScheme.errorContainer,
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Text(
+                    '§13 BtMG / BtMVV: Gabe nur mit Zeuge:in und aktualisierter '
+                    'Bestandsangabe. Eintrag kann nach Speicherung nicht mehr '
+                    'geaendert werden.',
+                    style: TextStyle(
+                        color: theme.colorScheme.onErrorContainer, fontSize: 12),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text('Medikament: ${widget.medicationName}',
+                  style: theme.textTheme.titleSmall),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                value: _witnessId,
+                decoration: const InputDecoration(
+                  labelText: 'Zeuge:in (pflicht)',
+                  prefixIcon: Icon(Symbols.group),
+                ),
+                items: widget.witnessCandidates
+                    .map((e) => DropdownMenuItem(
+                          value: e.id,
+                          child: Text(e.fullName),
+                        ))
+                    .toList(),
+                onChanged: (v) => setState(() => _witnessId = v),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _menge,
+                decoration: const InputDecoration(
+                  labelText: 'Verabreichte Menge',
+                  hintText: 'z. B. 1 Tablette, 5 ml',
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _rest,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  labelText: 'Restbestand nach Gabe (pflicht)',
+                  hintText: widget.previousStock != null
+                      ? 'Vorher: ${widget.previousStock!.toStringAsFixed(1)}'
+                      : 'z. B. 12',
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _beleg,
+                decoration: const InputDecoration(
+                  labelText: 'Belegnummer / Charge (optional)',
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _notizen,
+                maxLines: 2,
+                decoration: const InputDecoration(
+                  labelText: 'Notizen (optional)',
+                  hintText: 'Beobachtung, vitale Zeichen',
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Abbrechen'),
+        ),
+        FilledButton(
+          onPressed: () {
+            if (_witnessId == null) {
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                content: Text('Zeuge:in ist pflicht.'),
+              ));
+              return;
+            }
+            final rest = double.tryParse(_rest.text.replaceAll(',', '.'));
+            if (rest == null) {
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                content: Text('Restbestand muss eine Zahl sein.'),
+              ));
+              return;
+            }
+            Navigator.of(context).pop(_BtmConfirmation(
+              witnessId: _witnessId!,
+              menge: _menge.text.trim().isEmpty
+                  ? widget.defaultDosage
+                  : _menge.text.trim(),
+              restbestand: rest,
+              belegnummer: _beleg.text.trim().isEmpty ? null : _beleg.text.trim(),
+              notizen: _notizen.text.trim().isEmpty ? null : _notizen.text.trim(),
+            ));
+          },
+          child: const Text('BtM quittieren'),
         ),
       ],
     );

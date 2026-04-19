@@ -32,6 +32,7 @@ class _MedicationFormDialogState extends ConsumerState<MedicationFormDialog> {
   bool _noon = false;
   bool _evening = false;
   bool _night = false;
+  bool _btm = false;
   DateTime _validFrom = DateTime.now();
   DateTime? _validUntil;
   bool _submitting = false;
@@ -51,6 +52,7 @@ class _MedicationFormDialogState extends ConsumerState<MedicationFormDialog> {
       _night = m.schedule.night;
       _validFrom = m.validFrom;
       _validUntil = m.validUntil;
+      _btm = m.requiresBtmLog;
     }
   }
 
@@ -169,30 +171,48 @@ class _MedicationFormDialogState extends ConsumerState<MedicationFormDialog> {
                 ),
               ),
               const SizedBox(height: 16),
-              Card(
-                color: Theme.of(context).colorScheme.tertiaryContainer,
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Row(
-                    children: [
-                      Icon(Symbols.warning,
-                          color: Theme.of(context).colorScheme.onTertiaryContainer),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Dieses Modul dokumentiert nur Nicht-BTM. Fuer '
-                          'Betaeubungsmittel ist ein separates BTM-Heft zu fuehren.',
-                          style: TextStyle(
-                            color:
-                                Theme.of(context).colorScheme.onTertiaryContainer,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+              SwitchListTile(
+                value: _btm,
+                onChanged: (v) => setState(() => _btm = v),
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Betaeubungsmittel (BtM)'),
+                subtitle: const Text(
+                    'Loest BtM-Zusatzdokumentation bei Gabe aus: Zeuge + Restbestand (§13 BtMG / BtMVV).'),
+                secondary: Icon(
+                  _btm ? Symbols.warning : Symbols.medication,
+                  color: _btm
+                      ? Theme.of(context).colorScheme.error
+                      : Theme.of(context).colorScheme.primary,
                 ),
               ),
+              if (_btm)
+                Card(
+                  color: Theme.of(context).colorScheme.errorContainer,
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Row(
+                      children: [
+                        Icon(Symbols.warning,
+                            color:
+                                Theme.of(context).colorScheme.onErrorContainer),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'BtM: bei jeder Gabe Zeuge:in und Restbestand '
+                            'erforderlich. Aenderungen am Plan werden '
+                            'unveraenderlich protokolliert.',
+                            style: TextStyle(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onErrorContainer,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
             ],
           ),
         ),
@@ -266,7 +286,7 @@ class _MedicationFormDialogState extends ConsumerState<MedicationFormDialog> {
           ? null
           : _prescribedBy.text.trim(),
       notes: _notes.text.trim().isEmpty ? null : _notes.text.trim(),
-      requiresBtmLog: false,
+      requiresBtmLog: _btm,
       active: existing?.active ?? true,
       createdAt: existing?.createdAt ?? now,
       updatedAt: now,

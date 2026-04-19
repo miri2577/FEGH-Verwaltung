@@ -105,10 +105,14 @@ class MedicationPlanScreen extends ConsumerWidget {
         child: Row(
           children: [
             Icon(
-              m.active ? Symbols.medication : Symbols.medication_liquid,
-              color: m.active
-                  ? theme.colorScheme.primary
-                  : theme.colorScheme.outline,
+              m.requiresBtmLog
+                  ? Symbols.warning
+                  : (m.active ? Symbols.medication : Symbols.medication_liquid),
+              color: m.requiresBtmLog
+                  ? theme.colorScheme.error
+                  : (m.active
+                      ? theme.colorScheme.primary
+                      : theme.colorScheme.outline),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -126,6 +130,25 @@ class MedicationPlanScreen extends ConsumerWidget {
                       const SizedBox(width: 8),
                       Text(m.dosage,
                           style: TextStyle(color: theme.colorScheme.outline)),
+                      if (m.requiresBtmLog) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.errorContainer,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            'BtM',
+                            style: TextStyle(
+                              color: theme.colorScheme.onErrorContainer,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                   const SizedBox(height: 2),
