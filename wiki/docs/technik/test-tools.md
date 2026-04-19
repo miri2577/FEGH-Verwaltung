@@ -82,6 +82,24 @@ source ~/.fegh-tools.env
 . $HOME\.fegh-tools.env.ps1
 ```
 
+### Dauerhaft aktivieren
+
+**macOS / Linux (Bash/Zsh):**
+
+```bash
+echo "source ~/.fegh-tools.env" >> ~/.bashrc   # bzw. ~/.zshrc
+```
+
+**Windows PowerShell:**
+
+Das Profil existiert beim ersten Mal oft noch nicht — `-Force` legt es
+samt Verzeichnis an:
+
+```powershell
+New-Item -Path $PROFILE -ItemType File -Force
+Add-Content $PROFILE ". $HOME\.fegh-tools.env.ps1"
+```
+
 In der Env-Datei stehen:
 
 - `FEGH_KOSIT_JAR` — Pfad zur Validator-JAR

@@ -168,6 +168,7 @@ Write-Host "1) Env aktivieren in jedem neuen Terminal:"
 Write-Host "     . $EnvFile" -ForegroundColor White
 Write-Host ""
 Write-Host "   Dauerhaft in dein PowerShell-Profil einbinden:"
+Write-Host "     New-Item -Path `$PROFILE -ItemType File -Force | Out-Null"
 Write-Host "     Add-Content `$PROFILE `". $EnvFile`""
 Write-Host ""
 Write-Host "2) WebDAV-Server starten in eigenem Terminal:"
