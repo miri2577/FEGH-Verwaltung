@@ -5,7 +5,7 @@ import 'package:window_manager/window_manager.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
 import 'shared/themes/app_theme.dart';
-import 'widgets/layouts/main_layout.dart';
+import 'widgets/layouts/app_shell.dart';
 import 'providers/settings_provider.dart';
 import 'providers/employee_provider.dart';
 import 'providers/notification_provider.dart';
@@ -134,6 +134,6 @@ class _DemoWrapperState extends ConsumerState<_DemoWrapper> {
 
   @override
   Widget build(BuildContext context) {
-    return const MainLayout();
+    return const AppShell();
   }
 }
