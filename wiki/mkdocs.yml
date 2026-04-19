@@ -77,4 +77,5 @@ nav:
     - Shared-Packages: technik/shared-packages.md
     - Cloud-Storage: technik/cloud-storage.md
     - State-Management (Riverpod): technik/state.md
+    - Test-Tools einrichten: technik/test-tools.md
   - Doku-App: https://miri2577.github.io/FEGH-Dokumentation/
