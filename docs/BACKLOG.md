@@ -10,16 +10,15 @@ Legende: **P0** = kritisch/blockierend, **P1** = wichtig, **P2** = nice-to-have.
 
 Das groesste strukturelle Defizit: Beide Apps teilen sich Wire-Format und Cloud, aber die **Datenmodelle divergieren**. Ein Klient aus der Verwaltung kann die Doku nicht lesen (und umgekehrt).
 
-- [ ] **`fegh_core` Shared-Package** anlegen mit den Kern-Modellen
-  - [ ] `Client` — Basis aus Verwaltung (firstName/lastName/teamId/email/dateOfBirth) + EGH-Fachfelder aus Doku (klientenId, fachleistungsstunden, einwilligung, kostenuebernahme, berufsgruppe, eingliederung)
-  - [ ] `Employee` — Basis aus Verwaltung (umfangreicher) + Doku-Kennzeichen
-  - [ ] `Team` — Basis aus Verwaltung + ggf. Doku-Ergaenzungen
-  - [ ] `Shift` — aus Verwaltung (Doku hat keine Schichten)
-- [ ] **Schema-Migration** in beiden Apps — alte JSON-Records lesen, neues Modell schreiben
-- [ ] **Cross-App-Integrationstest** — Verwaltung schreibt Klient, Doku liest denselben Record
-- [ ] **Einheitliche Cloud-Ordnerstruktur** dokumentieren und in beiden Apps per `fegh_cloud` erzeugen
-
-**Geschaetzt: 3–5 Tage**
+- [x] **`fegh_core` Shared-Package** angelegt mit den Kern-Modellen
+  - [x] `Client` vereinigt + 16-Laender-Registry (`Bundesland` / `BundeslandProfil`), 21 Tests
+  - [x] `Employee` (+ typedef `Mitarbeiter = Employee`, `Address`, `EmergencyContact`), 10 Tests
+  - [x] `Team` (vereint clientIds/budget/notes), analyze clean
+  - [ ] `Shift` — bewusst zurueckgestellt (Doku hat keine Schichten; wird nachgezogen, falls die Doku Schicht-Anzeige bekommt)
+- [x] **Schema-Migration** in beiden Apps — `fromJson` akzeptiert alte Doku- und Verwaltungs-Felder, `toJson` schreibt beides
+- [x] **Cross-App-Lesbarkeit** in Unit-Tests abgedeckt (Legacy-Doku-JSON + Verwaltungs-JSON werden jeweils geparst)
+- [ ] **Einheitliche Cloud-Ordnerstruktur** dokumentieren und in beiden Apps per `fegh_cloud` erzeugen (Folge-Sprint)
+- [ ] **Live-Cross-App-Test**: Verwaltung schreibt Klient → Doku liest denselben Record aus Cloud (braucht laufende Test-Umgebung)
 
 ---
 
@@ -112,3 +111,7 @@ Ausserdem:
 - [x] AppBar Dark-Mode-Kontrast-Fix
 - [x] Wiki-Verwaltung: 11 Kern-Seiten mit Inhalt gefuellt
 - [x] Entwicklungstagebuch Kap. 4.1–4.8 + Fallbeispiele + Grenzen-Kapitel
+- [x] `fegh_core` Shared-Package: Client + Bundesland + Employee + Team (30 Unit-Tests)
+- [x] Beide Apps nutzen dasselbe Client-Schema (fromJson liest Legacy-Felder)
+- [x] Beide Apps nutzen dasselbe Employee-Schema
+- [x] Beide Apps nutzen dasselbe Team-Schema
