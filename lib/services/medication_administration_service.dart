@@ -75,6 +75,8 @@ class MedicationAdministrationService {
 
     for (final m in medications) {
       if (!m.isValidOn(day)) continue;
+      // PRN-Medikamente (Bedarfsmedikation) haben keine festen Slots.
+      if (m.isPrn) continue;
       _addSlotIfScheduled(slots, m, day, m.schedule.morning, 'morning');
       _addSlotIfScheduled(slots, m, day, m.schedule.noon, 'noon');
       _addSlotIfScheduled(slots, m, day, m.schedule.evening, 'evening');
@@ -129,13 +131,30 @@ class MedicationAdministrationService {
   Future<bool> administer(
     AdministrationSlot slot, {
     required String employeeId,
+    String? witnessEmployeeId,
     String? notes,
     DateTime? at,
   }) async {
+    if (slot.medication.effectiveRequiresWitness &&
+        (witnessEmployeeId == null || witnessEmployeeId.isEmpty)) {
+      if (kDebugMode) {
+        debugPrint('[MED-ADM] witness required for '
+            '${slot.medication.id} but not provided');
+      }
+      return false;
+    }
+    if (witnessEmployeeId != null && witnessEmployeeId == employeeId) {
+      if (kDebugMode) {
+        debugPrint('[MED-ADM] witness must differ from administering '
+            'employee ($employeeId)');
+      }
+      return false;
+    }
     return _record(
       slot,
       status: AdministrationStatus.given,
       employeeId: employeeId,
+      witnessEmployeeId: witnessEmployeeId,
       notes: notes,
       administeredAt: at ?? DateTime.now(),
       auditAction: 'medication.given',
@@ -174,11 +193,66 @@ class MedicationAdministrationService {
     );
   }
 
+  /// Erfasst eine **Bedarfsgabe** (PRN) — ungeplant, mit Pflicht-Grund.
+  ///
+  /// Im Gegensatz zu [administer] gibt es hier keinen vorgeplanten Slot;
+  /// die Gabe wird als eigenstaendiger Eintrag geschrieben. Der
+  /// [reason] ist Pflicht (Symptombeschreibung oder aerztliche Anweisung).
+  Future<bool> administerPrn(
+    Medication medication, {
+    required String employeeId,
+    required String reason,
+    String? witnessEmployeeId,
+    DateTime? at,
+    String? notes,
+  }) async {
+    if (medication.effectiveRequiresWitness &&
+        (witnessEmployeeId == null || witnessEmployeeId.isEmpty)) {
+      if (kDebugMode) {
+        debugPrint('[MED-ADM] PRN witness required for ${medication.id}');
+      }
+      return false;
+    }
+    if (witnessEmployeeId != null && witnessEmployeeId == employeeId) {
+      return false;
+    }
+    final all = await _loadAll();
+    final now = DateTime.now();
+    final administeredAt = at ?? now;
+    final record = MedicationAdministration(
+      id: _uuid.v4(),
+      medicationId: medication.id,
+      clientId: medication.clientId,
+      scheduledAt: administeredAt,
+      administeredAt: administeredAt,
+      administeredByEmployeeId: employeeId,
+      witnessEmployeeId: witnessEmployeeId,
+      status: AdministrationStatus.given,
+      reason: reason,
+      notes: notes,
+      createdAt: now,
+    );
+    all.add(record);
+    final ok = await _saveAll(all);
+    if (ok) {
+      await AuditLogger.log('medication.given.prn', context: {
+        'clientId': medication.clientId,
+        'medicationId': medication.id,
+        'employeeId': employeeId,
+        if (witnessEmployeeId != null) 'witnessEmployeeId': witnessEmployeeId,
+        'at': administeredAt.toIso8601String(),
+        'reason': reason,
+      });
+    }
+    return ok;
+  }
+
   Future<bool> _record(
     AdministrationSlot slot, {
     required AdministrationStatus status,
     required String employeeId,
     required String auditAction,
+    String? witnessEmployeeId,
     String? reason,
     String? notes,
     DateTime? administeredAt,
@@ -195,6 +269,7 @@ class MedicationAdministrationService {
         scheduledAt: slot.scheduledAt,
         administeredAt: administeredAt,
         administeredByEmployeeId: employeeId,
+        witnessEmployeeId: witnessEmployeeId,
         status: status,
         reason: reason,
         notes: notes,
@@ -205,6 +280,7 @@ class MedicationAdministrationService {
       record = existing.copyWith(
         administeredAt: administeredAt ?? existing.administeredAt,
         administeredByEmployeeId: employeeId,
+        witnessEmployeeId: witnessEmployeeId,
         status: status,
         reason: reason,
         notes: notes,
@@ -219,6 +295,7 @@ class MedicationAdministrationService {
         'clientId': record.clientId,
         'medicationId': record.medicationId,
         'employeeId': employeeId,
+        if (witnessEmployeeId != null) 'witnessEmployeeId': witnessEmployeeId,
         'scheduledAt': record.scheduledAt.toIso8601String(),
         if (administeredAt != null)
           'administeredAt': administeredAt.toIso8601String(),

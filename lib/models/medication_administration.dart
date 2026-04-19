@@ -38,6 +38,11 @@ class MedicationAdministration {
   final DateTime scheduledAt;
   final DateTime? administeredAt;
   final String? administeredByEmployeeId;
+
+  /// Zeuge der Gabe (Vier-Augen-Prinzip). Pflicht bei BtM oder wenn
+  /// [Medication.requiresWitness] gesetzt ist.
+  final String? witnessEmployeeId;
+
   final AdministrationStatus status;
   final String? reason;
   final String? notes;
@@ -50,6 +55,7 @@ class MedicationAdministration {
     required this.scheduledAt,
     this.administeredAt,
     this.administeredByEmployeeId,
+    this.witnessEmployeeId,
     required this.status,
     this.reason,
     this.notes,
@@ -63,6 +69,7 @@ class MedicationAdministration {
     DateTime? scheduledAt,
     DateTime? administeredAt,
     String? administeredByEmployeeId,
+    String? witnessEmployeeId,
     AdministrationStatus? status,
     String? reason,
     String? notes,
@@ -76,6 +83,7 @@ class MedicationAdministration {
       administeredAt: administeredAt ?? this.administeredAt,
       administeredByEmployeeId:
           administeredByEmployeeId ?? this.administeredByEmployeeId,
+      witnessEmployeeId: witnessEmployeeId ?? this.witnessEmployeeId,
       status: status ?? this.status,
       reason: reason ?? this.reason,
       notes: notes ?? this.notes,
@@ -90,6 +98,8 @@ class MedicationAdministration {
         'scheduledAt': scheduledAt.toIso8601String(),
         'administeredAt': administeredAt?.toIso8601String(),
         'administeredByEmployeeId': administeredByEmployeeId,
+        if (witnessEmployeeId != null)
+          'witnessEmployeeId': witnessEmployeeId,
         'status': status.name,
         'reason': reason,
         'notes': notes,
@@ -106,6 +116,7 @@ class MedicationAdministration {
             ? DateTime.parse(json['administeredAt'] as String)
             : null,
         administeredByEmployeeId: json['administeredByEmployeeId'] as String?,
+        witnessEmployeeId: json['witnessEmployeeId'] as String?,
         status: AdministrationStatus.values
             .firstWhere((s) => s.name == json['status']),
         reason: json['reason'] as String?,

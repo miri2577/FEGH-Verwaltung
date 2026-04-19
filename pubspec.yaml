@@ -85,6 +85,7 @@ dependencies:
     path: ../fegh-shared/fegh_core
   flutter_secure_storage: ^9.2.2
   logger: ^2.4.0
+  signature: ^5.4.0
   shared_preferences: ^2.2.3
   xml: ^6.5.0
 

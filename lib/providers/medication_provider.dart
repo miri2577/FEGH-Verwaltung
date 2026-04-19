@@ -86,12 +86,18 @@ class AdministrationActionNotifier extends StateNotifier<AsyncValue<void>> {
   Future<bool> administer(
     AdministrationSlot slot, {
     required String employeeId,
+    String? witnessEmployeeId,
     String? notes,
   }) async {
     state = const AsyncValue.loading();
     final ok = await _ref
         .read(medicationAdministrationServiceProvider)
-        .administer(slot, employeeId: employeeId, notes: notes);
+        .administer(
+          slot,
+          employeeId: employeeId,
+          witnessEmployeeId: witnessEmployeeId,
+          notes: notes,
+        );
     state = const AsyncValue.data(null);
     _invalidate(slot.scheduledAt);
     return ok;

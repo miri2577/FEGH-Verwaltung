@@ -33,6 +33,8 @@ class _MedicationFormDialogState extends ConsumerState<MedicationFormDialog> {
   bool _evening = false;
   bool _night = false;
   bool _btm = false;
+  bool _isPrn = false;
+  bool _requiresWitness = false;
   DateTime _validFrom = DateTime.now();
   DateTime? _validUntil;
   bool _submitting = false;
@@ -53,6 +55,8 @@ class _MedicationFormDialogState extends ConsumerState<MedicationFormDialog> {
       _validFrom = m.validFrom;
       _validUntil = m.validUntil;
       _btm = m.requiresBtmLog;
+      _isPrn = m.isPrn;
+      _requiresWitness = m.requiresWitness;
     }
   }
 
@@ -172,6 +176,15 @@ class _MedicationFormDialogState extends ConsumerState<MedicationFormDialog> {
               ),
               const SizedBox(height: 16),
               SwitchListTile(
+                value: _isPrn,
+                onChanged: (v) => setState(() => _isPrn = v),
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Bedarfsmedikation (PRN)'),
+                subtitle: const Text(
+                    'Wird nur bei Bedarf gegeben, keine festen Einnahmezeiten. Jede Gabe braucht eine Begruendung.'),
+                secondary: const Icon(Symbols.pill),
+              ),
+              SwitchListTile(
                 value: _btm,
                 onChanged: (v) => setState(() => _btm = v),
                 contentPadding: EdgeInsets.zero,
@@ -184,6 +197,20 @@ class _MedicationFormDialogState extends ConsumerState<MedicationFormDialog> {
                       ? Theme.of(context).colorScheme.error
                       : Theme.of(context).colorScheme.primary,
                 ),
+              ),
+              SwitchListTile(
+                value: _btm || _requiresWitness,
+                onChanged: _btm
+                    ? null
+                    : (v) => setState(() => _requiresWitness = v),
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Vier-Augen-Prinzip (Zeuge pflicht)'),
+                subtitle: Text(
+                  _btm
+                      ? 'Bei BtM immer aktiv.'
+                      : 'Bei jeder Gabe muss ein zweiter Mitarbeiter als Zeuge bestaetigen.',
+                ),
+                secondary: const Icon(Symbols.groups),
               ),
               if (_btm)
                 Card(
@@ -265,9 +292,11 @@ class _MedicationFormDialogState extends ConsumerState<MedicationFormDialog> {
       evening: _evening,
       night: _night,
     );
-    if (schedule.isEmpty) {
+    if (schedule.isEmpty && !_isPrn) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Mindestens eine Einnahmezeit auswaehlen.')),
+        const SnackBar(
+            content: Text(
+                'Mindestens eine Einnahmezeit auswaehlen — oder PRN aktivieren.')),
       );
       return;
     }
@@ -287,6 +316,8 @@ class _MedicationFormDialogState extends ConsumerState<MedicationFormDialog> {
           : _prescribedBy.text.trim(),
       notes: _notes.text.trim().isEmpty ? null : _notes.text.trim(),
       requiresBtmLog: _btm,
+      isPrn: _isPrn,
+      requiresWitness: _requiresWitness,
       active: existing?.active ?? true,
       createdAt: existing?.createdAt ?? now,
       updatedAt: now,

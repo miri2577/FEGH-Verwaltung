@@ -4,7 +4,10 @@ import 'package:intl/intl.dart';
 import 'package:material_symbols_icons/symbols.dart';
 
 import '../../models/medication.dart';
+import '../../providers/employee_provider.dart';
 import '../../providers/medication_provider.dart';
+import '../../providers/settings_provider.dart';
+import 'med_pin_dialogs.dart';
 import 'medication_form_dialog.dart';
 
 /// Medikationsplan eines einzelnen Klienten. Admin/Lead-Sicht.
@@ -132,22 +135,15 @@ class MedicationPlanScreen extends ConsumerWidget {
                           style: TextStyle(color: theme.colorScheme.outline)),
                       if (m.requiresBtmLog) ...[
                         const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: theme.colorScheme.errorContainer,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            'BtM',
-                            style: TextStyle(
-                              color: theme.colorScheme.onErrorContainer,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
+                        _badge(theme, 'BtM',
+                            theme.colorScheme.errorContainer,
+                            theme.colorScheme.onErrorContainer),
+                      ],
+                      if (m.isPrn) ...[
+                        const SizedBox(width: 8),
+                        _badge(theme, 'PRN',
+                            theme.colorScheme.tertiaryContainer,
+                            theme.colorScheme.onTertiaryContainer),
                       ],
                     ],
                   ),
@@ -171,6 +167,12 @@ class MedicationPlanScreen extends ConsumerWidget {
                 ],
               ),
             ),
+            if (m.active && m.isPrn)
+              IconButton(
+                tooltip: 'Bedarfsgabe erfassen',
+                icon: const Icon(Symbols.bolt),
+                onPressed: () => _prnAdminister(context, ref, m),
+              ),
             if (m.active)
               PopupMenuButton<String>(
                 onSelected: (v) {
@@ -209,6 +211,140 @@ class MedicationPlanScreen extends ConsumerWidget {
         existing: existing,
       ),
     );
+  }
+
+  Widget _badge(ThemeData theme, String label, Color bg, Color fg) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration:
+          BoxDecoration(color: bg, borderRadius: BorderRadius.circular(4)),
+      child: Text(
+        label,
+        style: TextStyle(color: fg, fontSize: 10, fontWeight: FontWeight.bold),
+      ),
+    );
+  }
+
+  Future<void> _prnAdminister(
+      BuildContext context, WidgetRef ref, Medication m) async {
+    final reasonCtrl = TextEditingController();
+    final notesCtrl = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Bedarfsgabe erfassen'),
+        content: SizedBox(
+          width: 420,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('${m.name} · ${m.dosage}',
+                  style: Theme.of(ctx).textTheme.titleSmall),
+              const SizedBox(height: 12),
+              TextField(
+                controller: reasonCtrl,
+                autofocus: true,
+                maxLines: 2,
+                decoration: const InputDecoration(
+                  labelText: 'Grund (pflicht)',
+                  hintText: 'z. B. Klient klagt ueber Kopfschmerzen',
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: notesCtrl,
+                maxLines: 2,
+                decoration: const InputDecoration(
+                    labelText: 'Notizen (optional)'),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (reasonCtrl.text.trim().isEmpty) {
+                ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(
+                  content: Text('Grund ist pflicht.'),
+                ));
+                return;
+              }
+              Navigator.of(ctx).pop(true);
+            },
+            child: const Text('Gabe erfassen'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+
+    final settings = ref.read(appSettingsProvider);
+    final employees = ref.read(employeesProvider).valueOrNull ?? const [];
+    final me = settings.cloudUsername?.toLowerCase() ?? '';
+    final emp = employees
+        .cast<dynamic>()
+        .firstWhere((e) => e.email.toLowerCase() == me, orElse: () => null);
+    final empId = emp?.id ?? '';
+    final empName = emp?.fullName as String? ?? empId;
+
+    if (empId.isNotEmpty && context.mounted) {
+      final pinOk = await promptMedPin(
+        context,
+        employeeId: empId,
+        employeeName: empName,
+      );
+      if (!pinOk) {
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Bedarfsgabe abgebrochen — PIN falsch.'),
+        ));
+        return;
+      }
+    }
+
+    String? witnessId;
+    if (m.effectiveRequiresWitness && context.mounted) {
+      final candidates =
+          employees.where((e) => e.id != empId).toList();
+      final witness = await showDialog<dynamic>(
+        context: context,
+        builder: (ctx) => SimpleDialog(
+          title: const Text('Zeuge auswaehlen (Vier-Augen)'),
+          children: candidates
+              .map<Widget>((e) => SimpleDialogOption(
+                    onPressed: () => Navigator.of(ctx).pop(e),
+                    child: Text('${e.fullName} (${e.email})'),
+                  ))
+              .toList(),
+        ),
+      );
+      if (witness == null) {
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Bedarfsgabe abgebrochen — Zeuge erforderlich.'),
+        ));
+        return;
+      }
+      witnessId = witness.id as String;
+    }
+
+    final service = ref.read(medicationAdministrationServiceProvider);
+    final success = await service.administerPrn(
+      m,
+      employeeId: empId,
+      witnessEmployeeId: witnessId,
+      reason: reasonCtrl.text.trim(),
+      notes: notesCtrl.text.trim().isEmpty ? null : notesCtrl.text.trim(),
+    );
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(success ? 'Bedarfsgabe quittiert.' : 'Speichern fehlgeschlagen.'),
+    ));
   }
 
   Future<void> _confirmDeactivate(

@@ -48,6 +48,14 @@ class Medication {
   final String? prescribedBy;
   final String? notes;
   final bool requiresBtmLog; // Scope A: immer false
+  /// Bedarfsmedikation (pro re nata): keine festen Einnahmezeiten;
+  /// wird nur bei Bedarf verabreicht mit Begruendung.
+  final bool isPrn;
+
+  /// Vier-Augen-Prinzip: Gabe erfordert einen Zeugen. Bei BtM
+  /// ([requiresBtmLog] = true) implizit wahr.
+  final bool requiresWitness;
+
   final bool active;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -63,10 +71,15 @@ class Medication {
     this.prescribedBy,
     this.notes,
     this.requiresBtmLog = false,
+    this.isPrn = false,
+    this.requiresWitness = false,
     this.active = true,
     required this.createdAt,
     required this.updatedAt,
   });
+
+  /// Zeuge effektiv pflicht (BtM oder explizit aktiviert).
+  bool get effectiveRequiresWitness => requiresBtmLog || requiresWitness;
 
   /// Ist der Plan an diesem Tag gueltig (active + innerhalb Gueltigkeit)?
   bool isValidOn(DateTime day) {
@@ -93,6 +106,8 @@ class Medication {
     String? prescribedBy,
     String? notes,
     bool? requiresBtmLog,
+    bool? isPrn,
+    bool? requiresWitness,
     bool? active,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -108,6 +123,8 @@ class Medication {
       prescribedBy: prescribedBy ?? this.prescribedBy,
       notes: notes ?? this.notes,
       requiresBtmLog: requiresBtmLog ?? this.requiresBtmLog,
+      isPrn: isPrn ?? this.isPrn,
+      requiresWitness: requiresWitness ?? this.requiresWitness,
       active: active ?? this.active,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -125,6 +142,8 @@ class Medication {
         'prescribedBy': prescribedBy,
         'notes': notes,
         'requiresBtmLog': requiresBtmLog,
+        'isPrn': isPrn,
+        'requiresWitness': requiresWitness,
         'active': active,
         'createdAt': createdAt.toIso8601String(),
         'updatedAt': updatedAt.toIso8601String(),
@@ -144,6 +163,8 @@ class Medication {
         prescribedBy: json['prescribedBy'] as String?,
         notes: json['notes'] as String?,
         requiresBtmLog: json['requiresBtmLog'] as bool? ?? false,
+        isPrn: json['isPrn'] as bool? ?? false,
+        requiresWitness: json['requiresWitness'] as bool? ?? false,
         active: json['active'] as bool? ?? true,
         createdAt: DateTime.parse(json['createdAt'] as String),
         updatedAt: DateTime.parse(json['updatedAt'] as String),

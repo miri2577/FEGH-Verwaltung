@@ -6,6 +6,7 @@ import 'package:material_symbols_icons/symbols.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../models/btm_entry.dart';
+import 'btm_stock_screen.dart';
 import '../../models/client.dart';
 import '../../models/employee.dart';
 import '../../models/medication_administration.dart';
@@ -14,6 +15,8 @@ import '../../providers/employee_provider.dart';
 import '../../providers/medication_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../services/btm_service.dart';
+import '../../services/med_pin_service.dart';
+import 'med_pin_dialogs.dart';
 
 /// Hauptansicht fuer Mitarbeiter: heutige Medikationsgaben.
 class MedicationAdministrationScreen extends ConsumerStatefulWidget {
@@ -49,6 +52,18 @@ class _MedicationAdministrationScreenState
       appBar: AppBar(
         title: const Text('Medikationsgaben'),
         actions: [
+          IconButton(
+            tooltip: 'BtM-Bestand',
+            icon: const Icon(Symbols.inventory),
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => const BtmStockScreen(),
+            )),
+          ),
+          IconButton(
+            tooltip: 'Medikations-PIN verwalten',
+            icon: const Icon(Symbols.pin),
+            onPressed: () => _manageMedPin(),
+          ),
           IconButton(
             tooltip: 'Tag vorher',
             icon: const Icon(Symbols.chevron_left),
@@ -259,7 +274,41 @@ class _MedicationAdministrationScreenState
     if (employee == null) return;
     if (!mounted) return;
 
+    final pinOk = await promptMedPin(
+      context,
+      employeeId: employee.id,
+      employeeName: employee.fullName,
+    );
+    if (!pinOk) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Gabe abgebrochen — PIN falsch oder abgebrochen.'),
+      ));
+      return;
+    }
+    if (!mounted) return;
+
     final isBtm = slot.medication.requiresBtmLog;
+    final needsWitness = slot.medication.effectiveRequiresWitness;
+
+    // Fuer non-BtM-Gaben mit Vier-Augen-Prinzip: Zeuge direkt auswaehlen,
+    // ohne BtM-Bestand-Dialog.
+    String? witnessId;
+    if (needsWitness && !isBtm) {
+      final witness = await _pickEmployee(
+        employees.where((e) => e.id != employee.id).toList(),
+        title: 'Zeuge auswaehlen (Vier-Augen)',
+      );
+      if (witness == null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Gabe abgebrochen — Zeuge erforderlich.'),
+        ));
+        return;
+      }
+      witnessId = witness.id;
+    }
+    if (!mounted) return;
 
     final confirmed = await showDialog<_GivenResult>(
       context: context,
@@ -267,6 +316,8 @@ class _MedicationAdministrationScreenState
         medicationName: slot.medication.name,
         dosage: slot.medication.dosage,
         employeeName: employee.fullName,
+        witnessName:
+            witnessId == null ? null : employees.firstWhere((e) => e.id == witnessId).fullName,
         isBtm: isBtm,
       ),
     );
@@ -297,9 +348,15 @@ class _MedicationAdministrationScreenState
       }
     }
 
-    final ok = await ref
-        .read(administrationActionProvider.notifier)
-        .administer(slot, employeeId: employee.id, notes: confirmed.notes);
+    // Bei BtM wird der Zeuge im BtM-Dialog gesetzt.
+    final effectiveWitnessId = witnessId ?? btm?.witnessId;
+
+    final ok = await ref.read(administrationActionProvider.notifier).administer(
+          slot,
+          employeeId: employee.id,
+          witnessEmployeeId: effectiveWitnessId,
+          notes: confirmed.notes,
+        );
     if (!ok) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
@@ -361,19 +418,60 @@ class _MedicationAdministrationScreenState
 
   /// Vorauswahl via `cloudUsername` → Mitarbeiter mit passender E-Mail.
   /// Fallback: Auswahl-Dialog.
-  Future<Employee?> _pickEmployee(List<Employee> employees) async {
+  Future<void> _manageMedPin() async {
+    final employees = ref.read(employeesProvider).valueOrNull ?? const [];
     final settings = ref.read(appSettingsProvider);
     final user = (settings.cloudUsername ?? '').toLowerCase();
-    final preset = employees.cast<Employee?>().firstWhere(
+    final me = employees.cast<Employee?>().firstWhere(
       (e) => e != null && e.email.toLowerCase() == user,
       orElse: () => null,
     );
-    if (preset != null) return preset;
+    if (me == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Mitarbeiter-Profil nicht gefunden.'),
+      ));
+      return;
+    }
+    final service = MedPinService();
+    final already = await service.isSet(me.id);
+    if (!mounted) return;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => MedPinSetupDialog(
+        employeeId: me.id,
+        employeeName: me.fullName,
+        service: service,
+        requireCurrent: already,
+      ),
+    );
+    if (ok == true && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('PIN aktualisiert.')),
+      );
+    }
+  }
+
+  Future<Employee?> _pickEmployee(
+    List<Employee> employees, {
+    String? title,
+  }) async {
+    // Beim Zeugen-Picker kein Auto-Select anhand des eingeloggten Nutzers —
+    // sonst waere der Gebende zugleich "Zeuge".
+    if (title == null) {
+      final settings = ref.read(appSettingsProvider);
+      final user = (settings.cloudUsername ?? '').toLowerCase();
+      final preset = employees.cast<Employee?>().firstWhere(
+        (e) => e != null && e.email.toLowerCase() == user,
+        orElse: () => null,
+      );
+      if (preset != null) return preset;
+    }
 
     return showDialog<Employee?>(
       context: context,
       builder: (ctx) => SimpleDialog(
-        title: const Text('Wer quittiert die Gabe?'),
+        title: Text(title ?? 'Wer quittiert die Gabe?'),
         children: employees
             .map((e) => SimpleDialogOption(
                   onPressed: () => Navigator.of(ctx).pop(e),
@@ -396,11 +494,13 @@ class _GivenDialog extends StatefulWidget {
   final String medicationName;
   final String dosage;
   final String employeeName;
+  final String? witnessName;
   final bool isBtm;
   const _GivenDialog({
     required this.medicationName,
     required this.dosage,
     required this.employeeName,
+    this.witnessName,
     this.isBtm = false,
   });
 
@@ -423,6 +523,8 @@ class _GivenDialogState extends State<_GivenDialog> {
         children: [
           Text('Medikament: ${widget.medicationName} (${widget.dosage})'),
           Text('Bestaetigt durch: ${widget.employeeName}'),
+          if (widget.witnessName != null)
+            Text('Zeuge: ${widget.witnessName}'),
           if (widget.isBtm) ...[
             const SizedBox(height: 8),
             Text(
