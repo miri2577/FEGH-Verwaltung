@@ -1,6 +1,13 @@
+import 'package:fegh_cloud/fegh_cloud.dart' show FeghPaths;
 import 'package:flutter/foundation.dart';
+
 import '../services/cloud_webdav_client.dart';
 
+/// Legt die kanonische Org-Ordnerstruktur auf der Cloud an.
+///
+/// Die Pfade kommen aus `FeghPaths` — dasselbe Helper-Paket, das auch
+/// die Doku-App nutzt. Beide Apps sehen damit exakt dieselbe
+/// Ordnerstruktur.
 class OrgAdminSyncService {
   final CloudWebDavClient client;
   final String orgId;
@@ -9,17 +16,8 @@ class OrgAdminSyncService {
 
   Future<bool> run() async {
     try {
-      final base = 'eingliederungshilfe/organizations/$orgId';
-      final dirs = [
-        base,
-        '$base/teams',
-        '$base/employees',
-        '$base/administration',
-        '$base/shared',
-        '$base/shared/calendar-sync',
-        '$base/shared/messages',
-      ];
-      for (final d in dirs) {
+      final paths = FeghPaths(orgId: orgId);
+      for (final d in paths.bootstrapDirectories()) {
         await client.mkcol(d);
       }
       if (kDebugMode) {
@@ -32,4 +30,3 @@ class OrgAdminSyncService {
     }
   }
 }
-

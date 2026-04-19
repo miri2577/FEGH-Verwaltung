@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:typed_data';
+import 'package:fegh_cloud/fegh_cloud.dart' show FeghPaths;
 import 'package:fegh_crypto/fegh_crypto.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -132,7 +133,7 @@ class _AdminConsoleScreenState extends ConsumerState<AdminConsoleScreen>
     final org = settings.organizationId ?? '';
     final syncReady = settings.isCloudSyncReady;
     final client = ref.watch(cloudClientProvider);
-    final svc = AdminHealthService(client: client, orgBase: 'eingliederungshilfe/organizations/$org');
+    final svc = AdminHealthService(client: client, orgBase: FeghPaths(orgId: org).organization);
     return FutureBuilder<Map<String, bool>>(
       future: svc.check(),
       builder: (context, snapshot) {
@@ -217,7 +218,7 @@ class _AdminConsoleScreenState extends ConsumerState<AdminConsoleScreen>
     final webdav = ref.read(cloudClientProvider);
     final crypto = ref.read(cryptoStorageProvider);
     await crypto.initialize();
-    final svc = AdminRepairService(client: webdav, crypto: crypto, orgBase: 'eingliederungshilfe/organizations/$org');
+    final svc = AdminRepairService(client: webdav, crypto: crypto, orgBase: FeghPaths(orgId: org).organization);
     final messenger = ScaffoldMessenger.of(context);
     messenger.showSnackBar(const SnackBar(content: Text('🔎 Analysiere Drift…')));
     final result = await svc.analyzeIndexDrift();
@@ -232,7 +233,7 @@ class _AdminConsoleScreenState extends ConsumerState<AdminConsoleScreen>
     final webdav = ref.read(cloudClientProvider);
     final crypto = ref.read(cryptoStorageProvider);
     await crypto.initialize();
-    final svc = AdminRepairService(client: webdav, crypto: crypto, orgBase: 'eingliederungshilfe/organizations/$org');
+    final svc = AdminRepairService(client: webdav, crypto: crypto, orgBase: FeghPaths(orgId: org).organization);
     final ok = await svc.addMissingIndexEntries(items);
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ok ? '✅ Fehlende Einträge hinzugefügt' : '❌ Reparatur fehlgeschlagen')));
     if (ok) await _runDriftAnalysis();
@@ -245,7 +246,7 @@ class _AdminConsoleScreenState extends ConsumerState<AdminConsoleScreen>
     final webdav = ref.read(cloudClientProvider);
     final crypto = ref.read(cryptoStorageProvider);
     await crypto.initialize();
-    final svc = AdminRepairService(client: webdav, crypto: crypto, orgBase: 'eingliederungshilfe/organizations/$org');
+    final svc = AdminRepairService(client: webdav, crypto: crypto, orgBase: FeghPaths(orgId: org).organization);
     final ok = await svc.removeStaleIndexEntries(items);
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ok ? '✅ Veraltete Einträge entfernt' : '❌ Reparatur fehlgeschlagen')));
     if (ok) await _runDriftAnalysis();
@@ -532,7 +533,7 @@ class _AdminConsoleScreenState extends ConsumerState<AdminConsoleScreen>
     final client = ref.read(cloudClientProvider);
     final crypto = ref.read(cryptoStorageProvider);
     await crypto.initialize();
-    final svc = ClientsIndexRebuilder(client: client, crypto: crypto, orgBase: 'eingliederungshilfe/organizations/$org');
+    final svc = ClientsIndexRebuilder(client: client, crypto: crypto, orgBase: FeghPaths(orgId: org).organization);
     final messenger = ScaffoldMessenger.of(context);
     messenger.showSnackBar(const SnackBar(content: Text('🔧 Baue Clients‑Index neu auf…')));
     final count = await svc.rebuild();
@@ -565,7 +566,7 @@ class _AdminConsoleScreenState extends ConsumerState<AdminConsoleScreen>
                 final client = ref.read(cloudClientProvider);
                 final crypto = ref.read(cryptoStorageProvider);
                 await crypto.initialize();
-                final svc = TeamKeyAdminService(crypto: crypto, client: client, orgBase: 'eingliederungshilfe/organizations/$org');
+                final svc = TeamKeyAdminService(crypto: crypto, client: client, orgBase: FeghPaths(orgId: org).organization);
                 final b64 = await svc.fetchTeamKeyBase64(ctrl.text.trim());
                 if (b64 == null || b64.isEmpty) return;
                 final payload = jsonEncode({'type': 'egh-team-key', 'org': org, 'team': ctrl.text.trim(), 'key': b64, 'ts': DateTime.now().toUtc().toIso8601String()});
@@ -644,7 +645,7 @@ class _AdminConsoleScreenState extends ConsumerState<AdminConsoleScreen>
                 final client = ref.read(cloudClientProvider);
                 final crypto = ref.read(cryptoStorageProvider);
                 await crypto.initialize();
-                final teamSvc = TeamKeyAdminService(crypto: crypto, client: client, orgBase: 'eingliederungshilfe/organizations/$org');
+                final teamSvc = TeamKeyAdminService(crypto: crypto, client: client, orgBase: FeghPaths(orgId: org).organization);
                 // Teams parsen (wird mehrfach benötigt)
                 final teams = teamsCtrl.text.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
                 // Rolle in roles.json eintragen/aktualisieren

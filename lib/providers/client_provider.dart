@@ -1,3 +1,4 @@
+import 'package:fegh_cloud/fegh_cloud.dart' show FeghPaths;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/client.dart';
 import '../services/local_storage_service.dart';
@@ -156,7 +157,7 @@ class ClientNotifier extends Notifier<List<Client>> {
       final svc = OrgClientSyncService(
         client: webdav,
         crypto: crypto,
-        orgBase: 'eingliederungshilfe/organizations/${settings.organizationId}',
+        orgBase: FeghPaths(orgId: settings.organizationId ?? '').organization,
       );
       final ok = await svc.migrateClientTeam(clientModel: client, oldTeamId: oldTeam, newTeamId: newTeam);
       print(ok
@@ -179,7 +180,7 @@ class ClientNotifier extends Notifier<List<Client>> {
       final svc = OrgClientSyncService(
         client: client,
         crypto: crypto,
-        orgBase: 'eingliederungshilfe/organizations/${settings.organizationId}',
+        orgBase: FeghPaths(orgId: settings.organizationId ?? '').organization,
       );
       final ok = await svc.uploadOrUpdateClient(c);
       if (ok) {
@@ -204,7 +205,7 @@ class ClientNotifier extends Notifier<List<Client>> {
       final svc = OrgClientSyncService(
         client: client,
         crypto: crypto,
-        orgBase: 'eingliederungshilfe/organizations/${settings.organizationId}',
+        orgBase: FeghPaths(orgId: settings.organizationId ?? '').organization,
       );
       await svc.deleteClient(c);
       print('☁️ ✅ Client in Cloud gelöscht: ${c.fullName}');
