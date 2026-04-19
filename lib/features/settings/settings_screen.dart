@@ -18,6 +18,7 @@ import '../../services/clients_index_rebuilder.dart';
 import '../../services/audit_logger.dart';
 import '../../providers/policy_provider.dart';
 import '../admin/admin_console_screen.dart';
+import '../backup/backup_screen.dart';
 import '../../providers/roles_policy_provider.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
@@ -90,6 +91,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _buildCloudSyncSection(settings),
+                    const SizedBox(height: 32),
+                    _buildBackupSection(),
                     const SizedBox(height: 32),
                     _buildSyncSettingsSection(settings),
                     const SizedBox(height: 32),
@@ -951,6 +954,43 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Future<void> _updateUICustomization(UICustomization ui) async {
     await ref.read(appSettingsProvider.notifier).updateUICustomization(ui);
+  }
+
+  Widget _buildBackupSection() {
+    final theme = Theme.of(context);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Symbols.backup, color: theme.colorScheme.primary),
+                const SizedBox(width: 12),
+                Text('Backup & Wiederherstellung',
+                    style: theme.textTheme.titleLarge),
+              ],
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'Verschluesselte Voll-Backups aller Nutzdaten und '
+              'Wiederherstellung aus .ehbackup-Dateien.',
+            ),
+            const SizedBox(height: 16),
+            FilledButton.icon(
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const BackupScreen()),
+                );
+              },
+              icon: const Icon(Symbols.open_in_new),
+              label: const Text('Backup-Manager oeffnen'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildAboutSection() {
