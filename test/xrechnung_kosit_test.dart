@@ -139,6 +139,8 @@ RechnungsstellerDaten _sampleSteller() {
     bic: 'COBADEFFXXX',
     kontoinhaber: 'FEGH gGmbH',
     email: 'rechnung@fegh.example',
+    telefon: '+49 30 12345678',
+    ansprechpartner: 'Rechnungswesen FEGH',
     elektronischeAdresse: 'rechnung@fegh.example',
   );
 }
