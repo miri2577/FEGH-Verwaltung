@@ -609,7 +609,9 @@ class _ReportBuilderState extends ConsumerState<ReportBuilder> {
           'Name': e.fullName,
           'Position': e.position,
           'Abteilung': e.department,
-          'Einstellungsdatum': '${e.hireDate.day.toString().padLeft(2, '0')}.${e.hireDate.month.toString().padLeft(2, '0')}.${e.hireDate.year}',
+          'Einstellungsdatum': e.hireDate == null
+              ? '–'
+              : '${e.hireDate!.day.toString().padLeft(2, '0')}.${e.hireDate!.month.toString().padLeft(2, '0')}.${e.hireDate!.year}',
           'Status': e.statusLabel,
           'Stundenlohn': '${e.hourlyRate.toStringAsFixed(2)} €',
           'Vertragsstunden': '${e.hoursPerWeek}',

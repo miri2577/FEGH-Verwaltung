@@ -351,7 +351,7 @@ class ExportService {
       'position': employee.position,
       'hourlyRate': employee.hourlyRate,
       'status': employee.status.toString().split('.').last,
-      'hireDate': employee.hireDate.toIso8601String(),
+      'hireDate': employee.hireDate?.toIso8601String(),
       'phone': employee.phone,
       'address': employee.address,
     }).toList();

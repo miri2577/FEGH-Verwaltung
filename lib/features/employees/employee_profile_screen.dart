@@ -390,7 +390,7 @@ class _EmployeeProfileScreenState extends ConsumerState<EmployeeProfileScreen>
             _buildInfoRow('Abteilung', employee.department),
             _buildInfoRow('Stundenlohn', '${employee.hourlyRate.toStringAsFixed(2)} €'),
             _buildInfoRow('Einstellungsdatum',
-                '${employee.hireDate.day}.${employee.hireDate.month}.${employee.hireDate.year}'),
+                '${employee.hireDate?.day ?? 0}.${employee.hireDate?.month ?? 0}.${employee.hireDate?.year ?? 0}'),
             _buildInfoRow('Status', employee.statusLabel),
             _buildInfoRow('Wochenarbeitszeit', '${employee.contractualHours} Stunden'),
           ],
@@ -679,15 +679,15 @@ class _EmployeeProfileScreenState extends ConsumerState<EmployeeProfileScreen>
           _pdfRow('Geburtsdatum', employee.dateOfBirth != null
               ? '${employee.dateOfBirth!.day}.${employee.dateOfBirth!.month}.${employee.dateOfBirth!.year}'
               : 'Nicht angegeben'),
-          _pdfRow('Adresse', employee.address.fullAddress),
+          _pdfRow('Adresse', employee.address?.fullAddress ?? ""),
           pw.SizedBox(height: 12),
           pw.Header(level: 1, text: 'Vertragsinformationen'),
           _pdfRow('Position', employee.position),
           _pdfRow('Abteilung', employee.department),
-          _pdfRow('Vertragsart', employee.contractType.name),
+          _pdfRow('Vertragsart', employee.contractType?.name ?? '–'),
           _pdfRow('Stundenlohn', '${employee.hourlyRate.toStringAsFixed(2)} EUR'),
           _pdfRow('Wochenarbeitszeit', '${employee.contractualHours} Stunden'),
-          _pdfRow('Einstellungsdatum', '${employee.hireDate.day}.${employee.hireDate.month}.${employee.hireDate.year}'),
+          _pdfRow('Einstellungsdatum', '${employee.hireDate?.day ?? 0}.${employee.hireDate?.month ?? 0}.${employee.hireDate?.year ?? 0}'),
           _pdfRow('Status', employee.statusLabel),
           if (employee.notes != null && employee.notes!.isNotEmpty) ...[
             pw.SizedBox(height: 12),

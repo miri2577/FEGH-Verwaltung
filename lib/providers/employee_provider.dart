@@ -91,7 +91,33 @@ class EmployeesNotifier extends StateNotifier<AsyncValue<List<Employee>>> {
 
       // Generate ID if not provided
       final employeeWithId = employee.id.isEmpty
-          ? employee.copyWith(id: _localStorage.generateId())
+          ? Employee(
+              id: _localStorage.generateId(),
+              firstName: employee.firstName,
+              lastName: employee.lastName,
+              email: employee.email,
+              phone: employee.phone,
+              employeeNumber: employee.employeeNumber,
+              position: employee.position,
+              department: employee.department,
+              hoursPerWeek: employee.hoursPerWeek,
+              hourlyRate: employee.hourlyRate,
+              status: employee.status,
+              contractType: employee.contractType,
+              dateOfBirth: employee.dateOfBirth,
+              hireDate: employee.hireDate,
+              address: employee.address,
+              emergencyContact: employee.emergencyContact,
+              qualifications: employee.qualifications,
+              notes: employee.notes,
+              supervisor: employee.supervisor,
+              teamIds: employee.teamIds,
+              teamNummer: employee.teamNummer,
+              bereich: employee.bereich,
+              urlaubstage: employee.urlaubstage,
+              createdAt: DateTime.now(),
+              updatedAt: DateTime.now(),
+            )
           : employee;
 
       final savedEmployee = await _localStorage.saveEmployee(employeeWithId);

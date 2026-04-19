@@ -34,8 +34,8 @@ class _EmployeeFormDialogState extends State<EmployeeFormDialog> {
   final _countryController = TextEditingController();
   final _notesController = TextEditingController();
 
-  DateTime _dateOfBirth = DateTime.now().subtract(const Duration(days: 365 * 25));
-  DateTime _hireDate = DateTime.now();
+  DateTime? _dateOfBirth = DateTime.now().subtract(const Duration(days: 365 * 25));
+  DateTime? _hireDate = DateTime.now();
   EmployeeStatus _status = EmployeeStatus.active;
   ContractType _contractType = ContractType.fullTime;
 
@@ -59,15 +59,15 @@ class _EmployeeFormDialogState extends State<EmployeeFormDialog> {
       _departmentController.text = employee.department;
       _hoursPerWeekController.text = employee.hoursPerWeek.toString();
       _hourlyRateController.text = employee.hourlyRate.toString();
-      _streetController.text = employee.address.street;
-      _cityController.text = employee.address.city;
-      _postalCodeController.text = employee.address.postalCode;
-      _countryController.text = employee.address.country;
+      _streetController.text = employee.address?.street ?? '';
+      _cityController.text = employee.address?.city ?? '';
+      _postalCodeController.text = employee.address?.postalCode ?? '';
+      _countryController.text = employee.address?.country ?? 'DE';
       _notesController.text = employee.notes ?? '';
       _dateOfBirth = employee.dateOfBirth;
       _hireDate = employee.hireDate;
       _status = employee.status;
-      _contractType = employee.contractType;
+      _contractType = employee.contractType ?? ContractType.fullTime;
     } else {
       _countryController.text = 'Deutschland';
       _employeeNumberController.text = _generateEmployeeNumber();
@@ -239,7 +239,7 @@ class _EmployeeFormDialogState extends State<EmployeeFormDialog> {
               border: OutlineInputBorder(),
             ),
             child: Text(
-              '${_dateOfBirth.day}.${_dateOfBirth.month}.${_dateOfBirth.year}',
+              '${_dateOfBirth?.day ?? 0}.${_dateOfBirth?.month ?? 0}.${_dateOfBirth?.year ?? 0}',
             ),
           ),
         ),
@@ -285,7 +285,7 @@ class _EmployeeFormDialogState extends State<EmployeeFormDialog> {
                     border: OutlineInputBorder(),
                   ),
                   child: Text(
-                    '${_hireDate.day}.${_hireDate.month}.${_hireDate.year}',
+                    '${_hireDate?.day ?? 0}.${_hireDate?.month ?? 0}.${_hireDate?.year ?? 0}',
                   ),
                 ),
               ),
