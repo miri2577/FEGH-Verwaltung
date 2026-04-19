@@ -7,6 +7,7 @@ import '../../providers/employee_provider.dart';
 import '../../providers/policy_provider.dart';
 import 'widgets/client_documents_card.dart';
 import 'widgets/client_form_dialog.dart';
+import '../kassenbuch/kassenbuch_screen.dart';
 import '../medication/medication_plan_screen.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -89,6 +90,20 @@ class _ClientProfileScreenState extends ConsumerState<ClientProfileScreen>
               icon: const Icon(Symbols.medication),
               tooltip: 'Medikationsplan',
             ),
+          IconButton(
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => KassenbuchScreen(
+                    clientId: client.id,
+                    clientName: client.fullName,
+                  ),
+                ),
+              );
+            },
+            icon: const Icon(Symbols.savings),
+            tooltip: 'Kassenbuch',
+          ),
           PopupMenuButton<String>(
             itemBuilder: (context) => [
               const PopupMenuItem(

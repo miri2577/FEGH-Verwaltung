@@ -11,6 +11,7 @@ import '../../providers/medication_provider.dart';
 import '../../providers/notification_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../providers/shift_provider.dart';
+import '../kassenbuch/kassenbuch_client_picker_screen.dart';
 
 /// Startseite fuer `teamMember` und `teamLead`: eigene Schichten,
 /// offene Aufgaben (Medikation, Kassenbuch — folgen in D3/D4), letzte
@@ -100,12 +101,7 @@ class MyWorkScreen extends ConsumerWidget {
             const SizedBox(height: 16),
             _openMedsCard(theme, ref),
             const SizedBox(height: 16),
-            _placeholderCard(
-              theme,
-              icon: Symbols.savings,
-              title: 'Kassenbuch-Eintraege',
-              text: 'Modul folgt in Phase D4.',
-            ),
+            _kassenbuchHintCard(theme, context),
             const SizedBox(height: 16),
             _notificationsCard(theme, ref),
           ],
@@ -224,6 +220,44 @@ class MyWorkScreen extends ConsumerWidget {
                   ],
                 );
               },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _kassenbuchHintCard(ThemeData theme, BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Icon(Symbols.savings, color: theme.colorScheme.primary),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Kassenbuch',
+                      style: theme.textTheme.titleMedium),
+                  Text(
+                    'Taschengeld, Haushaltsgeld, Quittungen pro Klient.',
+                    style: TextStyle(color: theme.colorScheme.outline),
+                  ),
+                ],
+              ),
+            ),
+            TextButton.icon(
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const KassenbuchClientPickerScreen(),
+                  ),
+                );
+              },
+              icon: const Icon(Symbols.arrow_forward),
+              label: const Text('Oeffnen'),
             ),
           ],
         ),

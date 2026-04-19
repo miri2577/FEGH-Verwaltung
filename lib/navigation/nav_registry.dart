@@ -7,9 +7,11 @@ import '../features/clients/clients_screen.dart';
 import '../features/dashboard/dashboard_screen.dart';
 import '../features/employees/employees_screen.dart';
 import '../features/icf/icf_screen.dart';
+import '../features/kassenbuch/kassenbuch_client_picker_screen.dart';
 import '../features/medication/medication_administration_screen.dart';
 import '../features/medication/medication_plan_overview_screen.dart';
 import '../features/my_work/my_work_screen.dart';
+import '../features/wohnraum/wohnraum_overview_screen.dart';
 import '../features/reports/reports_screen.dart';
 import '../features/settings/settings_screen.dart';
 import '../features/shifts/shifts_screen.dart';
@@ -105,6 +107,14 @@ final List<NavEntry> navRegistry = <NavEntry>[
     builder: (_) => const MedicationAdministrationScreen(),
     visibleFor: _staffLike,
   ),
+  NavEntry(
+    id: 'kassenbuch',
+    icon: Symbols.savings,
+    label: 'Kassenbuch',
+    section: NavSection.arbeit,
+    builder: (_) => const KassenbuchClientPickerScreen(),
+    visibleFor: _staffLike,
+  ),
 
   // KLIENTEN
   NavEntry(
@@ -171,6 +181,14 @@ final List<NavEntry> navRegistry = <NavEntry>[
     label: 'Kapazitaet',
     section: NavSection.personal,
     builder: (_) => const CapacityScreen(),
+    visibleFor: _nonMember,
+  ),
+  NavEntry(
+    id: 'wohnraum',
+    icon: Symbols.apartment,
+    label: 'Wohnraum',
+    section: NavSection.personal,
+    builder: (_) => const WohnraumOverviewScreen(),
     visibleFor: _nonMember,
   ),
 
