@@ -18,7 +18,10 @@ $DufsUrl          = "https://github.com/sigoden/dufs/releases/download/$DufsVers
 $InstallRoot = Join-Path $HOME '.fegh-tools'
 $KositHome   = Join-Path $InstallRoot 'kosit'
 $BinDir      = Join-Path $InstallRoot 'bin'
+$SampleDir   = Join-Path $InstallRoot 'samples'
 $EnvFile     = Join-Path $HOME '.fegh-tools.env.ps1'
+
+$SampleUrl   = 'https://raw.githubusercontent.com/itplr-kosit/xrechnung-testsuite/master/src/test/business-cases/standard/01.01a-INVOICE_ubl.xml'
 
 # --- Helpers ----------------------------------------------------
 function Write-Step { param($msg) Write-Host ""; Write-Host "==> $msg" -ForegroundColor Cyan }
@@ -82,6 +85,7 @@ if (Test-Command java) {
 New-Item -ItemType Directory -Path $InstallRoot -Force | Out-Null
 New-Item -ItemType Directory -Path $KositHome   -Force | Out-Null
 New-Item -ItemType Directory -Path $BinDir      -Force | Out-Null
+New-Item -ItemType Directory -Path $SampleDir   -Force | Out-Null
 
 # --- KoSIT Validator -------------------------------------------
 Write-Step "KoSIT Validator + XRechnung-Konfiguration"
@@ -135,6 +139,20 @@ if (Test-Command dufs) {
     }
 }
 
+# --- Sample-Rechnung ------------------------------------------
+Write-Step "XRechnung-Sample herunterladen"
+$sampleFile = Join-Path $SampleDir 'xrechnung-sample.xml'
+if (Test-Path $sampleFile) {
+    Write-OK "Sample bereits da: $sampleFile"
+} else {
+    try {
+        Download-File $SampleUrl $sampleFile
+        Write-OK "Sample geladen: $sampleFile"
+    } catch {
+        Write-Warn2 "Sample-Download fehlgeschlagen (kein Netz?). Validierung kann spaeter manuell getestet werden."
+    }
+}
+
 # --- Env-Datei schreiben ---------------------------------------
 Write-Step "Env-Datei schreiben"
 
@@ -150,6 +168,8 @@ $envLines += "`$env:FEGH_WEBDAV_URL  = 'http://localhost:5000'"
 $envLines += "`$env:FEGH_WEBDAV_USER = 'fegh-test'"
 $envLines += "`$env:FEGH_WEBDAV_PASS = 'fegh-test'"
 $envLines += "`$env:FEGH_WEBDAV_DIR  = Join-Path `$env:TEMP 'fegh-webdav'"
+$envLines += ''
+$envLines += "`$env:FEGH_XRECHNUNG_SAMPLE = '$sampleFile'"
 $envLines += ''
 $envLines += "if (-not (`$env:Path -split ';' | Where-Object { `$_ -eq '$BinDir' })) {"
 $envLines += "    `$env:Path = '$BinDir;' + `$env:Path"
@@ -175,8 +195,9 @@ Write-Host "2) WebDAV-Server starten in eigenem Terminal:"
 Write-Host '     New-Item -ItemType Directory -Force -Path $env:FEGH_WEBDAV_DIR | Out-Null'
 Write-Host '     dufs $env:FEGH_WEBDAV_DIR --auth "${env:FEGH_WEBDAV_USER}:${env:FEGH_WEBDAV_PASS}@/:rw" --port 5000'
 Write-Host ""
-Write-Host "3) XRechnung-XML validieren (ersetze <pfad> mit Datei):"
-Write-Host '     java -jar $env:FEGH_KOSIT_JAR -s $env:FEGH_XRECHNUNG_SCENARIO <pfad\zu\rechnung.xml>'
+Write-Host "3) Smoke-Test XRechnung-Validator (mitgeliefertes Sample):"
+Write-Host '     java -jar $env:FEGH_KOSIT_JAR -s $env:FEGH_XRECHNUNG_SCENARIO $env:FEGH_XRECHNUNG_SAMPLE'
+Write-Host "   Erwartet: <accepted>true</accepted> im Report."
 Write-Host ""
 Write-Host "4) Flutter-Tests ausfuehren:"
 Write-Host "     flutter test test/xrechnung_kosit_test.dart"

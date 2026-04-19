@@ -120,19 +120,32 @@ java -jar "$FEGH_KOSIT_JAR" \
 > Repository-Pfade erkennt der Validator automatisch relativ zur
 > scenarios.xml.
 
-Beispiel mit einer mitgelieferten Test-Rechnung:
+Die Validator-Konfiguration enthaelt **keine** Test-Rechnungen — die
+leben im separaten Repo `itplr-kosit/xrechnung-testsuite`. Eine
+offizielle Sample-Rechnung holen und validieren:
+
+**Bash:**
 
 ```bash
-# Bash:
-java -jar "$FEGH_KOSIT_JAR" \
-  -s "$FEGH_XRECHNUNG_SCENARIO" \
-  "$(dirname $FEGH_XRECHNUNG_SCENARIO)/test/instances/xrechnung-3.0/UBL/XRechnung-O.xml"
-
-# PowerShell:
-$sampleDir = Split-Path $env:FEGH_XRECHNUNG_SCENARIO
-java -jar $env:FEGH_KOSIT_JAR -s $env:FEGH_XRECHNUNG_SCENARIO `
-  (Join-Path $sampleDir 'test\instances\xrechnung-3.0\UBL\XRechnung-O.xml')
+mkdir -p ~/.fegh-tools/samples
+curl -fsSL -o ~/.fegh-tools/samples/xrechnung-sample.xml \
+  https://raw.githubusercontent.com/itplr-kosit/xrechnung-testsuite/master/src/test/business-cases/standard/01.01a-INVOICE_ubl.xml
+java -jar "$FEGH_KOSIT_JAR" -s "$FEGH_XRECHNUNG_SCENARIO" \
+  ~/.fegh-tools/samples/xrechnung-sample.xml
 ```
+
+**PowerShell:**
+
+```powershell
+$samples = Join-Path $HOME '.fegh-tools\samples'
+New-Item -ItemType Directory -Path $samples -Force | Out-Null
+Invoke-WebRequest `
+  -Uri 'https://raw.githubusercontent.com/itplr-kosit/xrechnung-testsuite/master/src/test/business-cases/standard/01.01a-INVOICE_ubl.xml' `
+  -OutFile "$samples\xrechnung-sample.xml"
+java -jar $env:FEGH_KOSIT_JAR -s $env:FEGH_XRECHNUNG_SCENARIO "$samples\xrechnung-sample.xml"
+```
+
+Erwartete Ausgabe: XML-Report mit `<accepted>true</accepted>`.
 
 ### dufs starten
 

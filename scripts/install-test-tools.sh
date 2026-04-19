@@ -26,7 +26,10 @@ DUFS_VERSION="v0.43.0"
 INSTALL_ROOT="${HOME}/.fegh-tools"
 KOSIT_HOME="${INSTALL_ROOT}/kosit"
 BIN_DIR="${INSTALL_ROOT}/bin"
+SAMPLE_DIR="${INSTALL_ROOT}/samples"
 ENV_FILE="${HOME}/.fegh-tools.env"
+
+SAMPLE_URL="https://raw.githubusercontent.com/itplr-kosit/xrechnung-testsuite/master/src/test/business-cases/standard/01.01a-INVOICE_ubl.xml"
 
 # ── Farben ────────────────────────────────────────────────────
 GREEN="\033[0;32m"
@@ -263,16 +266,33 @@ install_dufs() {
 
 # ── Env-Datei schreiben ──────────────────────────────────────
 
+install_sample() {
+  step "XRechnung-Sample herunterladen"
+  mkdir -p "$SAMPLE_DIR"
+  local out="$SAMPLE_DIR/xrechnung-sample.xml"
+  if [ -f "$out" ]; then
+    ok "Sample bereits da: $out"
+  else
+    if dl "$SAMPLE_URL" "$out"; then
+      ok "Sample geladen: $out"
+    else
+      warn "Sample-Download fehlgeschlagen (kein Netz?). Validator-Smoke-Test spaeter manuell."
+    fi
+  fi
+  FEGH_XRECHNUNG_SAMPLE="$out"
+}
+
 write_env() {
   step "Env-Datei schreiben"
   local jar="$KOSIT_HOME/validationtool-${VALIDATOR_VERSION}-standalone.jar"
   cat > "$ENV_FILE" <<EOF
-# FEGH Test-Tools — $(date +%F)
+# FEGH Test-Tools - $(date +%F)
 # Aktivieren:  source $ENV_FILE
 
 export FEGH_KOSIT_HOME="$KOSIT_HOME"
 export FEGH_KOSIT_JAR="$jar"
 export FEGH_XRECHNUNG_SCENARIO="${FEGH_XRECHNUNG_SCENARIO:-}"
+export FEGH_XRECHNUNG_SAMPLE="${FEGH_XRECHNUNG_SAMPLE:-}"
 
 export FEGH_WEBDAV_URL="http://localhost:5000"
 export FEGH_WEBDAV_USER="fegh-test"
@@ -310,10 +330,11 @@ print_next_steps() {
        --auth "\$FEGH_WEBDAV_USER:\$FEGH_WEBDAV_PASS@/:rw" \\
        --port 5000
 
-3) XRechnung-XML validieren (ersetze <pfad> mit Datei):
+3) Smoke-Test XRechnung-Validator (mitgeliefertes Sample):
      java -jar "\$FEGH_KOSIT_JAR" \\
        -s "\$FEGH_XRECHNUNG_SCENARIO" \\
-       <pfad/zur/rechnung.xml>
+       "\$FEGH_XRECHNUNG_SAMPLE"
+   Erwartet: <accepted>true</accepted> im Report.
 
 4) Flutter-Tests ausfuehren (greifen die Env-Variablen auf):
      flutter test test/xrechnung_kosit_test.dart
@@ -344,6 +365,7 @@ main() {
   check_java
   install_kosit
   install_dufs
+  install_sample
   write_env
   print_next_steps
 }
