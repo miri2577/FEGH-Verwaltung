@@ -37,11 +37,43 @@ class ClientNotifier extends Notifier<List<Client>> {
         print('🚫 Keine Berechtigung: Client anlegen');
         return;
       }
-      final newClient = client.copyWith(
-        id: client.id.isEmpty ? _generateId() : client.id,
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-      );
+      final newClient = client.id.isEmpty
+          ? Client.create(
+              firstName: client.firstName,
+              lastName: client.lastName,
+              dateOfBirth: client.dateOfBirth,
+              teamId: client.teamId,
+              email: client.email,
+              phone: client.phone,
+              address: client.address,
+              status: client.status,
+              priority: client.priority,
+              services: client.services,
+              notes: client.notes,
+              caseManager: client.caseManager,
+              insuranceNumber: client.insuranceNumber,
+              emergencyContact: client.emergencyContact,
+              emergencyPhone: client.emergencyPhone,
+              assignedEmployees: client.assignedEmployees,
+              responsibleEmployeeId: client.responsibleEmployeeId,
+              deputyEmployeeId: client.deputyEmployeeId,
+              deputy2EmployeeId: client.deputy2EmployeeId,
+              customFields: client.customFields,
+              hilfeTyp: client.hilfeTyp,
+              fachleistungsstunden: client.fachleistungsstunden,
+              fachleistungsIntervall: client.fachleistungsIntervall,
+              kostenuebernahme: client.kostenuebernahme,
+              kostenuebernahmeVon: client.kostenuebernahmeVon,
+              kostenuebernahmeBis: client.kostenuebernahmeBis,
+              betreuungSeit: client.betreuungSeit,
+              icfBereiche: client.icfBereiche,
+              tibZiele: client.tibZiele,
+              individuelleTibZiele: client.individuelleTibZiele,
+              kalkulationsfaktorOverride: client.kalkulationsfaktorOverride,
+              stundensatzOverride: client.stundensatzOverride,
+              verbrauchteStunden: client.verbrauchteStunden,
+            )
+          : client.copyWith(updatedAt: DateTime.now());
 
       state = [...state, newClient];
       await _saveClients();

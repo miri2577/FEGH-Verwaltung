@@ -40,18 +40,22 @@ class _AppShellState extends ConsumerState<AppShell> {
     final theme = Theme.of(context);
     final narrow = MediaQuery.of(context).size.width < 1024;
 
+    final appBarBg = theme.colorScheme.surface;
+    final appBarFg = theme.colorScheme.onSurface;
+    final appBarMuted = theme.colorScheme.onSurfaceVariant;
+
     return Scaffold(
       appBar: AppBar(
         title: Row(
           children: [
-            Icon(Symbols.business, color: theme.colorScheme.onPrimary),
+            Icon(Symbols.business, color: theme.colorScheme.primary),
             const SizedBox(width: 12),
             Text(
               'FEGH-Verwaltung',
               style: TextStyle(
                 fontWeight: FontWeight.w600,
                 fontSize: 18,
-                color: theme.colorScheme.onPrimary,
+                color: appBarFg,
               ),
             ),
             const SizedBox(width: 16),
@@ -59,20 +63,25 @@ class _AppShellState extends ConsumerState<AppShell> {
               current.label,
               style: TextStyle(
                 fontSize: 14,
-                color: theme.colorScheme.onPrimary.withOpacity(0.7),
+                color: appBarMuted,
               ),
             ),
           ],
         ),
-        backgroundColor: theme.colorScheme.primary,
-        foregroundColor: theme.colorScheme.onPrimary,
+        backgroundColor: appBarBg,
+        foregroundColor: appBarFg,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        shape: Border(
+          bottom: BorderSide(color: theme.dividerColor, width: 1),
+        ),
         actions: [
           IconButton(
             onPressed: () {},
             tooltip: 'Suche (folgt)',
-            icon: const Icon(Symbols.search),
+            icon: Icon(Symbols.search, color: appBarFg),
           ),
-          NotificationBell(iconColor: theme.colorScheme.onPrimary),
+          NotificationBell(iconColor: appBarFg),
           const SizedBox(width: 4),
           _roleBadge(theme, role),
           const SizedBox(width: 12),
@@ -103,11 +112,9 @@ class _AppShellState extends ConsumerState<AppShell> {
       child: Chip(
         visualDensity: VisualDensity.compact,
         label: Text(label, style: const TextStyle(fontSize: 11)),
-        backgroundColor: theme.colorScheme.onPrimary.withOpacity(0.1),
-        labelStyle: TextStyle(color: theme.colorScheme.onPrimary),
-        side: BorderSide(
-          color: theme.colorScheme.onPrimary.withOpacity(0.3),
-        ),
+        backgroundColor: theme.colorScheme.primaryContainer,
+        labelStyle: TextStyle(color: theme.colorScheme.onPrimaryContainer),
+        side: BorderSide.none,
       ),
     );
   }

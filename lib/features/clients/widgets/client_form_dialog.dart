@@ -40,7 +40,7 @@ class _ClientFormDialogState extends ConsumerState<ClientFormDialog> {
   final _kalkulationsfaktorController = TextEditingController();
   final _stundensatzController = TextEditingController();
 
-  DateTime _dateOfBirth = DateTime.now().subtract(const Duration(days: 365 * 30));
+  DateTime? _dateOfBirth = DateTime.now().subtract(const Duration(days: 365 * 30));
   ClientStatus _status = ClientStatus.active;
   ClientPriority _priority = ClientPriority.medium;
   List<ServiceType> _selectedServices = [];
@@ -52,8 +52,8 @@ class _ClientFormDialogState extends ConsumerState<ClientFormDialog> {
   String? _teamId;
 
   // EH-State
-  String? _hilfeTyp;
-  String? _fachleistungsIntervall;
+  HilfeTyp? _hilfeTyp;
+  FachleistungsIntervall? _fachleistungsIntervall;
   String? _kostenuebernahme;
   DateTime? _betreuungSeit;
   DateTime? _kostenuebernahmeVon;
@@ -234,16 +234,22 @@ class _ClientFormDialogState extends ConsumerState<ClientFormDialog> {
                 ),
                 const SizedBox(width: 16),
                 Expanded(
-                  child: DropdownButtonFormField<String?>(
+                  child: DropdownButtonFormField<FachleistungsIntervall?>(
                     value: _fachleistungsIntervall,
                     decoration: const InputDecoration(
                       labelText: 'Intervall',
                     ),
                     items: const [
                       DropdownMenuItem(value: null, child: Text('Kein Intervall')),
-                      DropdownMenuItem(value: 'woechentlich', child: Text('Wöchentlich')),
-                      DropdownMenuItem(value: 'monatlich', child: Text('Monatlich')),
-                      DropdownMenuItem(value: 'jaehrlich', child: Text('Jährlich')),
+                      DropdownMenuItem(
+                          value: FachleistungsIntervall.woechentlich,
+                          child: Text('Wöchentlich')),
+                      DropdownMenuItem(
+                          value: FachleistungsIntervall.monatlich,
+                          child: Text('Monatlich')),
+                      DropdownMenuItem(
+                          value: FachleistungsIntervall.jaehrlich,
+                          child: Text('Jährlich')),
                     ],
                     onChanged: (val) => setState(() => _fachleistungsIntervall = val),
                   ),
@@ -254,15 +260,19 @@ class _ClientFormDialogState extends ConsumerState<ClientFormDialog> {
             Row(
               children: [
                 Expanded(
-                  child: DropdownButtonFormField<String?>(
+                  child: DropdownButtonFormField<HilfeTyp?>(
                     value: _hilfeTyp,
                     decoration: const InputDecoration(
                       labelText: 'Hilfe-Typ',
                     ),
                     items: const [
                       DropdownMenuItem(value: null, child: Text('Nicht festgelegt')),
-                      DropdownMenuItem(value: 'eingliederungshilfe', child: Text('Eingliederungshilfe')),
-                      DropdownMenuItem(value: 'familienhilfe', child: Text('Familienhilfe')),
+                      DropdownMenuItem(
+                          value: HilfeTyp.eingliederungshilfe,
+                          child: Text('Eingliederungshilfe')),
+                      DropdownMenuItem(
+                          value: HilfeTyp.familienhilfe,
+                          child: Text('Familienhilfe')),
                     ],
                     onChanged: (val) => setState(() => _hilfeTyp = val),
                   ),
@@ -642,7 +652,9 @@ class _ClientFormDialogState extends ConsumerState<ClientFormDialog> {
                         suffixIcon: Icon(Symbols.calendar_today),
                       ),
                       child: Text(
-                        '${_dateOfBirth.day}.${_dateOfBirth.month}.${_dateOfBirth.year}',
+                        _dateOfBirth != null
+                            ? '${_dateOfBirth!.day}.${_dateOfBirth!.month}.${_dateOfBirth!.year}'
+                            : 'Nicht angegeben',
                       ),
                     ),
                   ),

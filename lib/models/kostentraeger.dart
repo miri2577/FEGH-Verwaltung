@@ -1,3 +1,5 @@
+import 'package:fegh_core/fegh_core.dart';
+
 // Berliner Kostenträger für Eingliederungshilfe und Familienhilfe
 class Kostentraeger {
   static const List<String> alle = [
@@ -63,13 +65,13 @@ class Kostentraeger {
   ];
 
   // Zuordnung zu Hilfe-Typen
-  static List<String> getFuerHilfeTyp(String? hilfeTyp) {
+  static List<String> getFuerHilfeTyp(HilfeTyp? hilfeTyp) {
     switch (hilfeTyp) {
-      case 'familienhilfe':
+      case HilfeTyp.familienhilfe:
         return [...jugendaemter, ...sonstige];
-      case 'eingliederungshilfe':
+      case HilfeTyp.eingliederungshilfe:
         return [...sozialaemter, ...krankenkassen, ...sonstige];
-      default:
+      case null:
         return alle;
     }
   }

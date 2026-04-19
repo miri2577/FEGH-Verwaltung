@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:syncfusion_flutter_charts/charts.dart';
-import 'package:syncfusion_flutter_gauges/gauges.dart';
 import '../../providers/notification_provider.dart';
 import '../../providers/employee_provider.dart';
 import '../../providers/team_provider.dart';
@@ -229,7 +228,11 @@ class DashboardScreen extends ConsumerWidget {
                                             ),
                                           )
                                         : ListView(
-                                            children: clientsWithFls
+                                            children: (clientsWithFls.toList()
+                                                  ..sort((a, b) => b
+                                                      .stundenverbrauchProzent
+                                                      .compareTo(
+                                                          a.stundenverbrauchProzent)))
                                                 .take(5)
                                                 .map((c) => _buildFlsBar(context, c))
                                                 .toList(),
@@ -306,9 +309,12 @@ class DashboardScreen extends ConsumerWidget {
 
   Widget _buildFlsBar(BuildContext context, Client c) {
     final prozent = c.stundenverbrauchProzent.clamp(0.0, 100.0);
+    final color = prozent >= 90
+        ? Colors.red
+        : (prozent >= 70 ? Colors.orange : Colors.green);
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: 6),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -318,59 +324,29 @@ class DashboardScreen extends ConsumerWidget {
               Flexible(
                 child: Text(
                   c.fullName,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w500),
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodySmall
+                      ?.copyWith(fontWeight: FontWeight.w500),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
               Text(
-                '${c.verbrauchteStunden.toStringAsFixed(0)}/${c.fachleistungsstunden} Std.',
+                '${c.verbrauchteStunden.toStringAsFixed(0)}/${c.fachleistungsstunden} Std.  '
+                '(${c.stundenverbrauchProzent.toStringAsFixed(0)} %)',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ],
           ),
-          const SizedBox(height: 2),
-          SizedBox(
-            height: 8,
-            child: SfLinearGauge(
-              minimum: 0,
-              maximum: 100,
-              showLabels: false,
-              showTicks: false,
-              axisTrackStyle: const LinearAxisTrackStyle(
-                thickness: 8,
-                edgeStyle: LinearEdgeStyle.bothCurve,
-              ),
-              ranges: [
-                LinearGaugeRange(
-                  startValue: 0,
-                  endValue: 70,
-                  color: Colors.green,
-                  startWidth: 8,
-                  endWidth: 8,
-                ),
-                LinearGaugeRange(
-                  startValue: 70,
-                  endValue: 90,
-                  color: Colors.orange,
-                  startWidth: 8,
-                  endWidth: 8,
-                ),
-                LinearGaugeRange(
-                  startValue: 90,
-                  endValue: 100,
-                  color: Colors.red,
-                  startWidth: 8,
-                  endWidth: 8,
-                ),
-              ],
-              markerPointers: [
-                LinearShapePointer(
-                  value: prozent,
-                  shapeType: LinearShapePointerType.invertedTriangle,
-                  height: 8,
-                  width: 8,
-                ),
-              ],
+          const SizedBox(height: 4),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: prozent / 100.0,
+              minHeight: 8,
+              backgroundColor:
+                  Theme.of(context).colorScheme.surfaceContainerHigh,
+              valueColor: AlwaysStoppedAnimation<Color>(color),
             ),
           ),
         ],

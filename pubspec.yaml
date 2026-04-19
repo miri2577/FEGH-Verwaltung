@@ -80,6 +80,9 @@ dependencies:
   # Matrix-Chat (Team-Kommunikation ueber Conduit, E2E-verschluesselt)
   fegh_chat:
     path: ../fegh-shared/fegh_chat
+  # Gemeinsame Domaenen-Modelle (Client, Bundesland, Employee, Team, Shift)
+  fegh_core:
+    path: ../fegh-shared/fegh_core
   flutter_secure_storage: ^9.2.2
   logger: ^2.4.0
   shared_preferences: ^2.2.3
