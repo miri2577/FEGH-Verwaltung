@@ -6,6 +6,7 @@ import '../features/capacity/capacity_screen.dart';
 import '../features/clients/clients_screen.dart';
 import '../features/dashboard/dashboard_screen.dart';
 import '../features/employees/employees_screen.dart';
+import '../features/chat/chat_screen.dart';
 import '../features/icf/icf_screen.dart';
 import '../features/kassenbuch/kassenbuch_client_picker_screen.dart';
 import '../features/medication/medication_administration_screen.dart';
@@ -86,6 +87,8 @@ bool _auditorOrAdmin(UserRole r) =>
     r == UserRole.pvAdmin ||
     r == UserRole.orgAuditor;
 
+bool _notAuditor(UserRole r) => r != UserRole.orgAuditor;
+
 // ── Registry ──────────────────────────────────────────────────────
 
 /// Die vollstaendige Navigation. Reihenfolge = Reihenfolge pro Sektion.
@@ -114,6 +117,14 @@ final List<NavEntry> navRegistry = <NavEntry>[
     section: NavSection.arbeit,
     builder: (_) => const KassenbuchClientPickerScreen(),
     visibleFor: _staffLike,
+  ),
+  NavEntry(
+    id: 'chat',
+    icon: Symbols.chat_bubble,
+    label: 'Team-Chat',
+    section: NavSection.arbeit,
+    builder: (_) => const ChatScreen(),
+    visibleFor: _notAuditor,
   ),
 
   // KLIENTEN
