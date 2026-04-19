@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -515,15 +516,25 @@ class PdfReportService {
     }
     final saldoEnde = saldoVorMonat + einzahlungen - auszahlungen;
 
+    // Stornierte Originale erkennen (einmal ueber den Monat)
+    final stornierteOriginalIds = <String>{
+      for (final e in monatsEintraege)
+        if (e.stornoOfEntryId != null) e.stornoOfEntryId!,
+    };
+
     // Fortlaufender Saldo fuer die Tabelle
     double laufend = saldoVorMonat;
     final rows = <List<String>>[];
     for (final e in monatsEintraege) {
       laufend += e.betrag;
+      final istStorniert = stornierteOriginalIds.contains(e.id);
+      final label = e.isStorno
+          ? '[STORNO] ${e.beschreibung}'
+          : (istStorniert ? '[STORNIERT] ${e.beschreibung}' : e.beschreibung);
       rows.add([
         df.format(e.datum),
         e.kategorie.label,
-        e.beschreibung,
+        label,
         '${e.betrag >= 0 ? '+' : ''}${euro.format(e.betrag)}',
         euro.format(laufend),
       ]);
@@ -606,11 +617,73 @@ class PdfReportService {
           'verbleibt als Aenderung nur die Stornobuchung.',
           style: pw.TextStyle(fontSize: 9, color: PdfDesignTokens.muted),
         ),
+        ..._buildKassenbuchSignatures(monatsEintraege, df, euro),
         pw.SizedBox(height: 36),
         buildSignatureRow(),
       ],
     ));
     return pdf.save();
+  }
+
+  List<pw.Widget> _buildKassenbuchSignatures(
+    List<KassenbuchEintrag> eintraege,
+    DateFormat df,
+    NumberFormat euro,
+  ) {
+    final signed = eintraege
+        .where((e) => e.confirmed && e.signaturePngB64 != null)
+        .toList();
+    if (signed.isEmpty) return const [];
+    return [
+      pw.SizedBox(height: 24),
+      buildSectionHeading('II', 'Freigabe-Unterschriften'),
+      pw.SizedBox(height: 8),
+      pw.Wrap(
+        spacing: 16,
+        runSpacing: 16,
+        children: signed.map((e) {
+          Uint8List bytes;
+          try {
+            bytes = base64Decode(e.signaturePngB64!);
+          } catch (_) {
+            return pw.SizedBox();
+          }
+          return pw.Container(
+            width: 240,
+            padding: const pw.EdgeInsets.all(8),
+            decoration: pw.BoxDecoration(
+              border: pw.Border.all(color: PdfDesignTokens.muted, width: 0.5),
+              borderRadius: pw.BorderRadius.circular(4),
+            ),
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Text(
+                  '${df.format(e.datum)}  ·  ${e.kategorie.label}',
+                  style: pw.TextStyle(
+                    fontSize: 9,
+                    color: PdfDesignTokens.muted,
+                  ),
+                ),
+                pw.Text(
+                  '${e.betrag >= 0 ? '+' : ''}${euro.format(e.betrag)}',
+                  style: pw.TextStyle(
+                    fontSize: 10,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+                pw.SizedBox(height: 4),
+                pw.Image(
+                  pw.MemoryImage(bytes),
+                  height: 60,
+                  fit: pw.BoxFit.contain,
+                ),
+              ],
+            ),
+          );
+        }).toList(),
+      ),
+    ];
   }
 
   Future<Uint8List> _buildAushangPdf(

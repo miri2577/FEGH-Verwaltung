@@ -2,9 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:material_symbols_icons/symbols.dart';
+import 'package:uuid/uuid.dart';
 
+import '../../models/kassenbuch_eintrag.dart';
 import '../../models/wohnraum.dart';
 import '../../providers/client_provider.dart';
+import '../../providers/kassenbuch_provider.dart';
+import '../../providers/settings_provider.dart';
 import '../../providers/wohnraum_provider.dart';
 import 'wohnraum_form_dialog.dart';
 
@@ -141,6 +145,16 @@ class _WohnraumOverviewScreenState
                                   const PopupMenuItem(
                                       value: 'release',
                                       child: Text('Freigeben')),
+                                if (w.status == WohnraumStatus.occupied &&
+                                    w.warmmiete > 0)
+                                  const PopupMenuItem(
+                                      value: 'bookRent',
+                                      child: Text('Miete buchen…')),
+                                if (w.status == WohnraumStatus.occupied)
+                                  const PopupMenuItem(
+                                      value: 'bookNk',
+                                      child:
+                                          Text('Nebenkostenabrechnung…')),
                                 if (w.status != WohnraumStatus.inactive)
                                   const PopupMenuItem(
                                       value: 'deactivate',
@@ -207,6 +221,12 @@ class _WohnraumOverviewScreenState
         );
         if (ok == true) await notifier.deactivate(w.id);
         break;
+      case 'bookRent':
+        await _bookRent(w);
+        break;
+      case 'bookNk':
+        await _bookNebenkosten(w);
+        break;
     }
   }
 
@@ -269,6 +289,242 @@ class _WohnraumOverviewScreenState
           ),
         ],
       ),
+    );
+  }
+
+  Future<void> _bookRent(Wohnraum w) async {
+    final clientId = w.clientId;
+    if (clientId == null || clientId.isEmpty) return;
+    final month = await _pickMonth();
+    if (month == null) return;
+    if (!mounted) return;
+
+    // Schon gebucht?
+    final kbSvc = ref.read(kassenbuchServiceProvider);
+    final existing = await kbSvc.loadForClientInMonth(clientId, month);
+    final tag = _rentTag(w.id, month);
+    final alreadyBooked =
+        existing.any((e) => (e.belegnummer ?? '').contains(tag));
+    if (!mounted) return;
+    if (alreadyBooked) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(
+            'Miete fuer ${DateFormat('MMMM yyyy', 'de_DE').format(month)} ist '
+            'bereits gebucht.'),
+      ));
+      return;
+    }
+
+    final euro = NumberFormat.currency(locale: 'de_DE', symbol: '€');
+    final ok = await _confirm(
+      'Miete buchen',
+      'Warmmiete ${euro.format(w.warmmiete)} fuer '
+          '${DateFormat('MMMM yyyy', 'de_DE').format(month)} als Abbuchung '
+          'im Kassenbuch erfassen?',
+    );
+    if (ok != true) return;
+
+    final settings = ref.read(appSettingsProvider);
+    final empId = (settings.cloudUsername ?? '').toLowerCase();
+    final entry = KassenbuchEintrag(
+      id: const Uuid().v4(),
+      clientId: clientId,
+      datum: DateTime(month.year, month.month, 1),
+      betrag: -w.warmmiete,
+      kategorie: KassenbuchKategorie.haushaltsgeld,
+      beschreibung: 'Miete ${DateFormat('MM/yyyy').format(month)}: '
+          '${w.bezeichnung}',
+      belegnummer: tag,
+      erfasstVonEmployeeId: empId.isEmpty ? null : empId,
+      confirmed: true,
+      createdAt: DateTime.now(),
+    );
+    final success = await ref.read(kassenbuchActionProvider.notifier).add(entry);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(success
+          ? 'Miete ${euro.format(w.warmmiete)} gebucht.'
+          : 'Buchung fehlgeschlagen (Monat evtl. abgeschlossen).'),
+    ));
+  }
+
+  Future<void> _bookNebenkosten(Wohnraum w) async {
+    final clientId = w.clientId;
+    if (clientId == null || clientId.isEmpty) return;
+    final result = await showDialog<({double betrag, String zweck})>(
+      context: context,
+      builder: (ctx) => _NebenkostenDialog(wohnraumLabel: w.bezeichnung),
+    );
+    if (result == null) return;
+    if (!mounted) return;
+
+    final settings = ref.read(appSettingsProvider);
+    final empId = (settings.cloudUsername ?? '').toLowerCase();
+    final entry = KassenbuchEintrag(
+      id: const Uuid().v4(),
+      clientId: clientId,
+      datum: DateTime.now(),
+      betrag: -result.betrag.abs(),
+      kategorie: KassenbuchKategorie.haushaltsgeld,
+      beschreibung: 'Nebenkostenabrechnung: ${result.zweck}',
+      belegnummer: 'NK-${w.id.substring(0, 6)}-'
+          '${DateTime.now().millisecondsSinceEpoch}',
+      erfasstVonEmployeeId: empId.isEmpty ? null : empId,
+      confirmed: false,
+      createdAt: DateTime.now(),
+    );
+    final ok = await ref.read(kassenbuchActionProvider.notifier).add(entry);
+    if (!mounted) return;
+    final euro = NumberFormat.currency(locale: 'de_DE', symbol: '€');
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(ok
+          ? 'Nebenkosten ${euro.format(result.betrag)} gebucht.'
+          : 'Buchung fehlgeschlagen.'),
+    ));
+  }
+
+  Future<DateTime?> _pickMonth() async {
+    final now = DateTime.now();
+    int year = now.year;
+    int month = now.month;
+    return showDialog<DateTime>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialog) => AlertDialog(
+          title: const Text('Miet-Monat waehlen'),
+          content: SizedBox(
+            width: 320,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                DropdownButtonFormField<int>(
+                  initialValue: month,
+                  decoration: const InputDecoration(labelText: 'Monat'),
+                  items: List.generate(12, (i) => i + 1)
+                      .map((m) => DropdownMenuItem(
+                            value: m,
+                            child: Text(DateFormat('MMMM', 'de_DE')
+                                .format(DateTime(2024, m))),
+                          ))
+                      .toList(),
+                  onChanged: (v) => setDialog(() => month = v ?? month),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<int>(
+                  initialValue: year,
+                  decoration: const InputDecoration(labelText: 'Jahr'),
+                  items: List.generate(6, (i) => now.year - 2 + i)
+                      .map((y) =>
+                          DropdownMenuItem(value: y, child: Text('$y')))
+                      .toList(),
+                  onChanged: (v) => setDialog(() => year = v ?? year),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Abbrechen'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(ctx).pop(DateTime(year, month, 1)),
+              child: const Text('Weiter'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _rentTag(String wohnraumId, DateTime month) =>
+      'RENT-${wohnraumId.substring(0, 6)}-'
+      '${month.year}${month.month.toString().padLeft(2, '0')}';
+}
+
+class _NebenkostenDialog extends StatefulWidget {
+  final String wohnraumLabel;
+  const _NebenkostenDialog({required this.wohnraumLabel});
+
+  @override
+  State<_NebenkostenDialog> createState() => _NebenkostenDialogState();
+}
+
+class _NebenkostenDialogState extends State<_NebenkostenDialog> {
+  final _betrag = TextEditingController();
+  final _zweck = TextEditingController();
+
+  @override
+  void dispose() {
+    _betrag.dispose();
+    _zweck.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Nebenkostenabrechnung'),
+      content: SizedBox(
+        width: 420,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Wohnraum: ${widget.wohnraumLabel}',
+                style: Theme.of(context).textTheme.labelLarge),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _betrag,
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(
+                labelText: 'Betrag (EUR)',
+                hintText: 'z. B. 245,50',
+                prefixIcon: Icon(Symbols.euro),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _zweck,
+              maxLines: 2,
+              decoration: const InputDecoration(
+                labelText: 'Zweck',
+                hintText: 'z. B. Nebenkostennachzahlung 2025 (Heizung)',
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Buchung erfolgt als offener Kassenbuch-Eintrag und kann '
+              'noch bearbeitet/freigegeben werden.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.outline,
+                  ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Abbrechen'),
+        ),
+        FilledButton(
+          onPressed: () {
+            final v =
+                double.tryParse(_betrag.text.replaceAll(',', '.').trim());
+            final z = _zweck.text.trim();
+            if (v == null || v <= 0 || z.isEmpty) {
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                content: Text('Betrag > 0 und Zweck pflicht.'),
+              ));
+              return;
+            }
+            Navigator.of(context).pop((betrag: v, zweck: z));
+          },
+          child: const Text('Buchen'),
+        ),
+      ],
     );
   }
 }

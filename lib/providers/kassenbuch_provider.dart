@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/kassenbuch_eintrag.dart';
+import '../models/kassenbuch_monatsabschluss.dart';
 import '../services/kassenbuch_service.dart';
 
 final kassenbuchServiceProvider =
@@ -14,6 +15,19 @@ final kassenbuchForClientProvider = FutureProvider.family
 final kassenbuchSaldoProvider =
     FutureProvider.family.autoDispose<double, String>((ref, clientId) async {
   return ref.watch(kassenbuchServiceProvider).saldoForClient(clientId);
+});
+
+/// Map: originalEntryId → stornoEntryId (pro Klient).
+final kassenbuchStornoMapProvider = FutureProvider.family
+    .autoDispose<Map<String, String>, String>((ref, clientId) async {
+  return ref.watch(kassenbuchServiceProvider).stornoMapForClient(clientId);
+});
+
+/// Map: "YYYY-MM" → KassenbuchMonatsabschluss (pro Klient).
+final kassenbuchAbschluesseProvider = FutureProvider.family
+    .autoDispose<Map<String, KassenbuchMonatsabschluss>, String>(
+        (ref, clientId) async {
+  return ref.watch(kassenbuchServiceProvider).abschluesseForClient(clientId);
 });
 
 final kassenbuchActionProvider =
@@ -62,8 +76,44 @@ class KassenbuchActionNotifier extends StateNotifier<AsyncValue<void>> {
     return ok;
   }
 
+  Future<KassenbuchMonatsabschluss?> closeMonth(
+    String clientId,
+    DateTime month, {
+    required String employeeId,
+    String? signaturePngB64,
+  }) async {
+    state = const AsyncValue.loading();
+    final a = await _ref.read(kassenbuchServiceProvider).closeMonth(
+          clientId,
+          month,
+          byEmployeeId: employeeId,
+          signaturePngB64: signaturePngB64,
+        );
+    state = const AsyncValue.data(null);
+    _invalidate(clientId);
+    return a;
+  }
+
+  Future<String?> storno(String originalId, String clientId,
+      {required String employeeId,
+      required String reason,
+      String? signaturePngB64}) async {
+    state = const AsyncValue.loading();
+    final id = await _ref.read(kassenbuchServiceProvider).stornoEintrag(
+          originalId,
+          byEmployeeId: employeeId,
+          reason: reason,
+          signaturePngB64: signaturePngB64,
+        );
+    state = const AsyncValue.data(null);
+    _invalidate(clientId);
+    return id;
+  }
+
   void _invalidate(String clientId) {
     _ref.invalidate(kassenbuchForClientProvider(clientId));
     _ref.invalidate(kassenbuchSaldoProvider(clientId));
+    _ref.invalidate(kassenbuchStornoMapProvider(clientId));
+    _ref.invalidate(kassenbuchAbschluesseProvider(clientId));
   }
 }

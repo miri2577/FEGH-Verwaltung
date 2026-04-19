@@ -7,7 +7,9 @@ import '../../models/kassenbuch_eintrag.dart';
 import '../../providers/kassenbuch_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../services/pdf_report_service.dart';
+import 'kassenbuch_close_month_dialog.dart';
 import 'kassenbuch_form_dialog.dart';
+import 'kassenbuch_storno_dialog.dart';
 
 class KassenbuchScreen extends ConsumerWidget {
   final String clientId;
@@ -24,6 +26,10 @@ class KassenbuchScreen extends ConsumerWidget {
     final theme = Theme.of(context);
     final eintraegeAsync = ref.watch(kassenbuchForClientProvider(clientId));
     final saldoAsync = ref.watch(kassenbuchSaldoProvider(clientId));
+    final stornoMap = ref
+            .watch(kassenbuchStornoMapProvider(clientId))
+            .valueOrNull ??
+        const <String, String>{};
     final euro = NumberFormat.currency(locale: 'de_DE', symbol: '€');
     final df = DateFormat('dd.MM.yyyy');
 
@@ -31,6 +37,11 @@ class KassenbuchScreen extends ConsumerWidget {
       appBar: AppBar(
         title: Text('Kassenbuch – $clientName'),
         actions: [
+          IconButton(
+            tooltip: 'Monat abschliessen',
+            icon: const Icon(Symbols.lock_clock),
+            onPressed: () => _openCloseMonth(context),
+          ),
           IconButton(
             tooltip: 'Monatsauszug (PDF)',
             icon: const Icon(Symbols.picture_as_pdf),
@@ -112,7 +123,8 @@ class KassenbuchScreen extends ConsumerWidget {
                   separatorBuilder: (_, __) => const SizedBox(height: 6),
                   itemBuilder: (_, i) {
                     final e = list[i];
-                    return _entryTile(context, ref, theme, e, df, euro);
+                    return _entryTile(
+                        context, ref, theme, e, df, euro, stornoMap);
                   },
                 );
               },
@@ -130,32 +142,83 @@ class KassenbuchScreen extends ConsumerWidget {
     KassenbuchEintrag e,
     DateFormat df,
     NumberFormat euro,
+    Map<String, String> stornoMap,
   ) {
     final positive = e.betrag >= 0;
     final color = positive ? Colors.green : theme.colorScheme.error;
+    final wurdeStorniert = stornoMap.containsKey(e.id);
+    final istStorno = e.isStorno;
     return Card(
-      color: e.confirmed ? theme.colorScheme.surfaceContainerLow : null,
+      color: wurdeStorniert
+          ? theme.colorScheme.errorContainer.withValues(alpha: 0.2)
+          : (e.confirmed ? theme.colorScheme.surfaceContainerLow : null),
       child: ListTile(
         leading: CircleAvatar(
-          backgroundColor:
-              color.withValues(alpha: 0.15),
-          child: Icon(positive ? Symbols.add : Symbols.remove, color: color),
+          backgroundColor: color.withValues(alpha: 0.15),
+          child: Icon(
+            istStorno
+                ? Symbols.undo
+                : (positive ? Symbols.add : Symbols.remove),
+            color: color,
+          ),
         ),
-        title: Text(e.beschreibung),
-        subtitle: Row(
+        title: Text(
+          e.beschreibung,
+          style: wurdeStorniert
+              ? const TextStyle(decoration: TextDecoration.lineThrough)
+              : null,
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(df.format(e.datum)),
-            const SizedBox(width: 8),
-            Chip(
-              label: Text(e.kategorie.label,
-                  style: const TextStyle(fontSize: 11)),
-              visualDensity: VisualDensity.compact,
-              padding: EdgeInsets.zero,
+            Row(
+              children: [
+                Text(df.format(e.datum)),
+                const SizedBox(width: 8),
+                Chip(
+                  label: Text(e.kategorie.label,
+                      style: const TextStyle(fontSize: 11)),
+                  visualDensity: VisualDensity.compact,
+                  padding: EdgeInsets.zero,
+                ),
+                if (e.confirmed) ...[
+                  const SizedBox(width: 4),
+                  const Icon(Symbols.lock, size: 14),
+                ],
+                if (wurdeStorniert) ...[
+                  const SizedBox(width: 4),
+                  _badge(theme, 'STORNIERT',
+                      theme.colorScheme.errorContainer,
+                      theme.colorScheme.onErrorContainer),
+                ],
+                if (istStorno) ...[
+                  const SizedBox(width: 4),
+                  _badge(theme, 'STORNO',
+                      theme.colorScheme.tertiaryContainer,
+                      theme.colorScheme.onTertiaryContainer),
+                ],
+                if (e.hasBeleg) ...[
+                  const SizedBox(width: 4),
+                  Icon(
+                    e.belegMimeType == 'application/pdf'
+                        ? Symbols.picture_as_pdf
+                        : Symbols.image,
+                    size: 14,
+                    color: theme.colorScheme.primary,
+                  ),
+                ],
+              ],
             ),
-            if (e.confirmed) ...[
-              const SizedBox(width: 4),
-              const Icon(Symbols.lock, size: 14),
-            ],
+            if (istStorno && e.stornoReason != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Text(
+                  'Grund: ${e.stornoReason}',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.outline,
+                  ),
+                ),
+              ),
           ],
         ),
         trailing: Text(
@@ -164,9 +227,21 @@ class KassenbuchScreen extends ConsumerWidget {
               color: color, fontWeight: FontWeight.bold, fontSize: 16),
         ),
         onTap: () => _openForm(context, existing: e),
-        onLongPress: e.confirmed
-            ? null
-            : () => _handleLongPress(context, ref, e),
+        onLongPress: () => _handleLongPress(context, ref, e, wurdeStorniert),
+      ),
+    );
+  }
+
+  Widget _badge(ThemeData theme, String label, Color bg, Color fg) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(color: fg, fontSize: 10, fontWeight: FontWeight.bold),
       ),
     );
   }
@@ -178,6 +253,16 @@ class KassenbuchScreen extends ConsumerWidget {
       builder: (_) => KassenbuchFormDialog(
         clientId: clientId,
         existing: existing,
+      ),
+    );
+  }
+
+  Future<void> _openCloseMonth(BuildContext context) async {
+    await showDialog<bool>(
+      context: context,
+      builder: (_) => KassenbuchCloseMonthDialog(
+        clientId: clientId,
+        clientName: clientName,
       ),
     );
   }
@@ -264,23 +349,40 @@ class KassenbuchScreen extends ConsumerWidget {
   }
 
   Future<void> _handleLongPress(
-      BuildContext context, WidgetRef ref, KassenbuchEintrag e) async {
+    BuildContext context,
+    WidgetRef ref,
+    KassenbuchEintrag e,
+    bool wurdeStorniert,
+  ) async {
+    final canStorno = e.confirmed && !e.isStorno && !wurdeStorniert;
+    final canEdit = !e.confirmed;
+    if (!canStorno && !canEdit) return;
     final action = await showModalBottomSheet<String>(
       context: context,
       builder: (ctx) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            ListTile(
-              leading: const Icon(Symbols.check_circle),
-              title: const Text('Freigeben (final)'),
-              onTap: () => Navigator.of(ctx).pop('confirm'),
-            ),
-            ListTile(
-              leading: const Icon(Symbols.delete),
-              title: const Text('Loeschen'),
-              onTap: () => Navigator.of(ctx).pop('delete'),
-            ),
+            if (canEdit) ...[
+              ListTile(
+                leading: const Icon(Symbols.check_circle),
+                title: const Text('Freigeben (final)'),
+                onTap: () => Navigator.of(ctx).pop('confirm'),
+              ),
+              ListTile(
+                leading: const Icon(Symbols.delete),
+                title: const Text('Loeschen'),
+                onTap: () => Navigator.of(ctx).pop('delete'),
+              ),
+            ],
+            if (canStorno)
+              ListTile(
+                leading: const Icon(Symbols.undo),
+                title: const Text('Stornieren (Gegenbuchung)'),
+                subtitle: const Text(
+                    'Erzeugt einen neuen Eintrag mit umgekehrtem Vorzeichen.'),
+                onTap: () => Navigator.of(ctx).pop('storno'),
+              ),
           ],
         ),
       ),
@@ -293,6 +395,12 @@ class KassenbuchScreen extends ConsumerWidget {
       await notifier.confirm(e.id, e.clientId, employeeId: empId);
     } else if (action == 'delete') {
       await notifier.delete(e.id, e.clientId, employeeId: empId);
+    } else if (action == 'storno') {
+      if (!context.mounted) return;
+      await showDialog<bool>(
+        context: context,
+        builder: (_) => KassenbuchStornoDialog(original: e),
+      );
     }
   }
 }

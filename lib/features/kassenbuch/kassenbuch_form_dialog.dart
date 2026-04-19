@@ -1,7 +1,11 @@
+import 'dart:convert';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:material_symbols_icons/symbols.dart';
+import 'package:signature/signature.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../models/kassenbuch_eintrag.dart';
@@ -33,9 +37,20 @@ class _KassenbuchFormDialogState extends ConsumerState<KassenbuchFormDialog> {
   bool _confirm = false;
   bool _submitting = false;
 
+  String? _belegBytesB64;
+  String? _belegMimeType;
+  String? _belegFileName;
+
+  late final SignatureController _signatureController;
+
   @override
   void initState() {
     super.initState();
+    _signatureController = SignatureController(
+      penStrokeWidth: 2,
+      penColor: Colors.black,
+      exportBackgroundColor: Colors.white,
+    );
     final e = widget.existing;
     if (e != null) {
       _datum = e.datum;
@@ -45,7 +60,51 @@ class _KassenbuchFormDialogState extends ConsumerState<KassenbuchFormDialog> {
       _beschreibung.text = e.beschreibung;
       _belegnummer.text = e.belegnummer ?? '';
       _confirm = e.confirmed;
+      _belegBytesB64 = e.belegBytesB64;
+      _belegMimeType = e.belegMimeType;
+      _belegFileName = e.belegFileName;
     }
+  }
+
+  Future<void> _pickBeleg() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const ['png', 'jpg', 'jpeg', 'pdf'],
+      withData: true,
+    );
+    if (result == null || result.files.isEmpty) return;
+    final file = result.files.single;
+    final bytes = file.bytes;
+    if (bytes == null) return;
+    const maxBytes = 5 * 1024 * 1024;
+    if (bytes.length > maxBytes) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Datei zu gross (max. 5 MB).')),
+      );
+      return;
+    }
+    final ext = (file.extension ?? '').toLowerCase();
+    final mime = switch (ext) {
+      'png' => 'image/png',
+      'jpg' || 'jpeg' => 'image/jpeg',
+      'pdf' => 'application/pdf',
+      _ => 'application/octet-stream',
+    };
+    setState(() {
+      _belegBytesB64 = base64Encode(bytes);
+      _belegMimeType = mime;
+      _belegFileName = file.name;
+    });
+  }
+
+  void _clearBeleg() {
+    setState(() {
+      _belegBytesB64 = null;
+      _belegMimeType = null;
+      _belegFileName = null;
+    });
   }
 
   @override
@@ -53,6 +112,7 @@ class _KassenbuchFormDialogState extends ConsumerState<KassenbuchFormDialog> {
     _betrag.dispose();
     _beschreibung.dispose();
     _belegnummer.dispose();
+    _signatureController.dispose();
     super.dispose();
   }
 
@@ -163,6 +223,8 @@ class _KassenbuchFormDialogState extends ConsumerState<KassenbuchFormDialog> {
                   labelText: 'Belegnummer (optional)',
                 ),
               ),
+              const SizedBox(height: 12),
+              _belegSection(context, alreadyConfirmed),
               if (_kategorie == KassenbuchKategorie.gesundheit) ...[
                 const SizedBox(height: 8),
                 Text(
@@ -181,6 +243,53 @@ class _KassenbuchFormDialogState extends ConsumerState<KassenbuchFormDialog> {
                   subtitle: const Text(
                       'Freigegebene Eintraege sind final — kein Update/Delete mehr.'),
                 ),
+                if (_confirm) ...[
+                  const SizedBox(height: 8),
+                  Text('Unterschrift (pflicht bei Freigabe):',
+                      style: Theme.of(context).textTheme.labelLarge),
+                  const SizedBox(height: 6),
+                  Container(
+                    height: 160,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      border: Border.all(
+                          color: Theme.of(context).colorScheme.outline),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Signature(
+                      controller: _signatureController,
+                      backgroundColor: Colors.white,
+                    ),
+                  ),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton.icon(
+                      onPressed: () => _signatureController.clear(),
+                      icon: const Icon(Symbols.ink_eraser),
+                      label: const Text('Loeschen'),
+                    ),
+                  ),
+                ],
+              ],
+              if (alreadyConfirmed && widget.existing?.signaturePngB64 != null) ...[
+                const SizedBox(height: 12),
+                Text('Unterschrift:',
+                    style: Theme.of(context).textTheme.labelLarge),
+                const SizedBox(height: 6),
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    border: Border.all(
+                        color: Theme.of(context).colorScheme.outline),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Image.memory(
+                    base64Decode(widget.existing!.signaturePngB64!),
+                    height: 120,
+                    fit: BoxFit.contain,
+                  ),
+                ),
               ],
             ],
           ),
@@ -198,6 +307,82 @@ class _KassenbuchFormDialogState extends ConsumerState<KassenbuchFormDialog> {
           ),
       ],
     );
+  }
+
+  Widget _belegSection(BuildContext context, bool alreadyConfirmed) {
+    final theme = Theme.of(context);
+    final hasBeleg = _belegBytesB64 != null;
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                _belegMimeType == 'application/pdf'
+                    ? Symbols.picture_as_pdf
+                    : Symbols.image,
+                size: 18,
+                color: theme.colorScheme.outline,
+              ),
+              const SizedBox(width: 8),
+              Text(hasBeleg ? 'Beleg angehaengt' : 'Beleg (Foto/PDF)',
+                  style: theme.textTheme.labelLarge),
+              const Spacer(),
+              if (!alreadyConfirmed)
+                TextButton.icon(
+                  onPressed: _pickBeleg,
+                  icon: Icon(hasBeleg ? Symbols.autorenew : Symbols.upload),
+                  label: Text(hasBeleg ? 'Ersetzen' : 'Auswaehlen'),
+                ),
+              if (hasBeleg && !alreadyConfirmed)
+                IconButton(
+                  tooltip: 'Entfernen',
+                  icon: const Icon(Symbols.close),
+                  onPressed: _clearBeleg,
+                ),
+            ],
+          ),
+          if (hasBeleg) ...[
+            const SizedBox(height: 6),
+            Text(_belegFileName ?? '',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.outline,
+                )),
+            if (_belegMimeType?.startsWith('image/') == true) ...[
+              const SizedBox(height: 8),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: Image.memory(
+                  base64Decode(_belegBytesB64!),
+                  height: 180,
+                  fit: BoxFit.contain,
+                ),
+              ),
+            ] else if (_belegMimeType == 'application/pdf') ...[
+              const SizedBox(height: 6),
+              Text('PDF — Groesse: ${_belegSizeLabel()}',
+                  style: theme.textTheme.bodySmall),
+            ],
+          ],
+        ],
+      ),
+    );
+  }
+
+  String _belegSizeLabel() {
+    if (_belegBytesB64 == null) return '–';
+    final approxBytes = (_belegBytesB64!.length * 3) ~/ 4;
+    if (approxBytes < 1024) return '$approxBytes B';
+    if (approxBytes < 1024 * 1024) {
+      return '${(approxBytes / 1024).toStringAsFixed(0)} KB';
+    }
+    return '${(approxBytes / (1024 * 1024)).toStringAsFixed(1)} MB';
   }
 
   Future<void> _pickDate() async {
@@ -229,7 +414,19 @@ class _KassenbuchFormDialogState extends ConsumerState<KassenbuchFormDialog> {
       );
       return;
     }
+    if (_confirm && _signatureController.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Bei Freigabe ist eine Unterschrift pflicht.')),
+      );
+      return;
+    }
     setState(() => _submitting = true);
+    String? sigB64 = widget.existing?.signaturePngB64;
+    if (_confirm && _signatureController.isNotEmpty) {
+      final bytes = await _signatureController.toPngBytes();
+      if (bytes != null) sigB64 = base64Encode(bytes);
+    }
     final settings = ref.read(appSettingsProvider);
     final employeeId = (settings.cloudUsername ?? '').toLowerCase();
     final now = DateTime.now();
@@ -245,6 +442,10 @@ class _KassenbuchFormDialogState extends ConsumerState<KassenbuchFormDialog> {
       erfasstVonEmployeeId:
           employeeId.isEmpty ? null : employeeId,
       confirmed: _confirm,
+      signaturePngB64: sigB64,
+      belegBytesB64: _belegBytesB64,
+      belegMimeType: _belegMimeType,
+      belegFileName: _belegFileName,
       createdAt: widget.existing?.createdAt ?? now,
     );
     final notifier = ref.read(kassenbuchActionProvider.notifier);
