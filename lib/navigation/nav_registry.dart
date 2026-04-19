@@ -7,6 +7,8 @@ import '../features/clients/clients_screen.dart';
 import '../features/dashboard/dashboard_screen.dart';
 import '../features/employees/employees_screen.dart';
 import '../features/icf/icf_screen.dart';
+import '../features/medication/medication_administration_screen.dart';
+import '../features/medication/medication_plan_overview_screen.dart';
 import '../features/my_work/my_work_screen.dart';
 import '../features/reports/reports_screen.dart';
 import '../features/settings/settings_screen.dart';
@@ -95,6 +97,14 @@ final List<NavEntry> navRegistry = <NavEntry>[
     builder: (_) => const MyWorkScreen(),
     visibleFor: _staffLike,
   ),
+  NavEntry(
+    id: 'medication_giving',
+    icon: Symbols.medication,
+    label: 'Medikation',
+    section: NavSection.arbeit,
+    builder: (_) => const MedicationAdministrationScreen(),
+    visibleFor: _staffLike,
+  ),
 
   // KLIENTEN
   NavEntry(
@@ -112,6 +122,14 @@ final List<NavEntry> navRegistry = <NavEntry>[
     section: NavSection.klienten,
     builder: (_) => const ICFScreen(),
     visibleFor: _all,
+  ),
+  NavEntry(
+    id: 'medication_plans',
+    icon: Symbols.pill,
+    label: 'Medikationsplaene',
+    section: NavSection.klienten,
+    builder: (_) => const MedicationPlanOverviewScreen(),
+    visibleFor: _nonMember,
   ),
 
   // PERSONAL

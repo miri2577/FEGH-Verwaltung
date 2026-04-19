@@ -3,8 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:material_symbols_icons/symbols.dart';
 
+import '../../models/medication_administration.dart';
 import '../../models/shift.dart';
+import '../../providers/client_provider.dart';
 import '../../providers/employee_provider.dart';
+import '../../providers/medication_provider.dart';
 import '../../providers/notification_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../providers/shift_provider.dart';
@@ -95,12 +98,7 @@ class MyWorkScreen extends ConsumerWidget {
             const SizedBox(height: 16),
             _shiftsCard(theme, 'Morgen', tomorrows),
             const SizedBox(height: 16),
-            _placeholderCard(
-              theme,
-              icon: Symbols.medication,
-              title: 'Offene Medikationsgaben',
-              text: 'Modul folgt in Phase D3.',
-            ),
+            _openMedsCard(theme, ref),
             const SizedBox(height: 16),
             _placeholderCard(
               theme,
@@ -162,6 +160,74 @@ class MyWorkScreen extends ConsumerWidget {
         '${s.location != null ? '  |  ${s.location}' : ''}',
       ),
       trailing: Text(s.type.name),
+    );
+  }
+
+  Widget _openMedsCard(ThemeData theme, WidgetRef ref) {
+    final today = DateTime.now();
+    final todayKey = DateTime(today.year, today.month, today.day);
+    final slotsAsync = ref.watch(todaysSlotsProvider(todayKey));
+    final clients = ref.watch(clientProvider);
+    final clientMap = {for (final c in clients) c.id: c};
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Symbols.medication, color: theme.colorScheme.primary),
+                const SizedBox(width: 12),
+                Text('Offene Medikationsgaben heute',
+                    style: theme.textTheme.titleLarge),
+              ],
+            ),
+            const SizedBox(height: 12),
+            slotsAsync.when(
+              loading: () => const LinearProgressIndicator(),
+              error: (e, _) => Text('Fehler: $e'),
+              data: (slots) {
+                final open = slots
+                    .where((s) => s.status == AdministrationStatus.pending)
+                    .toList();
+                if (open.isEmpty) {
+                  return Text('Keine offenen Gaben. 👍',
+                      style: TextStyle(color: theme.colorScheme.outline));
+                }
+                final show = open.take(5).toList();
+                return Column(
+                  children: [
+                    ...show.map((s) {
+                      final name = clientMap[s.clientId]?.fullName ?? s.clientId;
+                      final time =
+                          DateFormat('HH:mm').format(s.scheduledAt);
+                      return ListTile(
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        leading: const Icon(Symbols.pill),
+                        title: Text('$time  |  $name'),
+                        subtitle: Text(
+                            '${s.medication.name}  |  ${s.medication.dosage}'),
+                      );
+                    }),
+                    if (open.length > show.length)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          '+ ${open.length - show.length} weitere offen',
+                          style:
+                              TextStyle(color: theme.colorScheme.outline),
+                        ),
+                      ),
+                  ],
+                );
+              },
+            ),
+          ],
+        ),
+      ),
     );
   }
 

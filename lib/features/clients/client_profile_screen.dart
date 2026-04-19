@@ -7,6 +7,7 @@ import '../../providers/employee_provider.dart';
 import '../../providers/policy_provider.dart';
 import 'widgets/client_documents_card.dart';
 import 'widgets/client_form_dialog.dart';
+import '../medication/medication_plan_screen.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
@@ -72,6 +73,20 @@ class _ClientProfileScreenState extends ConsumerState<ClientProfileScreen>
               icon: const Icon(Symbols.edit),
               tooltip: 'Bearbeiten',
             ),
+          IconButton(
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => MedicationPlanScreen(
+                    clientId: client.id,
+                    clientName: client.fullName,
+                  ),
+                ),
+              );
+            },
+            icon: const Icon(Symbols.medication),
+            tooltip: 'Medikationsplan',
+          ),
           PopupMenuButton<String>(
             itemBuilder: (context) => [
               const PopupMenuItem(
