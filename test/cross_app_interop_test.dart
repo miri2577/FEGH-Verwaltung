@@ -41,27 +41,31 @@ void main() {
   final url = Platform.environment['FEGH_WEBDAV_URL'];
   final user = Platform.environment['FEGH_WEBDAV_USER'];
   final pass = Platform.environment['FEGH_WEBDAV_PASS'];
+  final envConfigured = url != null &&
+      url.isNotEmpty &&
+      user != null &&
+      user.isNotEmpty &&
+      pass != null;
+  final skipReason = envConfigured
+      ? null
+      : 'WebDAV-Env nicht gesetzt - setze FEGH_WEBDAV_URL/_USER/_PASS '
+          'und starte dufs (siehe scripts/install-test-tools).';
 
   group('Cross-App-Interop ueber WebDAV', () {
-    late GenericWebdavAdapter adapter;
-    late bool envOk;
-
-    setUpAll(() async {
-      envOk = url != null &&
-          url.isNotEmpty &&
-          user != null &&
-          pass != null &&
-          await _webdavReachable(url);
-      if (envOk) {
-        adapter = GenericWebdavAdapter(
-          baseUrl: url!,
-          username: user!,
-          password: pass!,
-        );
-      }
-    });
-
     test('Klient-JSON laesst sich schreiben und wieder lesen', () async {
+      // Laufzeit-Pruefung, ob der Server auch tatsaechlich erreichbar ist.
+      final reachable = await _webdavReachable(url!);
+      if (!reachable) {
+        markTestSkipped('dufs/WebDAV-Server unter $url nicht erreichbar - '
+            'Server starten mit: dufs --auth user:pass@/:rw --port 5000');
+        return;
+      }
+      final adapter = GenericWebdavAdapter(
+        baseUrl: url,
+        username: user!,
+        password: pass!,
+      );
+
       final client = Client.create(
         klientenId: 'test-klient-interop-001',
         firstName: 'Max',
@@ -105,8 +109,6 @@ void main() {
 
       // Aufraeumen.
       await adapter.delete(remotePath);
-    }, skip: envOk ? null : 'WebDAV-Server nicht erreichbar — setze '
-        'FEGH_WEBDAV_URL/_USER/_PASS und starte dufs '
-        '(siehe scripts/install-test-tools).');
+    }, skip: skipReason);
   });
 }
