@@ -331,7 +331,9 @@ print_next_steps() {
      mkdir -p "\$FEGH_WEBDAV_DIR"
      dufs "\$FEGH_WEBDAV_DIR" \\
        --auth "\$FEGH_WEBDAV_USER:\$FEGH_WEBDAV_PASS@/:rw" \\
+       --allow-all \\
        --port 5000
+     (--allow-all schaltet PUT/DELETE/MKCOL frei; ohne das gibt's HTTP 403.)
 
 3) Smoke-Test XRechnung-Validator (mitgeliefertes Sample):
      java -jar "\$FEGH_KOSIT_JAR" \\

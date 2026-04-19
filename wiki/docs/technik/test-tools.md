@@ -152,8 +152,14 @@ Erwartete Ausgabe: XML-Report mit `<accepted>true</accepted>`.
 mkdir -p "$FEGH_WEBDAV_DIR"
 dufs "$FEGH_WEBDAV_DIR" \
   --auth "$FEGH_WEBDAV_USER:$FEGH_WEBDAV_PASS@/:rw" \
+  --allow-all \
   --port 5000
 ```
+
+> `--allow-all` schaltet PUT, DELETE und MKCOL frei. Ohne dieses Flag
+> gibt dufs **HTTP 403** auf Schreibzugriffe zurueck, auch wenn die
+> Auth-Regel `rw` erlaubt — `--auth` ist die Zugriffs-_Rolle_, die
+> Allow-Flags steuern welche _HTTP-Methoden_ ueberhaupt aktiv sind.
 
 Anschliessend: WebDAV-Endpoint `http://localhost:5000/` mit
 `user:pass = fegh-test:fegh-test`.

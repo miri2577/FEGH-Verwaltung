@@ -196,7 +196,8 @@ Write-Host "     Add-Content `$PROFILE `". $EnvFile`""
 Write-Host ""
 Write-Host "2) WebDAV-Server starten in eigenem Terminal:"
 Write-Host '     New-Item -ItemType Directory -Force -Path $env:FEGH_WEBDAV_DIR | Out-Null'
-Write-Host '     dufs $env:FEGH_WEBDAV_DIR --auth "${env:FEGH_WEBDAV_USER}:${env:FEGH_WEBDAV_PASS}@/:rw" --port 5000'
+Write-Host '     dufs $env:FEGH_WEBDAV_DIR --auth "${env:FEGH_WEBDAV_USER}:${env:FEGH_WEBDAV_PASS}@/:rw" --allow-all --port 5000'
+Write-Host "   (--allow-all schaltet PUT/DELETE/MKCOL frei; ohne das gibt's HTTP 403.)"
 Write-Host ""
 Write-Host "3) Smoke-Test XRechnung-Validator (mitgeliefertes Sample):"
 Write-Host '     java -jar $env:FEGH_KOSIT_JAR -r $env:FEGH_XRECHNUNG_REPO -s $env:FEGH_XRECHNUNG_SCENARIO $env:FEGH_XRECHNUNG_SAMPLE'
