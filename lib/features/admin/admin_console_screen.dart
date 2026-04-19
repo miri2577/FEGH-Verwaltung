@@ -1,6 +1,9 @@
 import 'dart:convert';
+import 'dart:io' show Platform, pid;
 import 'dart:typed_data';
 import 'package:fegh_cloud/fegh_cloud.dart' show FeghPaths;
+import 'package:fegh_compliance/fegh_compliance.dart'
+    show SiemExporter, SiemFormat;
 import 'package:fegh_crypto/fegh_crypto.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -297,6 +300,26 @@ class _AdminConsoleScreenState extends ConsumerState<AdminConsoleScreen>
                 icon: const Icon(Symbols.table_chart),
                 label: const Text('Als CSV exportieren'),
               ),
+              const SizedBox(width: 8),
+              PopupMenuButton<String>(
+                tooltip: 'SIEM-Export',
+                icon: const Icon(Symbols.security),
+                onSelected: (fmt) async => _exportAudit(fmt),
+                itemBuilder: (_) => const [
+                  PopupMenuItem(
+                    value: 'siem-syslog',
+                    child: Text('Syslog RFC 5424 (.log)'),
+                  ),
+                  PopupMenuItem(
+                    value: 'siem-cef',
+                    child: Text('ArcSight CEF (.cef)'),
+                  ),
+                  PopupMenuItem(
+                    value: 'siem-jsonl',
+                    child: Text('ECS JSON Lines (.ndjson)'),
+                  ),
+                ],
+              ),
               const SizedBox(width: 12),
               DropdownButton<String?> (
                 value: _auditAction,
@@ -378,24 +401,67 @@ class _AdminConsoleScreenState extends ConsumerState<AdminConsoleScreen>
   Future<void> _exportAudit(String format) async {
     try {
       final filtered = await _loadFilteredAudit();
-      final bytes = format == 'csv' ? utf8.encode(_toCsv(filtered)) : utf8.encode(filtered.join('\n'));
-      final ext = format == 'csv' ? 'csv' : 'json';
-      final mime = format == 'csv' ? 'text/csv' : 'application/json';
-      final fileName = 'audit_filtered_${DateTime.now().millisecondsSinceEpoch}.$ext';
+      final ts = DateTime.now().millisecondsSinceEpoch;
+      late final String ext;
+      late final String name;
+      late final List<int> bytes;
+
+      switch (format) {
+        case 'csv':
+          ext = 'csv';
+          name = 'audit_filtered_$ts';
+          bytes = utf8.encode(_toCsv(filtered));
+        case 'siem-syslog':
+          ext = 'log';
+          name = 'audit_siem_$ts';
+          bytes = utf8.encode(_toSiem(filtered, SiemFormat.syslog5424));
+        case 'siem-cef':
+          ext = 'cef';
+          name = 'audit_siem_$ts';
+          bytes = utf8.encode(_toSiem(filtered, SiemFormat.cef));
+        case 'siem-jsonl':
+          ext = 'ndjson';
+          name = 'audit_siem_$ts';
+          bytes = utf8.encode(_toSiem(filtered, SiemFormat.jsonLines));
+        default:
+          ext = 'json';
+          name = 'audit_filtered_$ts';
+          bytes = utf8.encode(filtered.join('\n'));
+      }
+
       await FileSaver.instance.saveFile(
-        name: fileName,
+        name: name,
         bytes: Uint8List.fromList(bytes),
         ext: ext,
-        mimeType: ext == 'csv' ? MimeType.csv : MimeType.json,
+        mimeType: ext == 'csv' ? MimeType.csv : MimeType.other,
       );
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('✅ Audit exportiert: $fileName')));
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Audit exportiert: $name.$ext')));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('❌ Export‑Fehler: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Export-Fehler: $e')));
       }
     }
+  }
+
+  String _toSiem(List<String> jsonLines, SiemFormat format) {
+    final entries = <Map<String, dynamic>>[];
+    for (final line in jsonLines) {
+      if (line.trim().isEmpty) continue;
+      try {
+        entries.add(jsonDecode(line) as Map<String, dynamic>);
+      } catch (_) {}
+    }
+    final exporter = SiemExporter(
+      hostname: Platform.localHostname,
+      appName: 'fegh-verwaltung',
+      appVersion: '0.3.0',
+      processId: pid,
+    );
+    return exporter.export(entries, format: format);
   }
 
   String _toCsv(List<String> lines) {

@@ -115,7 +115,7 @@ Bewusst nicht Prio 1, weil der MVP zuerst fertig werden muss. Was echte Ausschre
 - [ ] **SSO** via OIDC (Entra ID, Keycloak) — OAuth Authorization Code + PKCE im System-Browser
 - [ ] **SCIM-Provisioning** (User-Lifecycle aus HR/AD) — braucht Backend-Endpoint
 - [ ] **MDM/Intune-Deployment** — MSI-Paket mit ADMX-Policies, silent install, preconfig via Registry/JSON
-- [ ] **SIEM-Export** des Audit-Logs — Syslog oder CEF, tail der JSONL-Datei
+- [x] **SIEM-Export** des Audit-Logs — `SiemExporter` in fegh_compliance, 3 Formate (Syslog RFC 5424, ArcSight CEF, ECS JSON Lines), Filter (Zeitraum + Action-Prefix), 12 Unit-Tests, Admin-UI-Einstieg als Popup-Menu
 - [ ] **Schnittstellen zu Pflege-/Heimsoftware** — Vivendi, Medifox, Sinfonie (CSV/XML-Import+Export)
 
 Anmerkung: §302 SGB V DTA ist fuer Eingliederungshilfe nicht einschlaegig (EGH ist SGB IX, Leistungstraeger sind Sozialhilfetraeger). Relevanter Abrechnungspfad ist **XRechnung UBL an Bezirk/Sozialamt** — existiert bereits.
