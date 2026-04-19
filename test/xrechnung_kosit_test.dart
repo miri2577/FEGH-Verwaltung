@@ -39,23 +39,42 @@ void main() {
       final xmlFile = File(p.join(tmpDir.path, 'rechnung.xml'))
         ..writeAsStringSync(xml);
 
+      final reportDir = Directory(p.join(tmpDir.path, 'report'))
+        ..createSync();
       final result = await Process.run(
         'java',
         [
           '-jar', kositJar!,
           '-r', repo!,
           '-s', scenario!,
+          '-o', reportDir.path,
           xmlFile.path,
         ],
         workingDirectory: tmpDir.path,
       );
 
       final stdout = result.stdout.toString();
+      final rejected = stdout.contains('Rejected:  1') ||
+          !stdout.contains('Acceptable:  1');
+
+      // Bei Fehler: Report-XML (oder html) ausgeben, damit die konkrete
+      // Regel/Schema-Violation sichtbar ist.
+      String reportDump = '';
+      if (rejected) {
+        final reportFiles = reportDir.listSync().whereType<File>().toList();
+        for (final f in reportFiles) {
+          reportDump +=
+              '\n--- ${p.basename(f.path)} ---\n${f.readAsStringSync()}';
+        }
+      }
+
       expect(result.exitCode, 0,
-          reason: 'KoSIT Validator fehlgeschlagen:\n'
-              'stdout:\n$stdout\nstderr:\n${result.stderr}');
+          reason: 'KoSIT Validator fehlgeschlagen.\n'
+              'stdout:\n$stdout\nstderr:\n${result.stderr}\n'
+              'report:$reportDump');
       expect(stdout, contains('Validation successful'),
-          reason: 'Report zeigt keinen Erfolg:\n$stdout');
+          reason: 'Report zeigt keinen Erfolg.\n'
+              'stdout:\n$stdout\nreport:$reportDump');
       expect(stdout, contains('ACCEPTABLE'));
       expect(stdout, isNot(contains('Rejected:  1')));
     }, skip: available ? null : 'KoSIT-Tools nicht verfuegbar — setze '
