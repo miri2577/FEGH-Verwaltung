@@ -1,8 +1,8 @@
 import 'package:flutter/foundation.dart';
-import '../services/hidrive_webdav_client.dart';
+import '../services/cloud_webdav_client.dart';
 
 class OrgAdminSyncService {
-  final HiDriveWebDAVClient client;
+  final CloudWebDavClient client;
   final String orgId;
 
   OrgAdminSyncService({required this.client, required this.orgId});

@@ -12,7 +12,7 @@ class PolicyService {
     final s = ref.read(appSettingsProvider);
     // Prefer Org‑Policy mapping (roles.json)
     final policy = ref.read(rolesPolicyProvider);
-    final mapped = policy.getRoleFor(s.hidriveUsername);
+    final mapped = policy.getRoleFor(s.cloudUsername);
     final roleStr = (mapped ?? s.userRole ?? '').toLowerCase();
     switch (roleStr) {
       case 'org_admin':
@@ -39,7 +39,7 @@ class PolicyService {
   List<String> _myTeams() {
     final s = ref.read(appSettingsProvider);
     final policy = ref.read(rolesPolicyProvider);
-    return policy.getTeamsFor(s.hidriveUsername);
+    return policy.getTeamsFor(s.cloudUsername);
   }
 
   bool _isLeadOfTeam(String? teamId) {
@@ -66,7 +66,7 @@ class PolicyService {
       final s = ref.read(appSettingsProvider);
       if (s.auditorCanViewDocs) return true; // globaler Schalter (Admin entscheidet)
       final policy = ref.read(rolesPolicyProvider);
-      final scope = policy.getAuditScopeFor(s.hidriveUsername);
+      final scope = policy.getAuditScopeFor(s.cloudUsername);
       return scope?.isActive == true;
     }
     return false;
@@ -83,7 +83,7 @@ class PolicyService {
     if (_isAuditor) {
       final s = ref.read(appSettingsProvider);
       final policy = ref.read(rolesPolicyProvider);
-      final scope = policy.getAuditScopeFor(s.hidriveUsername);
+      final scope = policy.getAuditScopeFor(s.cloudUsername);
       if (scope == null || !scope.isActive) return false;
       final inTime = (scope.from == null || !ts.isBefore(scope.from!)) && (scope.to == null || !ts.isAfter(scope.to!));
       final inTeam = (teamId == null || teamId.isEmpty || scope.teams.isEmpty || scope.teams.contains(teamId));

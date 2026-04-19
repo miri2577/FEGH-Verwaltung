@@ -2,8 +2,11 @@ import 'package:flutter/foundation.dart';
 import 'ui_customization.dart';
 
 class AppSettings {
-  final String? hidriveUsername;
-  final String? hidrivePassword;
+  /// Cloud-Benutzer (HiDrive, Nextcloud, ownCloud, generisches WebDAV).
+  final String? cloudUsername;
+
+  /// Cloud-App-Passwort. Wird separat im SecureStorage abgelegt.
+  final String? cloudPassword;
   final String? userRole; // org_admin, org_auditor, team_lead, team_member, pv_admin
   final bool enableCloudSync;
   final bool autoSyncOnStartup;
@@ -25,8 +28,8 @@ class AppSettings {
   final DateTime updatedAt;
 
   AppSettings({
-    this.hidriveUsername,
-    this.hidrivePassword,
+    this.cloudUsername,
+    this.cloudPassword,
     this.userRole,
     this.enableCloudSync = false,
     this.autoSyncOnStartup = true,
@@ -48,15 +51,15 @@ class AppSettings {
     required this.updatedAt,
   });
 
-  bool get hasHiDriveCredentials =>
-      hidriveUsername?.isNotEmpty == true && hidrivePassword?.isNotEmpty == true;
+  bool get hasCloudCredentials =>
+      cloudUsername?.isNotEmpty == true && cloudPassword?.isNotEmpty == true;
 
-  bool get isCloudSyncReady => hasHiDriveCredentials && enableCloudSync;
+  bool get isCloudSyncReady => hasCloudCredentials && enableCloudSync;
 
   Map<String, dynamic> toJson() {
     return {
-      'hidriveUsername': hidriveUsername,
-      'hidrivePassword': hidrivePassword,
+      'cloudUsername': cloudUsername,
+      'cloudPassword': cloudPassword,
       'userRole': userRole,
       'enableCloudSync': enableCloudSync,
       'autoSyncOnStartup': autoSyncOnStartup,
@@ -81,8 +84,9 @@ class AppSettings {
 
   factory AppSettings.fromJson(Map<String, dynamic> json) {
     return AppSettings(
-      hidriveUsername: json['hidriveUsername'],
-      hidrivePassword: json['hidrivePassword'],
+      // Migration: alter Key `hidriveUsername/-Password` wird weiterhin gelesen
+      cloudUsername: json['cloudUsername'] ?? json['hidriveUsername'],
+      cloudPassword: json['cloudPassword'] ?? json['hidrivePassword'],
       userRole: json['userRole'],
       enableCloudSync: json['enableCloudSync'] ?? false,
       autoSyncOnStartup: json['autoSyncOnStartup'] ?? true,
@@ -117,8 +121,8 @@ class AppSettings {
   }
 
   AppSettings copyWith({
-    String? hidriveUsername,
-    String? hidrivePassword,
+    String? cloudUsername,
+    String? cloudPassword,
     String? userRole,
     bool? enableCloudSync,
     bool? autoSyncOnStartup,
@@ -140,8 +144,8 @@ class AppSettings {
     DateTime? updatedAt,
   }) {
     return AppSettings(
-      hidriveUsername: hidriveUsername ?? this.hidriveUsername,
-      hidrivePassword: hidrivePassword ?? this.hidrivePassword,
+      cloudUsername: cloudUsername ?? this.cloudUsername,
+      cloudPassword: cloudPassword ?? this.cloudPassword,
       userRole: userRole ?? this.userRole,
       enableCloudSync: enableCloudSync ?? this.enableCloudSync,
       autoSyncOnStartup: autoSyncOnStartup ?? this.autoSyncOnStartup,
@@ -165,5 +169,6 @@ class AppSettings {
   }
 
   @override
-  String toString() => 'AppSettings(hidriveUser: $hidriveUsername, cloudSync: $enableCloudSync)';
+  String toString() =>
+      'AppSettings(cloudUser: $cloudUsername, cloudSync: $enableCloudSync)';
 }

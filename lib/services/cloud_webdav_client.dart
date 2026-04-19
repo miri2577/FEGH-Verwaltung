@@ -82,13 +82,13 @@ class WebDAVResource {
   }
 }
 
-class HiDriveWebDAVClient {
+class CloudWebDavClient {
   final String username;
   final String password;
   final String baseUrl;
   late final cloud.HidriveAdapter _adapter;
 
-  HiDriveWebDAVClient({
+  CloudWebDavClient({
     required this.username,
     required this.password,
     String? customBaseUrl,

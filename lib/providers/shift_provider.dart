@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../models/shift.dart';
 import '../models/app_settings.dart';
 import '../services/local_storage_service.dart';
-import '../services/hidrive_sync_service.dart';
+import '../services/cloud_sync_service.dart';
 import '../services/crypto_storage.dart';
 import '../services/shift_conflict_checker.dart';
 import 'settings_provider.dart';
@@ -11,7 +11,7 @@ import 'employee_provider.dart';
 
 final shiftsProvider = StateNotifierProvider<ShiftsNotifier, AsyncValue<List<Shift>>>((ref) {
   final localStorage = ref.watch(localStorageServiceProvider);
-  final syncService = ref.watch(hiDriveSyncServiceProvider);
+  final syncService = ref.watch(cloudSyncServiceProvider);
   final settings = ref.watch(appSettingsProvider);
 
   return ShiftsNotifier(localStorage, syncService, settings);
@@ -19,7 +19,7 @@ final shiftsProvider = StateNotifierProvider<ShiftsNotifier, AsyncValue<List<Shi
 
 class ShiftsNotifier extends StateNotifier<AsyncValue<List<Shift>>> {
   final LocalStorageService _localStorage;
-  final HiDriveSyncService? _syncService;
+  final CloudSyncService? _syncService;
   final AppSettings _settings;
 
   ShiftsNotifier(this._localStorage, this._syncService, this._settings)

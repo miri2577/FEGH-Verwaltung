@@ -2,13 +2,13 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'crypto_storage.dart';
-import 'hidrive_webdav_client.dart';
+import 'cloud_webdav_client.dart';
 
 /// Admin-Service zum Erzeugen und Verteilen von Team-Keys.
 /// Speichert Team-Key verschlüsselt unter administration/teams/<teamId>/team-key.bin
 class TeamKeyAdminService {
   final CryptoStorage crypto;
-  final HiDriveWebDAVClient client;
+  final CloudWebDavClient client;
   final String orgBase; // e.g. eingliederungshilfe/organizations/<org>
 
   TeamKeyAdminService({required this.crypto, required this.client, required this.orgBase});

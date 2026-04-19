@@ -1,10 +1,10 @@
 import 'dart:convert';
 import 'dart:typed_data';
-import '../services/hidrive_webdav_client.dart';
+import '../services/cloud_webdav_client.dart';
 import '../services/crypto_storage.dart';
 
 class RewrapService {
-  final HiDriveWebDAVClient client;
+  final CloudWebDavClient client;
   final CryptoStorage crypto;
   final String orgBase; // eingliederungshilfe/organizations/<org>
 

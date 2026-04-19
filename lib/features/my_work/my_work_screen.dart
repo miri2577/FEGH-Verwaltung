@@ -22,7 +22,7 @@ class MyWorkScreen extends ConsumerWidget {
     final employeesAsync = ref.watch(employeesProvider);
     final settings = ref.watch(appSettingsProvider);
 
-    final myUser = (settings.hidriveUsername ?? '').toLowerCase();
+    final myUser = (settings.cloudUsername ?? '').toLowerCase();
     final employees = employeesAsync.valueOrNull ?? const [];
 
     String? myEmployeeId;

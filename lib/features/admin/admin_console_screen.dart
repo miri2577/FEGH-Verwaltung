@@ -12,7 +12,7 @@ import '../../providers/employee_provider.dart';
 import '../../providers/team_provider.dart';
 import '../../providers/client_provider.dart';
 import '../../providers/policy_provider.dart';
-import '../../providers/hidrive_provider.dart';
+import '../../providers/cloud_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../services/audit_logger.dart';
 import '../../services/clients_index_rebuilder.dart';
@@ -131,7 +131,7 @@ class _AdminConsoleScreenState extends ConsumerState<AdminConsoleScreen>
     final settings = ref.watch(appSettingsProvider);
     final org = settings.organizationId ?? '';
     final syncReady = settings.isCloudSyncReady;
-    final client = ref.watch(hidriveClientProvider);
+    final client = ref.watch(cloudClientProvider);
     final svc = AdminHealthService(client: client, orgBase: 'eingliederungshilfe/organizations/$org');
     return FutureBuilder<Map<String, bool>>(
       future: svc.check(),
@@ -149,7 +149,7 @@ class _AdminConsoleScreenState extends ConsumerState<AdminConsoleScreen>
               _healthRow('Rollen‑Policy vorhanden (roles.json)', checks['roles_policy_exists'] == true),
               _healthRow('Schreibrechte (Testdatei)', checks['write_access'] == true),
               const SizedBox(height: 8),
-              Text('HiDrive Benutzer: ${settings.hidriveUsername ?? '–'}'),
+              Text('HiDrive Benutzer: ${settings.cloudUsername ?? '–'}'),
               const SizedBox(height: 16),
               const Text('Hinweise:'),
               const Text('• Clients werden team‑scoped gespeichert (teams/<team>/clients)'),
@@ -214,7 +214,7 @@ class _AdminConsoleScreenState extends ConsumerState<AdminConsoleScreen>
 
   Future<void> _runDriftAnalysis() async {
     final org = ref.read(appSettingsProvider).organizationId ?? 'default';
-    final webdav = ref.read(hidriveClientProvider);
+    final webdav = ref.read(cloudClientProvider);
     final crypto = ref.read(cryptoStorageProvider);
     await crypto.initialize();
     final svc = AdminRepairService(client: webdav, crypto: crypto, orgBase: 'eingliederungshilfe/organizations/$org');
@@ -229,7 +229,7 @@ class _AdminConsoleScreenState extends ConsumerState<AdminConsoleScreen>
     if (_driftResult == null) return;
     final items = List<Map<String, String>>.from(_driftResult!['missingInIndex'] as List);
     final org = ref.read(appSettingsProvider).organizationId ?? 'default';
-    final webdav = ref.read(hidriveClientProvider);
+    final webdav = ref.read(cloudClientProvider);
     final crypto = ref.read(cryptoStorageProvider);
     await crypto.initialize();
     final svc = AdminRepairService(client: webdav, crypto: crypto, orgBase: 'eingliederungshilfe/organizations/$org');
@@ -242,7 +242,7 @@ class _AdminConsoleScreenState extends ConsumerState<AdminConsoleScreen>
     if (_driftResult == null) return;
     final items = List<Map<String, String>>.from(_driftResult!['staleInIndex'] as List);
     final org = ref.read(appSettingsProvider).organizationId ?? 'default';
-    final webdav = ref.read(hidriveClientProvider);
+    final webdav = ref.read(cloudClientProvider);
     final crypto = ref.read(cryptoStorageProvider);
     await crypto.initialize();
     final svc = AdminRepairService(client: webdav, crypto: crypto, orgBase: 'eingliederungshilfe/organizations/$org');
@@ -478,7 +478,7 @@ class _AdminConsoleScreenState extends ConsumerState<AdminConsoleScreen>
                                   ? {
                                       'users': [
                                         {
-                                          'id': (ref.read(appSettingsProvider).hidriveUsername ?? '').toLowerCase(),
+                                          'id': (ref.read(appSettingsProvider).cloudUsername ?? '').toLowerCase(),
                                           'role': 'org_admin',
                                           'teams': <String>[],
                                         }
@@ -529,7 +529,7 @@ class _AdminConsoleScreenState extends ConsumerState<AdminConsoleScreen>
 
   Future<void> _rebuildClientsIndex() async {
     final org = ref.read(appSettingsProvider).organizationId ?? 'default';
-    final client = ref.read(hidriveClientProvider);
+    final client = ref.read(cloudClientProvider);
     final crypto = ref.read(cryptoStorageProvider);
     await crypto.initialize();
     final svc = ClientsIndexRebuilder(client: client, crypto: crypto, orgBase: 'eingliederungshilfe/organizations/$org');
@@ -562,7 +562,7 @@ class _AdminConsoleScreenState extends ConsumerState<AdminConsoleScreen>
             FilledButton(
               onPressed: () async {
                 final org = ref.read(appSettingsProvider).organizationId ?? 'default';
-                final client = ref.read(hidriveClientProvider);
+                final client = ref.read(cloudClientProvider);
                 final crypto = ref.read(cryptoStorageProvider);
                 await crypto.initialize();
                 final svc = TeamKeyAdminService(crypto: crypto, client: client, orgBase: 'eingliederungshilfe/organizations/$org');
@@ -641,7 +641,7 @@ class _AdminConsoleScreenState extends ConsumerState<AdminConsoleScreen>
                 final email = emailCtrl.text.trim().toLowerCase();
                 if (email.isEmpty) return;
                 final org = ref.read(appSettingsProvider).organizationId ?? 'default';
-                final client = ref.read(hidriveClientProvider);
+                final client = ref.read(cloudClientProvider);
                 final crypto = ref.read(cryptoStorageProvider);
                 await crypto.initialize();
                 final teamSvc = TeamKeyAdminService(crypto: crypto, client: client, orgBase: 'eingliederungshilfe/organizations/$org');

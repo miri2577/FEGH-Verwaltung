@@ -5,7 +5,7 @@ import 'package:crypto/crypto.dart' as crypto;
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
-import 'hidrive_webdav_client.dart';
+import 'cloud_webdav_client.dart';
 import 'crypto_storage.dart';
 
 class SyncManifest {
@@ -90,19 +90,19 @@ class ManifestEntry {
   }
 }
 
-class HiDriveSyncService {
+class CloudSyncService {
   final String _syncFolder; // e.g., eingliederungshilfe/organizations/<org>/administration
   static const String _manifestFile = 'manifest.json.enc';
 
-  final HiDriveWebDAVClient _client;
+  final CloudWebDavClient _client;
   final CryptoStorage _cryptoStorage;
   final Uuid _uuid = const Uuid();
 
   SyncManifest? _localManifest;
   SyncManifest? _remoteManifest;
 
-  HiDriveSyncService({
-    required HiDriveWebDAVClient client,
+  CloudSyncService({
+    required CloudWebDavClient client,
     required CryptoStorage cryptoStorage,
     String? basePath,
   })  : _client = client,

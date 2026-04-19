@@ -34,8 +34,8 @@ class AppSettingsNotifier extends StateNotifier<AppSettings> {
     }
   }
 
-  Future<bool> updateHiDriveCredentials(String username, String password) async {
-    final success = await _settingsService.updateHiDriveCredentials(username, password);
+  Future<bool> updateCloudCredentials(String username, String password) async {
+    final success = await _settingsService.updateCloudCredentials(username, password);
     if (success) {
       state = _settingsService.settings;
     }
@@ -146,7 +146,7 @@ class AppSettingsNotifier extends StateNotifier<AppSettings> {
 // Convenience providers for specific settings
 final hidriveCredentialsProvider = Provider<bool>((ref) {
   final settings = ref.watch(appSettingsProvider);
-  return settings.hasHiDriveCredentials;
+  return settings.hasCloudCredentials;
 });
 
 final cloudSyncEnabledProvider = Provider<bool>((ref) {

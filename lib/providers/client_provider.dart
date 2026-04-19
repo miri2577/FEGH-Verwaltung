@@ -2,7 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/client.dart';
 import '../services/local_storage_service.dart';
 import 'employee_provider.dart';
-import '../providers/hidrive_provider.dart';
+import '../providers/cloud_provider.dart';
 import '../services/audit_logger.dart';
 import '../services/org_client_sync_service.dart';
 import '../services/crypto_storage.dart';
@@ -118,7 +118,7 @@ class ClientNotifier extends Notifier<List<Client>> {
         await _maybeUploadClient(client);
         return;
       }
-      final webdav = ref.read(hidriveClientProvider);
+      final webdav = ref.read(cloudClientProvider);
       final crypto = ref.read(cryptoStorageProvider);
       await crypto.initialize();
       final svc = OrgClientSyncService(
@@ -141,7 +141,7 @@ class ClientNotifier extends Notifier<List<Client>> {
       if (!settings.isCloudSyncReady) return;
       if (settings.organizationId == null || settings.organizationId!.isEmpty) return;
       if (c.teamId == null || c.teamId!.isEmpty) return;
-      final client = ref.read(hidriveClientProvider);
+      final client = ref.read(cloudClientProvider);
       final crypto = ref.read(cryptoStorageProvider);
       await crypto.initialize();
       final svc = OrgClientSyncService(
@@ -166,7 +166,7 @@ class ClientNotifier extends Notifier<List<Client>> {
       if (!settings.isCloudSyncReady) return;
       if (settings.organizationId == null || settings.organizationId!.isEmpty) return;
       if (c.teamId == null || c.teamId!.isEmpty) return;
-      final client = ref.read(hidriveClientProvider);
+      final client = ref.read(cloudClientProvider);
       final crypto = ref.read(cryptoStorageProvider);
       await crypto.initialize();
       final svc = OrgClientSyncService(

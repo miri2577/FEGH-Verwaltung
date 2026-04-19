@@ -3,14 +3,14 @@ import 'package:flutter/foundation.dart';
 import '../models/vacation_request.dart';
 import '../models/app_settings.dart';
 import '../services/local_storage_service.dart';
-import '../services/hidrive_sync_service.dart';
+import '../services/cloud_sync_service.dart';
 import '../services/crypto_storage.dart';
 import 'settings_provider.dart';
 import 'employee_provider.dart';
 
 final vacationRequestsProvider = StateNotifierProvider<VacationRequestsNotifier, AsyncValue<List<VacationRequest>>>((ref) {
   final localStorage = ref.watch(localStorageServiceProvider);
-  final syncService = ref.watch(hiDriveSyncServiceProvider);
+  final syncService = ref.watch(cloudSyncServiceProvider);
   final settings = ref.watch(appSettingsProvider);
 
   return VacationRequestsNotifier(localStorage, syncService, settings);
@@ -18,7 +18,7 @@ final vacationRequestsProvider = StateNotifierProvider<VacationRequestsNotifier,
 
 class VacationRequestsNotifier extends StateNotifier<AsyncValue<List<VacationRequest>>> {
   final LocalStorageService _localStorage;
-  final HiDriveSyncService? _syncService;
+  final CloudSyncService? _syncService;
   final AppSettings _settings;
 
   VacationRequestsNotifier(this._localStorage, this._syncService, this._settings)

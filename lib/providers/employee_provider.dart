@@ -3,9 +3,9 @@ import 'package:flutter/foundation.dart';
 import '../models/employee.dart';
 import '../models/app_settings.dart';
 import '../services/local_storage_service.dart';
-import '../services/hidrive_sync_service.dart';
+import '../services/cloud_sync_service.dart';
 import '../services/crypto_storage.dart';
-import '../services/hidrive_webdav_client.dart';
+import '../services/cloud_webdav_client.dart';
 import 'settings_provider.dart';
 
 final localStorageServiceProvider = Provider<LocalStorageService>((ref) {
@@ -16,7 +16,7 @@ final cryptoStorageProvider = Provider<CryptoStorage>((ref) {
   return CryptoStorage();
 });
 
-final hiDriveSyncServiceProvider = Provider<HiDriveSyncService?>((ref) {
+final cloudSyncServiceProvider = Provider<CloudSyncService?>((ref) {
   final settings = ref.watch(appSettingsProvider);
   final cryptoStorage = ref.watch(cryptoStorageProvider);
 
@@ -25,21 +25,21 @@ final hiDriveSyncServiceProvider = Provider<HiDriveSyncService?>((ref) {
   final sub = (settings.rootSubdirectory != null && settings.rootSubdirectory!.trim().isNotEmpty)
       ? settings.rootSubdirectory!.trim()
       : null;
-  final customBase = HiDriveConfig.buildWebDAVUrl(settings.hidriveUsername ?? '', subdirectory: sub);
-  final client = HiDriveWebDAVClient(
-    username: settings.hidriveUsername ?? '',
-    password: settings.hidrivePassword ?? '',
+  final customBase = HiDriveConfig.buildWebDAVUrl(settings.cloudUsername ?? '', subdirectory: sub);
+  final client = CloudWebDavClient(
+    username: settings.cloudUsername ?? '',
+    password: settings.cloudPassword ?? '',
     customBaseUrl: customBase,
   );
   final base = 'eingliederungshilfe/organizations/${settings.organizationId ?? 'default'}/administration';
-  final svc = HiDriveSyncService(client: client, cryptoStorage: cryptoStorage, basePath: base);
+  final svc = CloudSyncService(client: client, cryptoStorage: cryptoStorage, basePath: base);
   svc.initialize();
   return svc;
 });
 
 final employeesProvider = StateNotifierProvider<EmployeesNotifier, AsyncValue<List<Employee>>>((ref) {
   final localStorage = ref.watch(localStorageServiceProvider);
-  final syncService = ref.watch(hiDriveSyncServiceProvider);
+  final syncService = ref.watch(cloudSyncServiceProvider);
   final settings = ref.watch(appSettingsProvider);
 
   return EmployeesNotifier(localStorage, syncService, settings);
@@ -47,7 +47,7 @@ final employeesProvider = StateNotifierProvider<EmployeesNotifier, AsyncValue<Li
 
 class EmployeesNotifier extends StateNotifier<AsyncValue<List<Employee>>> {
   final LocalStorageService _localStorage;
-  final HiDriveSyncService? _syncService;
+  final CloudSyncService? _syncService;
   final AppSettings _settings;
 
   EmployeesNotifier(this._localStorage, this._syncService, this._settings)

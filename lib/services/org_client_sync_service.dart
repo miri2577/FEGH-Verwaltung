@@ -3,11 +3,11 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 
 import 'crypto_storage.dart';
-import 'hidrive_webdav_client.dart';
+import 'cloud_webdav_client.dart';
 import '../models/client.dart';
 
 class OrgClientSyncService {
-  final HiDriveWebDAVClient client;
+  final CloudWebDavClient client;
   final CryptoStorage crypto;
   final String orgBase; // e.g. eingliederungshilfe/organizations/<org>
 

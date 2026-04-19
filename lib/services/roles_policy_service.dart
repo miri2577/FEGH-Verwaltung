@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
-import 'hidrive_webdav_client.dart';
+import 'cloud_webdav_client.dart';
 
 class AuditScope {
   final List<String> teams;
@@ -36,7 +36,7 @@ class AuditScope {
 }
 
 class RolesPolicyService {
-  final HiDriveWebDAVClient client;
+  final CloudWebDavClient client;
   final String orgBase; // eingliederungshilfe/organizations/<org>
 
   Map<String, String> _userRoles = {}; // username/email -> role

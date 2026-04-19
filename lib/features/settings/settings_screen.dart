@@ -10,7 +10,7 @@ import '../../providers/settings_provider.dart';
 import '../../services/settings_service.dart';
 import '../../models/app_settings.dart';
 import '../../models/ui_customization.dart';
-import '../../providers/hidrive_provider.dart';
+import '../../providers/cloud_provider.dart';
 import '../../providers/employee_provider.dart';
 import '../../services/team_key_admin_service.dart';
 import '../../services/rewrap_service.dart';
@@ -34,8 +34,8 @@ class SettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
-  final _hidriveUsernameController = TextEditingController();
-  final _hidrivePasswordController = TextEditingController();
+  final _cloudUsernameController = TextEditingController();
+  final _cloudPasswordController = TextEditingController();
   bool _passwordVisible = false;
   bool _isLoading = false;
 
@@ -47,15 +47,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   @override
   void dispose() {
-    _hidriveUsernameController.dispose();
-    _hidrivePasswordController.dispose();
+    _cloudUsernameController.dispose();
+    _cloudPasswordController.dispose();
     super.dispose();
   }
 
   void _loadCurrentSettings() {
     final settings = ref.read(appSettingsProvider);
-    if (settings.hidriveUsername != null) {
-      _hidriveUsernameController.text = settings.hidriveUsername!;
+    if (settings.cloudUsername != null) {
+      _cloudUsernameController.text = settings.cloudUsername!;
     }
     // Passwort wird nicht vorgeladen – nur bei Änderung neu eingeben
   }
@@ -134,7 +134,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               children: [
                 Expanded(
                   child: TextField(
-                    controller: _hidriveUsernameController,
+                    controller: _cloudUsernameController,
                     decoration: const InputDecoration(
                       labelText: 'HiDrive Benutzername',
                       hintText: 'ihre-email@example.com',
@@ -146,11 +146,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 const SizedBox(width: 16),
                 Expanded(
                   child: TextField(
-                    controller: _hidrivePasswordController,
+                    controller: _cloudPasswordController,
                     obscureText: !_passwordVisible,
                     decoration: InputDecoration(
                       labelText: 'HiDrive Passwort',
-                      hintText: settings.hidrivePassword != null ? 'Gespeichert – neu eingeben zum Ändern' : 'Passwort eingeben',
+                      hintText: settings.cloudPassword != null ? 'Gespeichert – neu eingeben zum Ändern' : 'Passwort eingeben',
                       prefixIcon: const Icon(Symbols.lock),
                       border: const OutlineInputBorder(),
                       suffixIcon: IconButton(
@@ -259,25 +259,25 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             Row(
               children: [
                 OutlinedButton.icon(
-                  onPressed: settings.hasHiDriveCredentials ? () => _showPassphraseDialog(context, ref) : null,
+                  onPressed: settings.hasCloudCredentials ? () => _showPassphraseDialog(context, ref) : null,
                   icon: const Icon(Symbols.vpn_key),
                   label: const Text('Sync‑Passphrase setzen'),
                 ),
                 const SizedBox(width: 12),
                 OutlinedButton.icon(
-                  onPressed: settings.hasHiDriveCredentials && ref.read(policyProvider).canRotateKeys() ? () => _showTeamKeyDialog(context, ref) : null,
+                  onPressed: settings.hasCloudCredentials && ref.read(policyProvider).canRotateKeys() ? () => _showTeamKeyDialog(context, ref) : null,
                   icon: const Icon(Symbols.key),
                   label: const Text('Team‑Key erzeugen'),
                 ),
                 const SizedBox(width: 12),
                 OutlinedButton.icon(
-                  onPressed: settings.hasHiDriveCredentials && ref.read(policyProvider).canRotateKeys() ? () => _showTeamKeyQrDialog(context, ref) : null,
+                  onPressed: settings.hasCloudCredentials && ref.read(policyProvider).canRotateKeys() ? () => _showTeamKeyQrDialog(context, ref) : null,
                   icon: const Icon(Symbols.qr_code_2),
                   label: const Text('Team‑Key als QR'),
                 ),
                 const SizedBox(width: 12),
                 OutlinedButton.icon(
-                  onPressed: settings.hasHiDriveCredentials && ref.read(policyProvider).canRebuildIndexes() ? () => _rebuildClientsIndex(ref) : null,
+                  onPressed: settings.hasCloudCredentials && ref.read(policyProvider).canRebuildIndexes() ? () => _rebuildClientsIndex(ref) : null,
                   icon: const Icon(Symbols.storage),
                   label: const Text('Clients‑Index neu aufbauen'),
                 ),
@@ -299,13 +299,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
                 const SizedBox(width: 12),
                 OutlinedButton.icon(
-                  onPressed: settings.hasHiDriveCredentials ? () => _showRewrapDialog(context, ref) : null,
+                  onPressed: settings.hasCloudCredentials ? () => _showRewrapDialog(context, ref) : null,
                   icon: const Icon(Symbols.lock_reset),
                   label: const Text('Team‑Records rewrap'),
                 ),
                 const SizedBox(width: 12),
                 FilledButton.icon(
-                  onPressed: settings.hasHiDriveCredentials ? () => _showSendMessageDialog(context, ref) : null,
+                  onPressed: settings.hasCloudCredentials ? () => _showSendMessageDialog(context, ref) : null,
                   icon: const Icon(Symbols.send),
                   label: const Text('Nachricht senden'),
                 ),
@@ -327,7 +327,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
                 const SizedBox(width: 12),
                 OutlinedButton.icon(
-                  onPressed: settings.hasHiDriveCredentials ? _testConnection : null,
+                  onPressed: settings.hasCloudCredentials ? _testConnection : null,
                   icon: const Icon(Symbols.wifi_protected_setup, size: 18),
                   label: const Text('Verbindung testen'),
                 ),
@@ -395,7 +395,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         return;
       }
       final org = ref.read(appSettingsProvider).organizationId ?? 'default';
-      final client = ref.read(hidriveClientProvider);
+      final client = ref.read(cloudClientProvider);
       final crypto = ref.read(cryptoStorageProvider);
       await crypto.initialize();
       final svc = ClientsIndexRebuilder(
@@ -529,7 +529,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               if (teamId.isEmpty) return;
               try {
                 final crypto = ref.read(cryptoStorageProvider);
-                final client = ref.read(hidriveClientProvider);
+                final client = ref.read(cloudClientProvider);
                 final org = ref.read(appSettingsProvider).organizationId ?? 'default';
                 final svc = TeamKeyAdminService(crypto: crypto, client: client, orgBase: 'eingliederungshilfe/organizations/$org');
                 final b64 = await svc.fetchTeamKeyBase64(teamId);
@@ -554,7 +554,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               Navigator.pop(context);
               try {
                 final crypto = ref.read(cryptoStorageProvider);
-                final client = ref.read(hidriveClientProvider);
+                final client = ref.read(cloudClientProvider);
                 final org = ref.read(appSettingsProvider).organizationId ?? 'default';
                 final svc = TeamKeyAdminService(crypto: crypto, client: client, orgBase: 'eingliederungshilfe/organizations/$org');
                 final ok = await svc.ensureTeamKey(teamId);
@@ -618,7 +618,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               Navigator.pop(context);
               try {
                 final crypto = ref.read(cryptoStorageProvider);
-                final client = ref.read(hidriveClientProvider);
+                final client = ref.read(cloudClientProvider);
                 final org = ref.read(appSettingsProvider).organizationId ?? 'default';
                 final id = DateTime.now().microsecondsSinceEpoch.toString();
                 final payload = {
@@ -627,8 +627,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   'body': body,
                   'flags': <String>[],
                   'createdAt': DateTime.now().toUtc().toIso8601String(),
-                  'senderId': ref.read(appSettingsProvider).hidriveUsername ?? 'unknown',
-                  'senderName': ref.read(appSettingsProvider).hidriveUsername ?? 'Unbekannt',
+                  'senderId': ref.read(appSettingsProvider).cloudUsername ?? 'unknown',
+                  'senderName': ref.read(appSettingsProvider).cloudUsername ?? 'Unbekannt',
                   'isRead': false,
                   'priority': 'normal',
                   'type': 'announcement',
@@ -1044,9 +1044,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<void> _saveHiDriveCredentials() async {
-    final username = _hidriveUsernameController.text.trim();
-    final password = _hidrivePasswordController.text.trim();
-    final existingPassword = ref.read(appSettingsProvider).hidrivePassword;
+    final username = _cloudUsernameController.text.trim();
+    final password = _cloudPasswordController.text.trim();
+    final existingPassword = ref.read(appSettingsProvider).cloudPassword;
 
     if (username.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1073,7 +1073,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     });
 
     try {
-      final success = await ref.read(appSettingsProvider.notifier).updateHiDriveCredentials(
+      final success = await ref.read(appSettingsProvider.notifier).updateCloudCredentials(
         username,
         password.isNotEmpty ? password : existingPassword!,
       );
@@ -1116,7 +1116,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
 
     try {
-      final client = ref.read(hidriveClientProvider);
+      final client = ref.read(cloudClientProvider);
       final org = ref.read(appSettingsProvider).organizationId ?? 'default';
 
       // 1) Basis (User‑Root)
@@ -1460,7 +1460,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     final sw = Stopwatch()..start();
                     setState(() { isLoading = true; errorText = null; });
                     final crypto = ref.read(cryptoStorageProvider);
-                    final client = ref.read(hidriveClientProvider);
+                    final client = ref.read(cloudClientProvider);
                     final org = ref.read(appSettingsProvider).organizationId ?? 'default';
                     final svc = TeamKeyAdminService(crypto: crypto, client: client, orgBase: 'eingliederungshilfe/organizations/$org');
                     final b64 = await svc.recreateTeamKey(teamId);
@@ -1520,7 +1520,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   }
                   setState(() { isLoading = true; errorText = null; });
                   final crypto = ref.read(cryptoStorageProvider);
-                  final client = ref.read(hidriveClientProvider);
+                  final client = ref.read(cloudClientProvider);
                   final org = ref.read(appSettingsProvider).organizationId ?? 'default';
                   final svc = TeamKeyAdminService(crypto: crypto, client: client, orgBase: 'eingliederungshilfe/organizations/$org');
                   final b64 = await svc.fetchTeamKeyBase64(teamId);
@@ -1618,7 +1618,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               Navigator.pop(context);
               try {
                 final crypto = ref.read(cryptoStorageProvider);
-                final client = ref.read(hidriveClientProvider);
+                final client = ref.read(cloudClientProvider);
                 final org = ref.read(appSettingsProvider).organizationId ?? 'default';
                 final admin = TeamKeyAdminService(crypto: crypto, client: client, orgBase: 'eingliederungshilfe/organizations/$org');
                 final b64 = await admin.fetchTeamKeyBase64(teamId);

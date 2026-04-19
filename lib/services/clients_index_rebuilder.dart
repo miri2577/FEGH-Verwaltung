@@ -2,10 +2,10 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'crypto_storage.dart';
-import 'hidrive_webdav_client.dart';
+import 'cloud_webdav_client.dart';
 
 class ClientsIndexRebuilder {
-  final HiDriveWebDAVClient client;
+  final CloudWebDavClient client;
   final CryptoStorage crypto;
   final String orgBase; // eingliederungshilfe/organizations/<org>
 

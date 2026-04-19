@@ -88,8 +88,8 @@ class SettingsService {
       // Separate sensitive and non-sensitive data
       final settingsData = settings.toJson();
       final credentials = {
-        'hidriveUsername': settingsData.remove('hidriveUsername'),
-        'hidrivePassword': settingsData.remove('hidrivePassword'),
+        'cloudUsername': settingsData.remove('cloudUsername'),
+        'cloudPassword': settingsData.remove('cloudPassword'),
       };
 
       // Save non-sensitive settings to SharedPreferences
@@ -125,12 +125,12 @@ class SettingsService {
     }
   }
 
-  Future<bool> updateHiDriveCredentials(String username, String password) async {
+  Future<bool> updateCloudCredentials(String username, String password) async {
     if (_currentSettings == null) return false;
 
     final updatedSettings = _currentSettings!.copyWith(
-      hidriveUsername: username,
-      hidrivePassword: password,
+      cloudUsername: username,
+      cloudPassword: password,
       updatedAt: DateTime.now(),
     );
 
@@ -231,8 +231,8 @@ class SettingsService {
 
       if (_currentSettings != null) {
         final updatedSettings = _currentSettings!.copyWith(
-          hidriveUsername: null,
-          hidrivePassword: null,
+          cloudUsername: null,
+          cloudPassword: null,
           enableCloudSync: false,
           updatedAt: DateTime.now(),
         );
@@ -273,13 +273,13 @@ class SettingsService {
   // Getters
   AppSettings get settings => _currentSettings ?? AppSettings.defaultSettings();
 
-  bool get hasHiDriveCredentials => settings.hasHiDriveCredentials;
+  bool get hasCloudCredentials => settings.hasCloudCredentials;
 
   bool get isCloudSyncReady => settings.isCloudSyncReady;
 
-  String? get hidriveUsername => settings.hidriveUsername;
+  String? get cloudUsername => settings.cloudUsername;
 
-  String? get hidrivePassword => settings.hidrivePassword;
+  String? get cloudPassword => settings.cloudPassword;
 
   bool get cloudSyncEnabled => settings.enableCloudSync;
 
