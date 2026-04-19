@@ -17,7 +17,7 @@ Das groesste strukturelle Defizit: Beide Apps teilen sich Wire-Format und Cloud,
   - [ ] `Shift` — bewusst zurueckgestellt (Doku hat keine Schichten; wird nachgezogen, falls die Doku Schicht-Anzeige bekommt)
 - [x] **Schema-Migration** in beiden Apps — `fromJson` akzeptiert alte Doku- und Verwaltungs-Felder, `toJson` schreibt beides
 - [x] **Cross-App-Lesbarkeit** in Unit-Tests abgedeckt (Legacy-Doku-JSON + Verwaltungs-JSON werden jeweils geparst)
-- [ ] **Einheitliche Cloud-Ordnerstruktur** dokumentieren und in beiden Apps per `fegh_cloud` erzeugen (Folge-Sprint)
+- [x] **Einheitliche Cloud-Ordnerstruktur** — `FeghPaths` in `fegh_cloud` (15 Tests). Beide Apps bauen ihre Pfade durch denselben Helper, `bootstrapDirectories()` liefert die gemeinsame mkcol-Reihenfolge.
 - [ ] **Live-Cross-App-Test**: Verwaltung schreibt Klient → Doku liest denselben Record aus Cloud (braucht laufende Test-Umgebung)
 
 ---
@@ -115,3 +115,5 @@ Ausserdem:
 - [x] Beide Apps nutzen dasselbe Client-Schema (fromJson liest Legacy-Felder)
 - [x] Beide Apps nutzen dasselbe Employee-Schema
 - [x] Beide Apps nutzen dasselbe Team-Schema
+- [x] Beide Apps nutzen dasselbe Shift-Schema; Doku hat Read-only-Ansicht "Meine Schichten"
+- [x] Einheitliche Cloud-Pfade ueber `FeghPaths` (15 Tests)
