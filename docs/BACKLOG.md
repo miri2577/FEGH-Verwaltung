@@ -25,32 +25,32 @@ Das groesste strukturelle Defizit: Beide Apps teilen sich Wire-Format und Cloud,
 ## P1 — Scope B/C der MVP-Module
 
 ### Medikation (D3 Scope B/C)
-- [ ] Bedarfsmedikation (PRN) — ungeplante Gabe mit Begruendung
-- [ ] PIN-Validierung fuer Gabe-Quittung (Mitarbeiter-PIN, PBKDF2)
-- [ ] 4-Augen-Prinzip fuer alle Gaben (aktuell nur BtM)
-- [ ] BTM-Bestandsliste pro Einrichtung mit Nachbestellung
-- [ ] BTM-Vernichtungsprotokoll mit Zeuge
+- [x] Bedarfsmedikation (PRN) — ungeplante Gabe mit Begruendung
+- [x] PIN-Validierung fuer Gabe-Quittung — `MedPinService` (PBKDF2-HMAC-SHA256, 100k Iterationen, secure_storage), Opt-In pro Mitarbeiter, max. 3 Versuche
+- [x] 4-Augen-Prinzip fuer alle Gaben — `requiresWitness` je Verordnung, BtM impliziert, Zeuge != Gebender, witnessEmployeeId in Audit
+- [x] BTM-Bestandsliste pro Einrichtung (abgeleitet aus Gaben + Vernichtungen) mit Low-Stock-Hinweis
+- [x] BTM-Vernichtungsprotokoll mit Zeuge (§15 BtMVV) — Pflichtfelder, optionale Unterschrift, Audit
 
 ### Kassenbuch (D4 Scope B/C)
-- [ ] Canvas-Unterschrift fuer Eintrag-Freigabe (`signature`-Paket)
-- [ ] Monatsabschluss-Rollover (persistenter Saldo, kein Neu-Berechnen)
-- [ ] Storno-Workflow (freigegebene Eintraege)
-- [ ] Mietabrechnung Kalt/Warm
-- [ ] Nebenkostenabrechnung
-- [ ] Beleg-Upload (Foto/PDF) pro Eintrag
+- [x] Canvas-Unterschrift fuer Eintrag-Freigabe (`signature`-Paket)
+- [x] Monatsabschluss-Rollover (persistenter Saldo, Buchungssperre ab Abschluss, Pflicht-Unterschrift)
+- [x] Storno-Workflow (freigegebene Eintraege) — Gegenbuchung mit Pflicht-Grund + Unterschrift, Original bleibt im Audit
+- [x] Mietabrechnung Kalt/Warm — "Miete buchen" im Wohnraum, Monatsauswahl, Duplikat-Schutz per Beleg-Tag `RENT-<wohnraumId>-<YYYYMM>`
+- [x] Nebenkostenabrechnung — Dialog fuer Einmalbuchung (Betrag + Zweck), Beleg-Tag `NK-<wohnraumId>-<timestamp>`
+- [x] Beleg-Upload (Foto/PDF) pro Eintrag — max. 5 MB, inline Persistenz
 
 ### Dienstplan (D2 Erweiterung)
-- [ ] Drag-Drop-Verschiebung im Kalender
-- [ ] Tausch-Anfrage-Workflow (Mitarbeiter → Lead)
-- [ ] iCal-Export pro Mitarbeiter
-- [ ] Konflikt-Check auch im Bulk-Dialog
+- [x] Drag-Drop-Verschiebung im Kalender — mit `ShiftConflictChecker`, Dialog bei blockierenden Konflikten (blockt), Warn-Dialog bei Grenzfaellen (Confirm erforderlich), Rueckgaengig-Action im SnackBar
+- [x] Tausch-Anfrage-Workflow (Mitarbeiter → Kollege → Teamleitung) — `ShiftSwapRequest` mit 6-Status-Lifecycle, Kollegen-Annahme + Leitungs-Freigabe, Schicht-Umbuchung bei Approve, 3-Tab-Screen
+- [x] iCal-Export pro Mitarbeiter (Verwaltung-Screen + Doku "Meine Schichten")
+- [x] Konflikt-Check auch im Bulk-Dialog
 
 ---
 
 ## P1 — Tests und Validierung
 
-- [ ] Wohnraum-Service Unit-Tests (analog Kassenbuch)
-- [ ] BTM-Service: erweiterte Test-Faelle (Bestand-Trend, Zeuge ≠ Gebender)
+- [x] Wohnraum-Service Unit-Tests (12 Tests)
+- [x] BTM-Service: erweiterte Test-Faelle (stockOverview, Vernichtungs-Validierung, Audit) — 11 Tests
 - [ ] XRechnung: echter KoSIT-Schematron-Test (lokales Tool oder CI-Pipeline)
 - [ ] Cross-App-Interop-Test nach `fegh_core`
 
@@ -60,19 +60,19 @@ Das groesste strukturelle Defizit: Beide Apps teilen sich Wire-Format und Cloud,
 
 8 Stub-Seiten mit echtem Inhalt fuellen:
 
-- [ ] `anleitung/mitarbeiter.md`
-- [ ] `anleitung/teams.md`
-- [ ] `anleitung/dienstplanung.md`
-- [ ] `anleitung/arbeitszeiten.md`
-- [ ] `anleitung/urlaub.md`
-- [ ] `anleitung/kapazitaet.md`
-- [ ] `anleitung/berichte.md`
-- [ ] `anleitung/einstellungen.md`
+- [x] `anleitung/mitarbeiter.md`
+- [x] `anleitung/teams.md`
+- [x] `anleitung/dienstplanung.md`
+- [x] `anleitung/arbeitszeiten.md`
+- [x] `anleitung/urlaub.md`
+- [x] `anleitung/kapazitaet.md`
+- [x] `anleitung/berichte.md`
+- [x] `anleitung/einstellungen.md`
 
 Ausserdem:
-- [ ] Medikations-Wiki-Seite (neues Modul aus D3)
-- [ ] Wohnraum+Kassenbuch-Wiki-Seite (neue Module aus D4)
-- [ ] Team-Chat-Wiki-Seite (fegh_chat)
+- [x] Medikations-Wiki-Seite (neues Modul aus D3)
+- [x] Wohnraum-Wiki-Seite + Kassenbuch-Wiki-Seite (getrennt, neue Module aus D4)
+- [x] Team-Chat-Wiki-Seite (fegh_chat)
 
 ---
 
@@ -86,6 +86,18 @@ Ausserdem:
 
 ---
 
+## Verworfen: Office-Bridge
+
+Ursprueng­lich als P1 geplant (tiefe Outlook/Word/Excel-Integration per COM/AppleScript/UNO). Nach Bewertung verworfen:
+
+- Widerspricht Kernversprechen (E2E, DSGVO, keine US-Cloud) — Daten durch MS 365 routen untergraebt das Schutzziel.
+- Wartungslast auf vier Stacks (Windows COM, macOS AppleScript, Linux UNO, Mobile) zu hoch.
+- Austauschformate (iCal, XRechnung UBL, XLSX, CSV, PDF) decken 90 % der Interop-Wuensche bereits ab.
+
+Fallback: Wir bleiben bei sauberen Export-Formaten; Nutzer oeffnen selbst in ihrer Office-Suite.
+
+---
+
 ## P2 — Infrastruktur
 
 - [ ] Native VoIP-Calls (`flutter_webrtc`) statt Element-Web-Fallback im Chat
@@ -93,6 +105,20 @@ Ausserdem:
 - [ ] CI-Pipeline fuer beide Apps (flutter test auto)
 - [ ] Fegh-shared Pakete optional mit Remote (Git)
 - [ ] Provisioning-End-to-End-Test (Admin erstellt Token → Mitarbeiter scannt → Cloud-Zugriff)
+
+---
+
+## P2 — Enterprise-Block (spaeter)
+
+Bewusst nicht Prio 1, weil der MVP zuerst fertig werden muss. Was echte Ausschreibungen in dem Markt verlangen:
+
+- [ ] **SSO** via OIDC (Entra ID, Keycloak) — OAuth Authorization Code + PKCE im System-Browser
+- [ ] **SCIM-Provisioning** (User-Lifecycle aus HR/AD) — braucht Backend-Endpoint
+- [ ] **MDM/Intune-Deployment** — MSI-Paket mit ADMX-Policies, silent install, preconfig via Registry/JSON
+- [ ] **SIEM-Export** des Audit-Logs — Syslog oder CEF, tail der JSONL-Datei
+- [ ] **Schnittstellen zu Pflege-/Heimsoftware** — Vivendi, Medifox, Sinfonie (CSV/XML-Import+Export)
+
+Anmerkung: §302 SGB V DTA ist fuer Eingliederungshilfe nicht einschlaegig (EGH ist SGB IX, Leistungstraeger sind Sozialhilfetraeger). Relevanter Abrechnungspfad ist **XRechnung UBL an Bezirk/Sozialamt** — existiert bereits.
 
 ---
 
@@ -117,3 +143,10 @@ Ausserdem:
 - [x] Beide Apps nutzen dasselbe Team-Schema
 - [x] Beide Apps nutzen dasselbe Shift-Schema; Doku hat Read-only-Ansicht "Meine Schichten"
 - [x] Einheitliche Cloud-Pfade ueber `FeghPaths` (15 Tests)
+- [x] Wohnraum-Service Unit-Tests (12 Tests)
+- [x] Bedarfsmedikation (PRN) mit Pflicht-Grund und eigenem Audit-Event
+- [x] Konflikt-Check im Bulk-Shift-Dialog (blockierend + Warn-Confirm)
+- [x] Canvas-Unterschrift Kassenbuch (Pflicht bei Freigabe, im PDF-Auszug gerendert)
+- [x] iCal-Export Dienstplan (`ShiftIcsExporter` in fegh_core, 8 Tests) + Buttons in beiden Apps
+- [x] Wiki-Seiten: Medikation, Wohnraum, Kassenbuch, Chat
+- [x] Kassenbuch-Storno: Gegenbuchung (Pflicht-Grund + Unterschrift), Originale als storniert markiert, im PDF gekennzeichnet
