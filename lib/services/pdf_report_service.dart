@@ -9,6 +9,7 @@ import 'package:pdf/widgets.dart' as pw;
 
 import '../models/capacity_analytics.dart';
 import '../models/employee.dart';
+import '../models/kassenbuch_eintrag.dart';
 import '../models/shift.dart';
 import '../models/timesheet.dart';
 
@@ -70,6 +71,24 @@ class PdfReportService {
       bytes,
       'monatsbericht_${month.year}_${month.month.toString().padLeft(2, '0')}.pdf',
     );
+  }
+
+  // ── Kassenbuch-Monatsauszug ───────────────────────────────────────
+
+  /// Monatsauszug pro Klient: Kopf mit Klient, Zeitraum und Saldo-Kennzahlen,
+  /// Tabelle mit Einzelbuchungen und fortlaufendem Saldo, Unterschriften.
+  Future<String> generateKassenbuchMonthlyStatement({
+    required String clientId,
+    required String clientName,
+    required DateTime month,
+    required double saldoVorMonat,
+    required List<KassenbuchEintrag> eintraege,
+  }) async {
+    final bytes = await _buildKassenbuchPdf(
+        clientId, clientName, month, saldoVorMonat, eintraege);
+    final ymd =
+        '${month.year}_${month.month.toString().padLeft(2, '0')}';
+    return _writeBytes(bytes, 'kassenbuch_${_slug(clientName)}_$ymd.pdf');
   }
 
   // ── Dienstplan-Aushang ────────────────────────────────────────────
@@ -460,6 +479,135 @@ class PdfReportService {
             }),
           ],
         ),
+      ],
+    ));
+    return pdf.save();
+  }
+
+  Future<Uint8List> _buildKassenbuchPdf(
+    String clientId,
+    String clientName,
+    DateTime month,
+    double saldoVorMonat,
+    List<KassenbuchEintrag> eintraege,
+  ) async {
+    final theme = await PdfFontCache.theme();
+    final pdf = pw.Document(theme: theme);
+    final euro = NumberFormat.currency(locale: 'de_DE', symbol: '\u20AC');
+    final df = DateFormat('dd.MM.yyyy');
+    final monthLabel = DateFormat('MMMM yyyy', 'de_DE').format(month);
+
+    // Monats-Eintraege aufsteigend (fuer fortlaufenden Saldo)
+    final monatsEintraege = eintraege
+        .where((e) =>
+            e.datum.year == month.year && e.datum.month == month.month)
+        .toList()
+      ..sort((a, b) => a.datum.compareTo(b.datum));
+
+    double einzahlungen = 0;
+    double auszahlungen = 0;
+    for (final e in monatsEintraege) {
+      if (e.betrag >= 0) {
+        einzahlungen += e.betrag;
+      } else {
+        auszahlungen += e.betrag.abs();
+      }
+    }
+    final saldoEnde = saldoVorMonat + einzahlungen - auszahlungen;
+
+    // Fortlaufender Saldo fuer die Tabelle
+    double laufend = saldoVorMonat;
+    final rows = <List<String>>[];
+    for (final e in monatsEintraege) {
+      laufend += e.betrag;
+      rows.add([
+        df.format(e.datum),
+        e.kategorie.label,
+        e.beschreibung,
+        '${e.betrag >= 0 ? '+' : ''}${euro.format(e.betrag)}',
+        euro.format(laufend),
+      ]);
+    }
+
+    pdf.addPage(pw.MultiPage(
+      pageFormat: PdfPageFormat.a4,
+      margin: const pw.EdgeInsets.fromLTRB(50, 40, 50, 50),
+      header: (ctx) => buildHeader(
+        title: 'Kassenbuch-Monatsauszug',
+        appName: _appName,
+        appTagline: _appTagline,
+        aktenzeichen: clientId,
+      ),
+      footer: buildFooter(appName: _appName),
+      build: (ctx) => [
+        pw.SizedBox(height: 20),
+        buildHero(
+          label: 'KLIENT',
+          title: clientName,
+          subtitle: monthLabel,
+        ),
+        pw.SizedBox(height: 32),
+        buildKpiRow([
+          PdfKpi(
+            label: 'Saldo Monatsanfang',
+            value: euro.format(saldoVorMonat),
+            color: PdfDesignTokens.text,
+          ),
+          PdfKpi(
+            label: 'Einzahlungen',
+            value: euro.format(einzahlungen),
+            color: PdfDesignTokens.accent,
+          ),
+          PdfKpi(
+            label: 'Auszahlungen',
+            value: euro.format(auszahlungen),
+            color: PdfDesignTokens.warn,
+          ),
+          PdfKpi(
+            label: 'Saldo Monatsende',
+            value: euro.format(saldoEnde),
+            color: saldoEnde < 0
+                ? PdfDesignTokens.warn
+                : PdfDesignTokens.primaer,
+            hero: true,
+          ),
+        ]),
+        pw.SizedBox(height: 28),
+        buildSectionHeading('I', 'Einzelbuchungen'),
+        pw.SizedBox(height: 12),
+        if (monatsEintraege.isEmpty)
+          buildEmptyState('Keine Buchungen in diesem Monat.')
+        else
+          pw.Table(
+            columnWidths: const {
+              0: pw.FlexColumnWidth(1.1),
+              1: pw.FlexColumnWidth(1.3),
+              2: pw.FlexColumnWidth(2.5),
+              3: pw.FlexColumnWidth(1),
+              4: pw.FlexColumnWidth(1.1),
+            },
+            children: [
+              buildTableHeader(
+                ['Datum', 'Kategorie', 'Beschreibung', 'Betrag', 'Saldo'],
+                alignRight: const [false, false, false, true, true],
+              ),
+              ...rows.map(
+                (r) => buildTableRow(
+                  r,
+                  alignRight: const [false, false, false, true, true],
+                ),
+              ),
+            ],
+          ),
+        pw.SizedBox(height: 24),
+        pw.Text(
+          'Dieser Auszug ist ein Monatsabschluss. Nicht-freigegebene '
+          'Eintraege sind bis zur Freigabe aenderbar; nach Freigabe '
+          'verbleibt als Aenderung nur die Stornobuchung.',
+          style: pw.TextStyle(fontSize: 9, color: PdfDesignTokens.muted),
+        ),
+        pw.SizedBox(height: 36),
+        buildSignatureRow(),
       ],
     ));
     return pdf.save();

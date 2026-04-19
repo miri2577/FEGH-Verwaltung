@@ -6,6 +6,7 @@ import 'package:material_symbols_icons/symbols.dart';
 import '../../models/kassenbuch_eintrag.dart';
 import '../../providers/kassenbuch_provider.dart';
 import '../../providers/settings_provider.dart';
+import '../../services/pdf_report_service.dart';
 import 'kassenbuch_form_dialog.dart';
 
 class KassenbuchScreen extends ConsumerWidget {
@@ -30,6 +31,11 @@ class KassenbuchScreen extends ConsumerWidget {
       appBar: AppBar(
         title: Text('Kassenbuch – $clientName'),
         actions: [
+          IconButton(
+            tooltip: 'Monatsauszug (PDF)',
+            icon: const Icon(Symbols.picture_as_pdf),
+            onPressed: () => _exportMonth(context, ref),
+          ),
           IconButton(
             tooltip: 'Eintrag erfassen',
             icon: const Icon(Symbols.add),
@@ -173,6 +179,87 @@ class KassenbuchScreen extends ConsumerWidget {
         clientId: clientId,
         existing: existing,
       ),
+    );
+  }
+
+  Future<void> _exportMonth(BuildContext context, WidgetRef ref) async {
+    final month = await _pickMonth(context);
+    if (month == null) return;
+    if (!context.mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final svc = ref.read(kassenbuchServiceProvider);
+      final alle = await svc.loadForClient(clientId);
+      final vorher = await svc.saldoBeforeMonth(clientId, month);
+      final path = await PdfReportService().generateKassenbuchMonthlyStatement(
+        clientId: clientId,
+        clientName: clientName,
+        month: month,
+        saldoVorMonat: vorher,
+        eintraege: alle,
+      );
+      messenger.showSnackBar(
+        SnackBar(content: Text('Monatsauszug gespeichert: $path')),
+      );
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('Fehler: $e')));
+    }
+  }
+
+  Future<DateTime?> _pickMonth(BuildContext context) async {
+    final now = DateTime.now();
+    return showDialog<DateTime>(
+      context: context,
+      builder: (ctx) {
+        int year = now.year;
+        int month = now.month;
+        return StatefulBuilder(
+          builder: (ctx, setDialog) => AlertDialog(
+            title: const Text('Monatsauszug — Monat waehlen'),
+            content: SizedBox(
+              width: 320,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  DropdownButtonFormField<int>(
+                    value: month,
+                    decoration: const InputDecoration(labelText: 'Monat'),
+                    items: List.generate(12, (i) => i + 1)
+                        .map((m) => DropdownMenuItem(
+                              value: m,
+                              child: Text(DateFormat('MMMM', 'de_DE')
+                                  .format(DateTime(2024, m))),
+                            ))
+                        .toList(),
+                    onChanged: (v) => setDialog(() => month = v ?? month),
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<int>(
+                    value: year,
+                    decoration: const InputDecoration(labelText: 'Jahr'),
+                    items: List.generate(6, (i) => now.year - 2 + i)
+                        .map((y) => DropdownMenuItem(
+                            value: y, child: Text('$y')))
+                        .toList(),
+                    onChanged: (v) => setDialog(() => year = v ?? year),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: const Text('Abbrechen'),
+              ),
+              FilledButton(
+                onPressed: () =>
+                    Navigator.of(ctx).pop(DateTime(year, month, 1)),
+                child: const Text('Export'),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
