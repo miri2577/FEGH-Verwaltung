@@ -55,7 +55,10 @@ Write-Host ""
 # --- Java pruefen ----------------------------------------------
 Write-Step "Java pruefen"
 if (Test-Command java) {
-    $ver = (& java -version 2>&1 | Select-Object -First 1)
+    # Java schreibt -version nach stderr. PowerShell 5.1 produziert
+    # einen NativeCommandError bei 2>&1 und bricht mit ErrorAction=Stop
+    # ab; deshalb via cmd.exe umleiten.
+    $ver = (cmd /c 'java -version 2>&1') | Select-Object -First 1
     Write-OK "Java vorhanden: $ver"
 } else {
     Write-Warn2 "Java (JRE 11+) wurde nicht gefunden."
