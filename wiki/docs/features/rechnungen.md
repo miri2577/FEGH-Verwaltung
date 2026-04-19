@@ -12,13 +12,15 @@ Das Modul nutzt das geteilte Paket `fegh_billing`, das zwischen Doku-App und Ver
 
 - **Modelle**: `Rechnung`, `RechnungsPosition`, `RechnungEmpfaenger`, `Kostentraeger`, `UstBefreiungsgrund`.
 - **Service**: `XRechnungService` generiert den UBL 2.1 XML-Output mit korrektem Namespace, CustomizationID `urn:cen.eu:en16931:2017#compliant#urn:xoev-de:kosit:standard:xrechnung_3.0`.
-- **VATEX-DE-Codes** fuer Steuerbefreiungsgruende, insbesondere die drei EGH-typischen:
+- **VATEX-Codes** fuer Steuerbefreiungsgruende nach KoSIT-Codeliste 3.0. §4 UStG-Befreiungen werden auf die korrespondierende MwStSystRL-Vorschrift abgebildet:
 
-| Paragraph | VATEX-DE | Anwendung |
-|-----------|----------|-----------|
-| §4 Nr. 16 h UStG | `VATEX-DE-016-h` | Leistungen der Eingliederungshilfe |
-| §4 Nr. 18 UStG | `VATEX-DE-018` | Leistungen der anerkannten Wohlfahrtspflege |
-| §4 Nr. 25 UStG | `VATEX-DE-025` | Jugendhilfeleistungen |
+| Paragraph | VATEX-EU (KoSIT 3.0) | MwStSystRL | Anwendung |
+|-----------|----------------------|------------|-----------|
+| §4 Nr. 16 h UStG | `VATEX-EU-132-1G` | Art. 132(1)(g) | Leistungen der Eingliederungshilfe |
+| §4 Nr. 18 UStG | `VATEX-EU-132-1G` | Art. 132(1)(g) | Leistungen der anerkannten Wohlfahrtspflege |
+| §4 Nr. 25 UStG | `VATEX-EU-132-1H` | Art. 132(1)(h) | Jugendhilfeleistungen |
+
+Der `TaxExemptionReasonCode` im UBL-XML wird auf den jeweiligen VATEX-EU-Wert gesetzt, der `TaxExemptionReason` traegt den deutschen Klartext (z. B. „Steuerfreie Leistung nach §4 Nr. 16 Buchst. h UStG").
 
 ## Ablauf
 
