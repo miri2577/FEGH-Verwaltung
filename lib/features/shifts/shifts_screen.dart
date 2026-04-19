@@ -1,3 +1,8 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
+import 'package:fegh_core/fegh_core.dart' show ShiftIcsExporter;
+import 'package:file_saver/file_saver.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_symbols_icons/symbols.dart';
@@ -6,6 +11,8 @@ import '../../models/shift.dart';
 import '../../models/employee.dart';
 import '../../providers/shift_provider.dart';
 import '../../providers/employee_provider.dart';
+import 'shift_swap_create_dialog.dart';
+import 'shift_swap_screen.dart';
 import 'widgets/shift_card.dart';
 import 'widgets/shift_form_dialog.dart';
 
@@ -93,6 +100,21 @@ class _ShiftsScreenState extends ConsumerState<ShiftsScreen> with SingleTickerPr
                   onPressed: () => _refreshShifts(ref),
                   icon: const Icon(Symbols.refresh, size: 18),
                   label: const Text('Aktualisieren'),
+                ),
+                const SizedBox(width: 12),
+                OutlinedButton.icon(
+                  onPressed: () => _exportIcs(),
+                  icon: const Icon(Symbols.calendar_month, size: 18),
+                  label: const Text('iCal-Export'),
+                ),
+                const SizedBox(width: 12),
+                OutlinedButton.icon(
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                        builder: (_) => const ShiftSwapScreen()),
+                  ),
+                  icon: const Icon(Symbols.swap_horiz, size: 18),
+                  label: const Text('Tausch-Anfragen'),
                 ),
                 const SizedBox(width: 12),
                 FilledButton.icon(
@@ -348,6 +370,41 @@ class _ShiftsScreenState extends ConsumerState<ShiftsScreen> with SingleTickerPr
     ref.read(shiftsProvider.notifier).refresh();
   }
 
+  Future<void> _exportIcs() async {
+    final shifts = ref.read(shiftsProvider).valueOrNull ?? const <Shift>[];
+    if (shifts.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Keine Schichten zum Exportieren.')),
+      );
+      return;
+    }
+    final employees = ref.read(employeesProvider).valueOrNull ?? const <Employee>[];
+    final nameById = {for (final e in employees) e.id: e.fullName};
+    final ics = ShiftIcsExporter.export(
+      shifts,
+      calName: 'FEGH Dienstplan',
+      employeeNameResolver: (id) => nameById[id] ?? id,
+    );
+    final bytes = Uint8List.fromList(utf8.encode(ics));
+    try {
+      await FileSaver.instance.saveFile(
+        name: 'fegh-dienstplan',
+        bytes: bytes,
+        ext: 'ics',
+        mimeType: MimeType.other,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('iCal mit ${shifts.length} Schichten exportiert.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Export fehlgeschlagen: $e')),
+      );
+    }
+  }
+
   void _showAddShiftDialog() {
     showDialog(
       context: context,
@@ -398,6 +455,18 @@ class _ShiftsScreenState extends ConsumerState<ShiftsScreen> with SingleTickerPr
           ),
         ),
         actions: [
+          if (shift.status == ShiftStatus.scheduled)
+            TextButton.icon(
+              onPressed: () {
+                Navigator.of(context).pop();
+                showDialog(
+                  context: context,
+                  builder: (_) => ShiftSwapCreateDialog(shift: shift),
+                );
+              },
+              icon: const Icon(Symbols.swap_horiz, size: 18),
+              label: const Text('Tausch anbieten'),
+            ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
             child: const Text('Schließen'),

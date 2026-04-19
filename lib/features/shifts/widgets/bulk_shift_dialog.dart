@@ -5,6 +5,7 @@ import '../../../models/shift.dart';
 import '../../../models/employee.dart';
 import '../../../providers/employee_provider.dart';
 import '../../../providers/shift_provider.dart';
+import '../../../services/shift_conflict_checker.dart';
 
 class BulkShiftDialog extends ConsumerStatefulWidget {
   const BulkShiftDialog({super.key});
@@ -634,39 +635,102 @@ class _BulkShiftDialogState extends ConsumerState<BulkShiftDialog> {
       return;
     }
 
-    final shifts = <Shift>[];
+    final shifts = _generatePlannedShifts();
+
+    // ArbZG-Konflikte pruefen: gegen existierende Schichten + bereits
+    // generierte Batch-Schichten pruefen, damit sich die neuen Schichten
+    // untereinander nicht in Luft-Konflikten zerreissen.
+    final existing = ref.read(shiftsProvider).valueOrNull ?? const [];
+    final allConflicts = <ShiftConflict>[];
+    final accumulated = <Shift>[...existing];
+    for (final s in shifts) {
+      final c = ShiftConflictChecker.check(s, accumulated);
+      allConflicts.addAll(c);
+      accumulated.add(s);
+    }
+
+    final blocking =
+        allConflicts.where((c) => c.severity == ShiftConflictSeverity.blocking).toList();
+    final warnings =
+        allConflicts.where((c) => c.severity == ShiftConflictSeverity.warning).toList();
+
+    if (blocking.isNotEmpty) {
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text('${blocking.length} blockierende Konflikte'),
+          content: SizedBox(
+            width: 420,
+            child: _conflictList(blocking),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Abbrechen'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
+    if (warnings.isNotEmpty) {
+      if (!mounted) return;
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text('${warnings.length} Warnungen'),
+          content: SizedBox(
+            width: 420,
+            child: _conflictList(warnings),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('Abbrechen'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: Text('Trotzdem ${shifts.length} Schichten erstellen'),
+            ),
+          ],
+        ),
+      );
+      if (ok != true) return;
+    }
+
+    // Add shifts to provider
+    for (final shift in shifts) {
+      await ref.read(shiftsProvider.notifier).addShift(shift);
+    }
+
+    if (!mounted) return;
+    Navigator.of(context).pop();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('${shifts.length} Schichten wurden erfolgreich erstellt')),
+    );
+  }
+
+  List<Shift> _generatePlannedShifts() {
+    final result = <Shift>[];
     DateTime currentDate = _startDate;
-
-    while (currentDate.isBefore(_endDate) || currentDate.isAtSameMomentAs(_endDate)) {
-      bool shouldCreateShift = false;
-
-      if (_creationMode == 'daily') {
-        shouldCreateShift = true;
-      } else {
-        shouldCreateShift = _selectedWeekdays.contains(currentDate.weekday);
-      }
-
-      if (shouldCreateShift) {
+    while (currentDate.isBefore(_endDate) ||
+        currentDate.isAtSameMomentAs(_endDate)) {
+      final shouldCreate = _creationMode == 'daily'
+          ? true
+          : _selectedWeekdays.contains(currentDate.weekday);
+      if (shouldCreate) {
         for (final employeeId in _selectedEmployeeIds) {
-          final startDateTime = DateTime(
-            currentDate.year,
-            currentDate.month,
-            currentDate.day,
-            _startTime.hour,
-            _startTime.minute,
-          );
-
-          final endDateTime = DateTime(
-            currentDate.year,
-            currentDate.month,
-            currentDate.day,
-            _endTime.hour,
-            _endTime.minute,
-          );
-
+          final startDateTime = DateTime(currentDate.year, currentDate.month,
+              currentDate.day, _startTime.hour, _startTime.minute);
+          final endDateTime = DateTime(currentDate.year, currentDate.month,
+              currentDate.day, _endTime.hour, _endTime.minute);
           final now = DateTime.now();
-          final shift = Shift(
-            id: now.millisecondsSinceEpoch.toString() + employeeId + currentDate.day.toString(),
+          result.add(Shift(
+            id: now.millisecondsSinceEpoch.toString() +
+                employeeId +
+                currentDate.day.toString(),
             employeeId: employeeId,
             startTime: startDateTime,
             endTime: endDateTime,
@@ -675,23 +739,40 @@ class _BulkShiftDialogState extends ConsumerState<BulkShiftDialog> {
             hourlyRate: 0,
             createdAt: now,
             updatedAt: now,
-          );
-
-          shifts.add(shift);
+          ));
         }
       }
-
       currentDate = currentDate.add(const Duration(days: 1));
     }
+    return result;
+  }
 
-    // Add shifts to provider
-    for (final shift in shifts) {
-      await ref.read(shiftsProvider.notifier).addShift(shift);
-    }
-
-    Navigator.of(context).pop();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('${shifts.length} Schichten wurden erfolgreich erstellt')),
+  Widget _conflictList(List<ShiftConflict> list) {
+    return ListView.builder(
+      shrinkWrap: true,
+      itemCount: list.length,
+      itemBuilder: (_, i) {
+        final c = list[i];
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 3),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                c.severity == ShiftConflictSeverity.blocking
+                    ? Symbols.block
+                    : Symbols.warning,
+                size: 16,
+                color: c.severity == ShiftConflictSeverity.blocking
+                    ? Colors.red
+                    : Colors.orange,
+              ),
+              const SizedBox(width: 8),
+              Expanded(child: Text(c.message, style: const TextStyle(fontSize: 12))),
+            ],
+          ),
+        );
+      },
     );
   }
 }

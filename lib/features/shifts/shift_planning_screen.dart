@@ -5,6 +5,7 @@ import '../../models/shift.dart';
 import '../../models/employee.dart';
 import '../../providers/shift_provider.dart';
 import '../../providers/employee_provider.dart';
+import '../../services/shift_conflict_checker.dart';
 import 'widgets/shift_calendar_widget.dart';
 import 'widgets/shift_planning_sidebar.dart';
 import 'widgets/bulk_shift_dialog.dart';
@@ -306,19 +307,141 @@ class _ShiftPlanningScreenState extends ConsumerState<ShiftPlanningScreen> {
     _createNewShift(dateTime: dateTime);
   }
 
-  void _handleShiftDrag(Shift shift, DateTime newStartTime) {
+  Future<void> _handleShiftDrag(Shift shift, DateTime newStartTime) async {
+    if (shift.status == ShiftStatus.completed ||
+        shift.status == ShiftStatus.inProgress) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Laufende oder abgeschlossene Schichten koennen '
+            'nicht verschoben werden.'),
+      ));
+      return;
+    }
     final duration = shift.endTime.difference(shift.startTime);
     final newEndTime = newStartTime.add(duration);
-
-    final updatedShift = shift.copyWith(
+    final moved = shift.copyWith(
       startTime: newStartTime,
       endTime: newEndTime,
     );
 
-    ref.read(shiftsProvider.notifier).updateShift(updatedShift);
+    final existing = ref.read(shiftsProvider).valueOrNull ?? const <Shift>[];
+    final conflicts = ShiftConflictChecker.check(moved, existing);
+    final blocking = conflicts
+        .where((c) => c.severity == ShiftConflictSeverity.blocking)
+        .toList();
+    final warnings = conflicts
+        .where((c) => c.severity == ShiftConflictSeverity.warning)
+        .toList();
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Schicht verschoben')),
+    if (blocking.isNotEmpty) {
+      await _showConflictBlockedDialog(blocking);
+      // Drag rueckgaengig: Kalender zeigt intern bereits die neue Position,
+      // aber wir speichern nichts — beim naechsten Refresh erscheint wieder
+      // die alte Position.
+      setState(() {}); // triggered re-render aus stream
+      return;
+    }
+
+    if (warnings.isNotEmpty) {
+      final ok = await _showConflictWarningDialog(warnings);
+      if (ok != true) {
+        setState(() {});
+        return;
+      }
+    }
+
+    final original = shift;
+    await ref.read(shiftsProvider.notifier).updateShift(moved);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: const Text('Schicht verschoben.'),
+      action: SnackBarAction(
+        label: 'Rueckgaengig',
+        onPressed: () {
+          ref.read(shiftsProvider.notifier).updateShift(original);
+        },
+      ),
+    ));
+  }
+
+  Future<void> _showConflictBlockedDialog(
+      List<ShiftConflict> conflicts) async {
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Verschieben nicht moeglich'),
+        content: SizedBox(
+          width: 440,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Folgende Konflikte verhindern das Verschieben:'),
+              const SizedBox(height: 8),
+              ...conflicts.map((c) => Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 2),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Symbols.error, size: 16),
+                        const SizedBox(width: 6),
+                        Expanded(child: Text(c.message)),
+                      ],
+                    ),
+                  )),
+            ],
+          ),
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Verstanden'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<bool?> _showConflictWarningDialog(
+      List<ShiftConflict> conflicts) async {
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Konflikte erkannt'),
+        content: SizedBox(
+          width: 440,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Die Schicht erzeugt Warnungen:'),
+              const SizedBox(height: 8),
+              ...conflicts.map((c) => Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 2),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Symbols.warning, size: 16),
+                        const SizedBox(width: 6),
+                        Expanded(child: Text(c.message)),
+                      ],
+                    ),
+                  )),
+              const SizedBox(height: 8),
+              const Text('Trotzdem verschieben?'),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Trotzdem verschieben'),
+          ),
+        ],
+      ),
     );
   }
 
