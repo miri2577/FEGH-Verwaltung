@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!--
+  FEGH-Verwaltung ADML — deutsche Sprachdatei zur ADMX
+  Ablage: %SystemRoot%\PolicyDefinitions\de-DE\FEGH-Verwaltung.adml
+-->
+<policyDefinitionResources xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+                           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                           revision="1.0"
+                           schemaVersion="1.0">
+  <displayName>FEGH-Verwaltung</displayName>
+  <description>Gruppenrichtlinien-Vorlagen fuer FEGH-Verwaltung</description>
+
+  <resources>
+    <stringTable>
+      <string id="FeghVerwaltung">FEGH-Verwaltung</string>
+      <string id="FeghVerwaltung_Help">Richtlinien fuer die FEGH-Verwaltungs-App (Eingliederungshilfe-Personalverwaltung).</string>
+
+      <string id="CloudSettings">Cloud-Einstellungen</string>
+      <string id="OrganisationSettings">Organisation</string>
+      <string id="UpdateSettings">Updates</string>
+
+      <string id="CloudBaseUrl">Cloud-Basis-URL</string>
+      <string id="CloudBaseUrl_Help">Gibt die Basis-URL des Cloud-Speichers zentral vor. Nutzer koennen diese nicht mehr aendern. Beispiele: https://webdav.hidrive.strato.com/users/{user}/ , https://cloud.traeger.de/remote.php/dav/files/{user}/</string>
+
+      <string id="CloudProvider">Cloud-Provider</string>
+      <string id="CloudProvider_Help">Legt den Cloud-Provider fest (HiDrive, Nextcloud, ownCloud, generisches WebDAV). Nutzer-UI zeigt nur den festgelegten Provider.</string>
+      <string id="Provider_HiDrive">STRATO HiDrive</string>
+      <string id="Provider_Nextcloud">Nextcloud</string>
+      <string id="Provider_Owncloud">ownCloud</string>
+      <string id="Provider_Generic">Generisches WebDAV</string>
+
+      <string id="OrgId">Organisations-ID</string>
+      <string id="OrgId_Help">Zentral vorgegebene Organisations-ID fuer die Cloud-Struktur. Typisch der Kurzname des Traegers (z. B. "assistenz-ggmbh").</string>
+
+      <string id="AllowAutoUpdate">Automatische Updates erlauben</string>
+      <string id="AllowAutoUpdate_Help">Aktiviert: Die App darf selbststaendig nach Updates suchen und diese herunterladen. Deaktiviert: Updates werden ausschliesslich ueber das Deployment (Intune/MDM) bereitgestellt.</string>
+
+      <string id="EnforceSsoLogin">SSO-Login erzwingen</string>
+      <string id="EnforceSsoLogin_Help">Aktiviert: Nutzer koennen sich nur ueber OIDC-SSO anmelden, klassischer Cloud-Username-Login wird blockiert. Voraussetzung: Funktionierende OIDC-Konfiguration.</string>
+
+      <string id="SiemExportUrl">SIEM-Export-URL</string>
+      <string id="SiemExportUrl_Help">Wenn gesetzt, werden Audit-Events automatisch an die angegebene Syslog-Adresse (udp://host:port oder https://host/api/ingest) gestreamt. Leer = nur manueller Export im Admin-Tab.</string>
+    </stringTable>
+  </resources>
+</policyDefinitionResources>

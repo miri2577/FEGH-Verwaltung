@@ -75,6 +75,7 @@ nav:
     - Rollen und Berechtigungen: admin/rollen.md
     - Team-Keys verwalten: admin/team-keys.md
     - Single Sign-On (OIDC): admin/sso-oidc.md
+    - MDM-Deployment (Intune / GPO): admin/deployment.md
     - Sync-Diagnose: admin/sync-diagnose.md
   - Technik:
     - Architektur: technik/architektur.md

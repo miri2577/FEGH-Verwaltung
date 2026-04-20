@@ -114,7 +114,7 @@ Bewusst nicht Prio 1, weil der MVP zuerst fertig werden muss. Was echte Ausschre
 
 - [x] **SSO** via OIDC (Entra ID, Keycloak, Google) — neues Shared-Package `fegh_auth_oidc` mit OAuth Authorization Code + PKCE + RFC 8252 Loopback-Redirect, System-Browser (keine Webview), Tokens im secure_storage, Refresh-Flow, 13 Unit-Tests, Admin-UI (`SsoSettingsScreen`), Wiki-Seite
 - [ ] **SCIM-Provisioning** (User-Lifecycle aus HR/AD) — braucht Backend-Endpoint
-- [ ] **MDM/Intune-Deployment** — MSI-Paket mit ADMX-Policies, silent install, preconfig via Registry/JSON
+- [x] **MDM/Intune-Deployment** — MSIX-Paket via `msix`-Dart-Paket, ADMX-Templates (de-DE) mit 6 zentral konfigurierbaren Policies (Cloud-URL, Provider, OrgId, Auto-Update, SSO-Zwang, SIEM-URL), PowerShell-Build-Script, Wiki-Seite `admin/deployment.md`
 - [x] **SIEM-Export** des Audit-Logs — `SiemExporter` in fegh_compliance, 3 Formate (Syslog RFC 5424, ArcSight CEF, ECS JSON Lines), Filter (Zeitraum + Action-Prefix), 12 Unit-Tests, Admin-UI-Einstieg als Popup-Menu
 - [ ] **Schnittstellen zu Pflege-/Heimsoftware** — Vivendi, Medifox, Sinfonie (CSV/XML-Import+Export)
 

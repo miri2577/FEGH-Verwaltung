@@ -118,6 +118,36 @@ dev_dependencies:
   # rules and activating additional ones.
   flutter_lints: ^5.0.0
 
+  # Windows-MSIX-Build (Intune/MDM-kompatibles Installer-Format)
+  msix: ^3.16.7
+
+# ── MSIX-Build-Konfiguration ─────────────────────────────────────
+# Erzeugt ein MSIX-Paket mit:
+#   flutter pub run msix:create
+#
+# Siehe scripts/build-msix.ps1 fuer den vollstaendigen Build-Flow
+# inkl. Code-Signing.
+msix_config:
+  display_name: FEGH-Verwaltung
+  publisher_display_name: FEGH
+  identity_name: com.fegh.verwaltung
+  # Publisher: muss mit dem Subject eines Code-Signing-Zertifikats
+  # uebereinstimmen. Fuer interne Verteilung reicht ein selbst
+  # signiertes Zertifikat; fuer Store-Distribution braucht's ein
+  # EV-Code-Signing-Zertifikat.
+  publisher: CN=FEGH
+  msix_version: 0.3.0.0
+  logo_path: linux/runner/app_icon.png
+  # Start-Menue + Desktop-Shortcut werden automatisch erzeugt.
+  # Fuer Enterprise: Unattended-Install via Intune Win32-App.
+  capabilities: internetClient
+  architecture: x64
+  store: false
+  install_certificate: false
+  trim_logo: false
+  # Runtime-Bibliotheken packt MSIX automatisch ein (Flutter Engine,
+  # MS VC++ Redistributable). Keine zusaetzlichen Dependencies noetig.
+
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
 

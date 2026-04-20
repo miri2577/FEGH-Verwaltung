@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!--
+  FEGH-Verwaltung Group Policy ADMX Template
+  Ablage:
+    %SystemRoot%\PolicyDefinitions\FEGH-Verwaltung.admx
+    %SystemRoot%\PolicyDefinitions\de-DE\FEGH-Verwaltung.adml (Sprachdatei)
+
+  Konfigurierbare Einstellungen werden ueber die Registry unter
+  HKLM\Software\Policies\FEGH\Verwaltung bereitgestellt und von der
+  App beim Start gelesen (ueberschreiben User-Einstellungen).
+-->
+<policyDefinitions xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   revision="1.0"
+                   schemaVersion="1.0">
+  <policyNamespaces>
+    <target prefix="fegh"
+            namespace="FEGH.Verwaltung.Policies" />
+    <using prefix="windows"
+           namespace="Microsoft.Policies.Windows" />
+  </policyNamespaces>
+
+  <resources minRequiredRevision="1.0" />
+
+  <categories>
+    <category name="FeghVerwaltung"
+              displayName="$(string.FeghVerwaltung)"
+              explainText="$(string.FeghVerwaltung_Help)">
+    </category>
+    <category name="CloudSettings"
+              displayName="$(string.CloudSettings)">
+      <parentCategory ref="FeghVerwaltung" />
+    </category>
+    <category name="OrganisationSettings"
+              displayName="$(string.OrganisationSettings)">
+      <parentCategory ref="FeghVerwaltung" />
+    </category>
+    <category name="UpdateSettings"
+              displayName="$(string.UpdateSettings)">
+      <parentCategory ref="FeghVerwaltung" />
+    </category>
+  </categories>
+
+  <policies>
+
+    <!-- Cloud-URL zentral vorgeben -->
+    <policy name="CloudBaseUrl"
+            class="Machine"
+            displayName="$(string.CloudBaseUrl)"
+            explainText="$(string.CloudBaseUrl_Help)"
+            key="Software\Policies\FEGH\Verwaltung"
+            valueName="CloudBaseUrl">
+      <parentCategory ref="CloudSettings" />
+      <supportedOn ref="windows:SUPPORTED_Windows10" />
+      <elements>
+        <text id="CloudBaseUrl_Text"
+              valueName="CloudBaseUrl"
+              maxLength="256"
+              required="true" />
+      </elements>
+    </policy>
+
+    <!-- Cloud-Provider fest vorgeben (HiDrive, Nextcloud, ownCloud, Generic) -->
+    <policy name="CloudProvider"
+            class="Machine"
+            displayName="$(string.CloudProvider)"
+            explainText="$(string.CloudProvider_Help)"
+            key="Software\Policies\FEGH\Verwaltung"
+            valueName="CloudProvider">
+      <parentCategory ref="CloudSettings" />
+      <supportedOn ref="windows:SUPPORTED_Windows10" />
+      <elements>
+        <enum id="CloudProvider_Enum" valueName="CloudProvider">
+          <item displayName="$(string.Provider_HiDrive)">
+            <value>
+              <string>hidrive</string>
+            </value>
+          </item>
+          <item displayName="$(string.Provider_Nextcloud)">
+            <value>
+              <string>nextcloud</string>
+            </value>
+          </item>
+          <item displayName="$(string.Provider_Owncloud)">
+            <value>
+              <string>owncloud</string>
+            </value>
+          </item>
+          <item displayName="$(string.Provider_Generic)">
+            <value>
+              <string>generic</string>
+            </value>
+          </item>
+        </enum>
+      </elements>
+    </policy>
+
+    <!-- Organisations-ID zentral vorgeben -->
+    <policy name="OrgId"
+            class="Machine"
+            displayName="$(string.OrgId)"
+            explainText="$(string.OrgId_Help)"
+            key="Software\Policies\FEGH\Verwaltung"
+            valueName="OrgId">
+      <parentCategory ref="OrganisationSettings" />
+      <supportedOn ref="windows:SUPPORTED_Windows10" />
+      <elements>
+        <text id="OrgId_Text"
+              valueName="OrgId"
+              maxLength="64" />
+      </elements>
+    </policy>
+
+    <!-- Auto-Update erlauben/verbieten -->
+    <policy name="AllowAutoUpdate"
+            class="Machine"
+            displayName="$(string.AllowAutoUpdate)"
+            explainText="$(string.AllowAutoUpdate_Help)"
+            key="Software\Policies\FEGH\Verwaltung"
+            valueName="AllowAutoUpdate">
+      <parentCategory ref="UpdateSettings" />
+      <supportedOn ref="windows:SUPPORTED_Windows10" />
+      <enabledValue>
+        <decimal value="1" />
+      </enabledValue>
+      <disabledValue>
+        <decimal value="0" />
+      </disabledValue>
+    </policy>
+
+    <!-- OIDC-SSO-Pflicht (Endnutzer kann HiDrive-Login nicht mehr nutzen) -->
+    <policy name="EnforceSsoLogin"
+            class="Machine"
+            displayName="$(string.EnforceSsoLogin)"
+            explainText="$(string.EnforceSsoLogin_Help)"
+            key="Software\Policies\FEGH\Verwaltung"
+            valueName="EnforceSsoLogin">
+      <parentCategory ref="OrganisationSettings" />
+      <supportedOn ref="windows:SUPPORTED_Windows10" />
+      <enabledValue>
+        <decimal value="1" />
+      </enabledValue>
+      <disabledValue>
+        <decimal value="0" />
+      </disabledValue>
+    </policy>
+
+    <!-- SIEM-Export-URL (wenn gesetzt, werden Audits automatisch dorthin gepostet) -->
+    <policy name="SiemExportUrl"
+            class="Machine"
+            displayName="$(string.SiemExportUrl)"
+            explainText="$(string.SiemExportUrl_Help)"
+            key="Software\Policies\FEGH\Verwaltung"
+            valueName="SiemExportUrl">
+      <parentCategory ref="FeghVerwaltung" />
+      <supportedOn ref="windows:SUPPORTED_Windows10" />
+      <elements>
+        <text id="SiemExportUrl_Text"
+              valueName="SiemExportUrl"
+              maxLength="256" />
+      </elements>
+    </policy>
+
+  </policies>
+</policyDefinitions>
