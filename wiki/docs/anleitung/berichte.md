@@ -91,12 +91,12 @@ in den PDF-Kit-Tokens **zentral** geaendert — nicht pro Bericht.
 
 ### Exportwege
 
-Ein erzeugter Bericht wird **nicht automatisch** auf HiDrive abgelegt
+Ein erzeugter Bericht wird **nicht automatisch** auf den Cloud-Speicher abgelegt
 — die Entscheidung trifft der Mitarbeiter:
 
 - **Download auf PC** (Default) — ins lokale Verzeichnis
 - **Per Mail senden** (noch nicht aktiv) — geplantes Feature
-- **Auf HiDrive ablegen** — explizit auswaehlen; landet im Team-
+- **In Cloud ablegen** — explizit auswaehlen; landet im Team-
   Ordner unter `reports/YYYY-MM/`
 
 Fuer rechtssichere Archivierung empfiehlt sich ein separates DMS
@@ -183,4 +183,4 @@ Alle PDFs nutzen das gemeinsame `fegh_pdf_kit` mit:
 
 ## Archivierung
 
-PDFs werden nicht automatisch auf HiDrive abgelegt — Entscheidung des Sachbearbeiters, wohin exportiert wird. Fuer rechtssichere Archivierung empfiehlt sich ein externes DMS (z. B. ecoDMS, Docuware) mit OCR.
+PDFs werden nicht automatisch auf den Cloud-Speicher abgelegt — Entscheidung des Sachbearbeiters, wohin exportiert wird. Fuer rechtssichere Archivierung empfiehlt sich ein externes DMS (z. B. ecoDMS, Docuware) mit OCR.

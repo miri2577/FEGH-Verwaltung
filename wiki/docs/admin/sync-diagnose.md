@@ -23,7 +23,7 @@ Jeder Schritt gibt einen Status zurueck: gruen (OK), gelb (Warnung, nicht blocki
 ## Haeufige Fehlerbilder
 
 ### „Verbindung OK, aber 401 bei Schreiben"
-→ App-Passwort hat nicht die Berechtigung „WebDAV Business". Im HiDrive-Portal neu anlegen.
+→ App-Passwort hat keine Schreib-Berechtigung (bei HiDrive "WebDAV Business", bei Nextcloud/ownCloud "Files-Berechtigung" beim App-Token). Im Cloud-Kundenportal neu anlegen mit korrekten Scopes.
 
 ### „Passphrase leer"
 → Sync-Passphrase ist in den Einstellungen nicht gesetzt. Unter *Einstellungen → Sync-Passphrase* nachtragen.

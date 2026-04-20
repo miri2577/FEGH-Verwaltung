@@ -44,7 +44,7 @@ Admin Anja legt das Team an:
 
 **Was automatisch im Hintergrund passiert** (direkt beim Speichern):
 
-1. Auf HiDrive wird eine **Ordner-Hierarchie** angelegt:
+1. Im Cloud-Speicher (HiDrive / Nextcloud / ownCloud / WebDAV) wird eine **Ordner-Hierarchie** angelegt:
    ```
    /eingliederungshilfe/organizations/assistenz-ggmbh/teams/gruenstrasse/
      ├── clients/
@@ -66,7 +66,7 @@ Admin Anja legt das Team an:
 **16. September — Lars installiert App via Provisioning-QR.**
 
 Er bekommt von Anja einen QR-Code + PIN. Token enthaelt:
-- HiDrive-Credentials der Organisation
+- Cloud-Credentials der Organisation
 - Organisations-ID
 - Team-ID "gruenstrasse"
 - **Team-Key bereits entschluesselt** (im Token, mit der PIN erneut
@@ -160,7 +160,7 @@ Warum pro Team ein eigener Key, nicht ein Org-weiter?
 
 ## Lifecycle
 
-- **Neues Team** wird angelegt → erzeugt auf HiDrive einen Team-Ordner mit Unterstruktur (`clients/`, `schedules/`, `reports/`, `worktime/`)
+- **Neues Team** wird angelegt → erzeugt im Cloud-Speicher einen Team-Ordner mit Unterstruktur (`clients/`, `schedules/`, `reports/`, `worktime/`)
 - **Team-Key** wird automatisch generiert (AES-256) und verschluesselt in `administration/teams/<teamId>/team-key.bin` abgelegt
 - **Mitglieder-Geraete** bekommen den Team-Key bei ihrem naechsten Sync und koennen ab dann Daten lesen
 - **On Hold** — Team pausiert (z. B. Krankheitswelle), keine neuen Zuweisungen moeglich

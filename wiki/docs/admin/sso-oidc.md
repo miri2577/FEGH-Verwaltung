@@ -126,7 +126,7 @@ Der `Admin-Console → Tools → SSO / OIDC einrichten` bietet:
 Bewusste Phasung, damit SSO nicht in einem Big-Bang eingefuehrt wird:
 
 1. **Kein Login-Zwang.** Die App verlangt beim Start **keinen**
-   OIDC-Login. Der bestehende HiDrive-Username-Login ist weiter
+   OIDC-Login. Der bestehende Cloud-Username-Login ist weiter
    aktiv. Der SSO-Screen ist heute ein **Einrichtungs- und
    Test-Werkzeug** — nicht der Haupt-Loginpfad.
 2. **Keine Rollen-Zuordnung aus OIDC-Groups.** Die Rollen

@@ -33,8 +33,9 @@ sehen.
 
 **Tag 1 — Admin Anja hat die Verwaltungs-App frisch installiert.**
 
-1. **Einstellungen → Organisation → Cloud-Zugang**: HiDrive
-   URL, App-Passwort, Root-Pfad. "Verbindung testen" → gruener Haken.
+1. **Einstellungen → Organisation → Cloud-Zugang**: Provider-Typ
+   (HiDrive / Nextcloud / ownCloud / WebDAV), URL, App-Passwort,
+   Root-Pfad. "Verbindung testen" → gruener Haken.
 2. **Einstellungen → Organisation → Einrichtung**: Name "Assistenz
    gGmbH", Adresse, USt-ID, Bundesland Berlin, Logo hochladen.
 3. **Einstellungen → Organisation → Abrechnung**: Default-FLS-Stundensatz
@@ -44,14 +45,14 @@ sehen.
    generiert, Recovery-Codes angezeigt. Anja druckt, versiegelt,
    legt in den Tresor.
 5. **Einstellungen → Sicherheit → Backup**: Automatischer Lauf
-   alle 24 h aktivieren, Ablageort HiDrive `/backup/`.
+   alle 24 h aktivieren, Ablageort im Cloud-Speicher unter `/backup/`.
 
 **Tag 2 — Rollen-Datei pflegen.**
 
 1. `Einstellungen → Organisation → Rollen (roles.json)`
 2. Anja fuegt die Email-Adressen der Teamleitungen als
    `teamLead`-Eintraege ein, sich selbst als `orgAdmin`.
-3. Speichern → `roles.json` landet verschluesselt auf HiDrive unter
+3. Speichern → `roles.json` landet verschluesselt im Cloud-Speicher unter
    `administration/users/roles.json`.
 
 **Tag 3 — Admin-Verifizierung mit 2FA.**
@@ -79,8 +80,8 @@ Stundensatz`, setzt 54,50 statt 52,00, speichert.
 | Ebene | Wer setzt | Wo gespeichert | Wie verteilt |
 |-------|-----------|----------------|--------------|
 | Persoenlich | Mitarbeiter | Geraete-lokal (shared_prefs) | nicht verteilt |
-| Organisation | Admin | HiDrive unter `administration/` | Cloud-Sync |
-| Sicherheit | Admin | z. T. secure_storage (Keys), z. T. HiDrive (Policies) | differenziert |
+| Organisation | Admin | Cloud unter `administration/` | Cloud-Sync |
+| Sicherheit | Admin | z. T. secure_storage (Keys), z. T. Cloud (Policies) | differenziert |
 
 Persoenliche Einstellungen (Theme, Dashboard-Anordnung) gelten
 nur fuer den einen Mitarbeiter auf dem einen Geraet. Organisations-
@@ -135,14 +136,15 @@ Zugriff: AppBar in der Medikationsgaben-Ansicht → Symbol "PIN". Drei Falschein
 
 ### Cloud-Zugang
 
-- HiDrive-Benutzername, App-Passwort
+- Cloud-Provider (HiDrive / Nextcloud / ownCloud / Generic WebDAV)
+- Benutzername, App-Passwort
 - Alternative Provider: Nextcloud, ownCloud, generischer WebDAV
 - Basis-URL (ggf. mit Port)
 - Root-Ordner fuer die Organisation
 
 ### Rollen
 
-`roles.json` auf HiDrive unter `administration/users/roles.json`. Enthaelt pro Benutzer:
+`roles.json` im Cloud-Speicher unter `administration/users/roles.json`. Enthaelt pro Benutzer:
 
 - Rolle (`orgAdmin`, `pvAdmin`, `teamLead`, `teamMember`, `orgAuditor`)
 - Teamzuordnung (fuer `teamLead`/`teamMember`)
@@ -181,7 +183,7 @@ Optional. Nutzt RFC 6238 (30s Zeitraster, SHA-1/256). Kompatibel mit allen gaeng
 
 ### Backup
 
-Automatischer Backup-Lauf alle 24 Stunden. Erzeugt verschluesseltes Envelope (`fegh_backup`) mit allen Organisationsdaten. Ablageort: HiDrive `backup/<timestamp>.fegh.bak`. Wiederherstellung via `RecoveryService`.
+Automatischer Backup-Lauf alle 24 Stunden. Erzeugt verschluesseltes Envelope (`fegh_backup`) mit allen Organisationsdaten. Ablageort: Cloud unter `backup/<timestamp>.fegh.bak`. Wiederherstellung via `RecoveryService`.
 
 ## Reset
 

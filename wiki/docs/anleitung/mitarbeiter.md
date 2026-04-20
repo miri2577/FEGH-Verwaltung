@@ -46,14 +46,14 @@ Wochensoll) auf diese ID.
 **02. Maerz — Anja generiert den Provisioning-QR-Code.**
 
 1. `Mitarbeiter → Sven → Einladen`
-2. System erzeugt verschluesselten Token (enthaelt HiDrive-Zugang,
+2. System erzeugt verschluesselten Token (enthaelt Cloud-Zugang,
    Team-Key, Rolle) + 6-stellige PIN.
 3. QR wird als Bildschirm + PDF angezeigt.
 4. Anja gibt Sven PIN und QR getrennt (PIN muendlich, QR per beA).
 
 **03. Maerz — Sven installiert Doku-App, scannt QR, PIN eingeben.**
 
-Sein Geraet ist sofort einsatzfaehig — ohne dass er je HiDrive-
+Sein Geraet ist sofort einsatzfaehig — ohne dass er je Cloud-
 Credentials gesehen hat. Beim ersten Login schreibt das System:
 `auth.login method=provisioning userId=sven@…`
 
@@ -69,7 +69,7 @@ Medikationsmodul bei BtM-Gaben als Zeuge quittieren.
 2. Was automatisch passiert:
    - Ab 01.11.: Sven kann nicht mehr in die App einloggen
      (Rollen-Check blockiert).
-   - HiDrive-App-Passwort wird nicht rotiert (andere Mitarbeiter
+   - Cloud-App-Passwort wird nicht rotiert (andere Mitarbeiter
      nutzen es weiter); statt dessen wird Svens Team-Mitgliedschaft
      entfernt → er hat keinen Team-Key mehr lokal.
    - Alle **historischen Eintraege** (Gaben, Kassenbuch-Buchungen,
@@ -143,7 +143,7 @@ Statt Mitarbeiter von Hand pro Geraet einzurichten, erzeugt der Admin einen **Pr
 1. In der Einladungs-Ansicht Mitarbeiter auswaehlen
 2. Rolle und Teamzuweisung bestaetigen
 3. Token mit PIN geschuetzt als QR-Code anzeigen
-4. Mitarbeiter scannt am neuen Geraet, gibt PIN ein, Profil wird automatisch eingerichtet (HiDrive-Zugang, Team-Key, Rolle)
+4. Mitarbeiter scannt am neuen Geraet, gibt PIN ein, Profil wird automatisch eingerichtet (Cloud-Zugang, Team-Key, Rolle)
 
 Siehe [Mitarbeiter einladen](../admin/einladung.md) fuer den Admin-Pfad.
 
