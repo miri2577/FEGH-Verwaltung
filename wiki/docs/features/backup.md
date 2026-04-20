@@ -2,6 +2,139 @@
 
 Die Verwaltung bietet ueber das Shared-Package **`fegh_backup`** verschluesselte Voll-Backups aller Nutzdaten. Gleiche Bausteine nutzen Doku-App und Verwaltung.
 
+## Funktionsweise im Detail
+
+### Das Problem, das wir loesen
+
+Eine Einrichtung kann ohne ihre Daten nicht arbeiten. Verlust
+passiert typisch durch:
+
+- **Geraeteschaden / -verlust**: Tablet faellt, Laptop geklaut
+- **Software-Fehler**: App crasht, Datenbank-File wird korrupt
+- **Bedienfehler**: "Einstellungen zuruecksetzen" zu breit
+  interpretiert
+- **Malware**: Ransomware verschluesselt die Dateien vor Ort
+- **Cloud-Ausfall**: der Cloud-Provider hat einen seltenen
+  Totalausfall
+
+Ohne regelmaessiges Backup heisst das: **Monate an Dokumentation
+weg**, Rechnungsstellung blockiert, Klientenakte
+rekonstruierbar. Mit Backup heisst es: **max. 24 Stunden Rueckstand**
+(Backup-Zyklus), Wiederherstellung in ~15 Minuten.
+
+### Konkretes Szenario: Der Tag, an dem der Verwaltungs-PC stirbt
+
+**Donnerstag 09:00 — Anjas Verwaltungs-PC faehrt nicht mehr hoch.** Festplatte hat einen Schaden, Daten sind lokal verloren.
+
+**Kein Grund zur Panik**: Das Backup lief zuletzt am Mittwoch
+03:00 Uhr automatisch — also 30 Stunden alt. Alle Daten bis
+Mittwoch Abend sind gesichert.
+
+**09:30 — Anja hat neuen Ersatz-PC.**
+
+1. Verwaltungs-App frisch installieren.
+2. Beim Start: Setup-Wizard → "Backup wiederherstellen" waehlen.
+3. Cloud-Credentials eingeben (die liegen im Tresor bei den
+   Recovery-Codes).
+4. System findet unter `/backup/` mehrere Voll-Backups, neuestes
+   von Mittwoch Nacht wird ausgewaehlt.
+5. Anja gibt ihre Sync-Passphrase ein → Backup wird entschluesselt.
+6. `SharedPreferences` werden wiederhergestellt: Klienten, Teams,
+   Rechnungen, Medikationsplaene, Kassenbuch — alles zurueck.
+
+**10:15 — Einsatzfaehig.** Anja hat 75 Minuten Ausfall und 30
+Stunden an Daten verloren. Fuer die 30 Stunden muss sie:
+
+- Donnerstag-Vormittag-Termine aus dem Tablet der Mitarbeiterin
+  (Mia hat dort bereits offline dokumentiert) uebernehmen — geht
+  ueber Cloud-Sync automatisch.
+- Eine Bar-Zahlung vom Donnerstag 08:00 manuell nachbuchen.
+
+**11:00 — Everything back to normal.**
+
+### Was konkret im Backup ist
+
+Ein Backup ist eine **verschluesselte Datei** (typisch 500 KB - 5 MB
+je nach Einrichtungsgroesse), die folgende SharedPreferences-Keys
+enthaelt:
+
+- `clients_v1` (alle Klient-Records)
+- `teams_v1` (Team-Struktur + Mitgliedschaften)
+- `employees_v1` (Mitarbeiter-Daten)
+- `shifts_v1` (Dienstplan)
+- `shift_swap_requests_v1` (Tausch-Anfragen)
+- `medications_v1` + `medication_administrations_v1`
+- `btm_entries_v1` + `btm_destructions_v1`
+- `kassenbuch_eintraege_v1` + `kassenbuch_monatsabschluesse_v1`
+- `wohnraum_v1`
+- `rechnungen_v1` + `rechnung_empfaenger_v1`
+- `settings_v1`
+- `audit.log` (aktuelles Log)
+
+**Nicht im Backup**:
+- Keys (MEK, DEK, Team-Keys) — die sind geraetegebunden und
+  separat per Recovery-Code wiederherstellbar.
+- Transiente Cache-Dateien.
+- Lokale Einstellungen des einzelnen Geraets (Theme, Layout).
+
+### Das Backup-Envelope-Format
+
+`fegh_backup` schreibt ein **self-contained, AES-256-GCM
+verschluesseltes Envelope**:
+
+```
+BEGIN FEGH BACKUP v1
+version: 1
+created: 2026-04-20T03:00:00Z
+appVersion: 0.3.0-beta.1
+orgId: assistenz-ggmbh
+records: 12
+checksum: SHA-256:<hex>
+--- encrypted payload ---
+<AES-256-GCM ciphertext>
+--- end encrypted payload ---
+END FEGH BACKUP v1
+```
+
+Entschluesselung braucht **zwei Dinge**:
+
+1. Die **Sync-Passphrase** (aus Settings, PBKDF2-abgeleitet)
+2. Die **Checksum** muss uebereinstimmen (gegen bit-rot oder
+   Truncation)
+
+Der `RecoveryService` validiert beides und fuehrt den Restore
+atomar durch: entweder alles oder nichts.
+
+### Rhythmus und Retention
+
+- **Standard**: 1x taeglich 03:00 Uhr, Ablage in Cloud `backup/`
+- **Retention**: 30 Tage rolliert, danach wird das aelteste Backup
+  geloescht
+- **Manuell**: jederzeit ueber `Admin-Console → Backup → Jetzt
+  sichern` ausloesbar
+
+Fuer Einrichtungen mit sehr hohem Schutzbedarf: Zusaetzliches
+Offline-Backup auf verschluesseltem USB-Stick (manuell, 1x pro
+Monat) sorgt fuer Immunitaet gegen Ransomware-Angriffe, die auch
+die Cloud erreichen.
+
+### Rechtlicher Hintergrund
+
+- **Art. 32 Abs. 1 lit. b DSGVO** — "Faehigkeit, die
+  Vertraulichkeit, Integritaet, Verfuegbarkeit und Belastbarkeit
+  der Systeme und Dienste im Zusammenhang mit der Verarbeitung auf
+  Dauer sicherzustellen". Backup = Verfuegbarkeit.
+- **Art. 32 Abs. 1 lit. c DSGVO** — "Faehigkeit, die Verfuegbarkeit
+  der personenbezogenen Daten und den Zugang zu ihnen bei einem
+  physischen oder technischen Zwischenfall rasch
+  wiederherzustellen". Wiederherstellungszeit = Teil des
+  Notfallkonzepts.
+- **BSI IT-Grundschutz CON.3** — Datensicherungskonzept.
+  Die Retention + Offline-Option erfuellt die Anforderungen fuer
+  mittleren Schutzbedarf.
+- **HGB §257** — Rechnungsdaten 10 Jahre aufbewahren; das
+  Cloud-Backup plus ein jaehrliches Archiv-Backup deckt das ab.
+
 ## Was wird gesichert?
 
 Das Backup umfasst die wichtigen SharedPreferences-Keys:
