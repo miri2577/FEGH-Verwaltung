@@ -2,6 +2,103 @@
 
 Die Sync-Diagnose ist ein gefuehrter Test-Lauf, der nach jeder neuen Einrichtung und bei Fehlerbildern den Cloud-Sync Schritt fuer Schritt prueft.
 
+## Funktionsweise im Detail
+
+### Das Problem, das wir loesen
+
+"Der Cloud-Sync geht nicht" hat **zehn moegliche Ursachen**:
+falsche URL, abgelaufenes App-Passwort, abgelaufenes TLS-Zertifikat,
+Quota voll, fehlender Root-Ordner, falsche Passphrase, Firewall-
+Blockade, Proxy-Konfigurationsfehler, zerlegte Berechtigungen,
+gecachter alter Team-Key. In einer Fehlermeldung steht typisch
+"HTTP 401" oder "Verbindung fehlgeschlagen" — das reicht nicht, um
+gezielt zu handeln.
+
+Die Sync-Diagnose laeuft alle relevanten Schritte einzeln durch
+und gibt pro Schritt einen eigenen Status mit **konkreter
+Handlungsempfehlung**. Statt "Sync geht nicht" steht dann: "Schritt
+3 von 8: Root-Verzeichnis nicht lesbar — Cloud-Quota pruefen oder
+Root-Pfad korrigieren."
+
+### Konkretes Szenario: Mia kann seit gestern nicht mehr syncen
+
+**Dienstag 14:00 — Mia meldet: "Meine App sagt 'Sync fehlgeschlagen' seit heute morgen."**
+
+Statt zu raten, laesst Anja sie die Sync-Diagnose laufen:
+
+1. Mia: `Einstellungen → Admin-Tools → Sync-Diagnose starten`
+2. Die Diagnose laeuft die 8 Schritte ab:
+
+| Schritt | Ergebnis |
+|---------|----------|
+| 1. Cloud-Verbindung (TCP + TLS) | ✓ |
+| 2. Authentifizierung (App-Passwort) | **✗ 401 Unauthorized** |
+| 3. Root-Verzeichnis | (uebersprungen) |
+| 4. Organisations-Ordner | (uebersprungen) |
+| 5. Sync-Passphrase | (uebersprungen) |
+| 6. Teams | (uebersprungen) |
+| 7. Schreibtest | (uebersprungen) |
+| 8. Rewrap-Check | (uebersprungen) |
+
+**Diagnose zeigt an:**
+
+> Schritt 2/8 fehlgeschlagen: Authentifizierung
+>
+> Moegliche Ursachen:
+> - App-Passwort im Cloud-Kundenportal wurde rotiert
+> - App-Passwort hat nicht die Schreib-Berechtigung
+> - Benutzer-Account im Cloud-Kundenportal wurde gesperrt
+>
+> Loesung: App-Passwort im Cloud-Portal pruefen oder neu anlegen.
+
+3. Anja schaut in ihr HiDrive-Konto: tatsaechlich — die IT hatte
+   am Montagabend eine generelle Passwort-Rotation eingespielt. Das
+   alte App-Passwort ist weg.
+4. Anja erzeugt ein neues App-Passwort, tippt es bei Mia im
+   `Einstellungen → Cloud-Zugang` ein, Sync laeuft wieder.
+
+Statt stundenlanges Raten — in 3 Minuten geloest.
+
+### Die 8 Pruefschritte im Detail
+
+1. **Cloud-Verbindung** — TCP-Handshake + TLS-Zertifikat. Versagt
+   bei Firewall-Blockade, falschem Port, DNS-Problem, abgelaufenem
+   Zertifikat.
+2. **Authentifizierung** — HTTP-401-Check. Versagt bei falschem
+   App-Passwort.
+3. **Root-Verzeichnis** — `PROPFIND` auf den Root-Pfad. Versagt bei
+   falschem Pfad oder fehlender Lese-Berechtigung.
+4. **Organisations-Ordner** — Existiert `organizations/<orgId>`?
+   Versagt bei fehlendem Setup.
+5. **Sync-Passphrase** — Kann die Passphrase das Kanary-Record
+   entschluesseln? Versagt bei leerer oder falscher Passphrase.
+6. **Teams** — Liest die Team-Liste. Versagt bei fehlender
+   `members.json` oder Team-Key-Fehlern.
+7. **Schreibtest** — `PUT` und `DELETE` einer Test-Datei. Versagt bei
+   fehlender Schreib-Berechtigung oder Quota-Ueberschreitung.
+8. **Rewrap-Check** — Koennen bestehende Records mit dem aktuellen
+   DEK entschluesselt werden? Versagt nach Passwort-Aenderung ohne
+   Rewrap.
+
+### Wann lohnt sich die Diagnose?
+
+- **Nach jeder Ersteinrichtung** einmal durchspielen — schliesst
+  alle Konfigurationsfehler aus.
+- **Bei Fehlermeldungen** sofort — bevor geraten wird.
+- **Nach MEK-Rotation** — pruefen, dass alle Re-Encryptions durchliefen.
+- **Nach Cloud-Provider-Wechsel** — Umstellung von HiDrive auf
+  Nextcloud macht vielleicht aus einem beratenden Moment einen
+  produktiven.
+
+### Rechtlicher Hintergrund
+
+- **Art. 32 DSGVO** — Sicherheit der Verarbeitung. Sync-Probleme
+  koennen zu Datenverlust fuehren (abgelehnte Schreibvorgaenge auf
+  dem Tablet); die Diagnose ist Teil der Betriebssicherheit.
+- **BSI IT-Grundschutz BSIK-CON.8** — Protokollierung + Beseitigung
+  von Stoerungen; die Diagnose-Ergebnisse koennen als Incident-
+  Dokumentation archiviert werden.
+
 ## Aufruf
 
 Einstellungen → *Admin-Tools* → *Sync-Diagnose starten*.
