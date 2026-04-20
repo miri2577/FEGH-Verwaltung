@@ -7,6 +7,115 @@ Das Berichte-Modul exportiert Daten aus der Verwaltungs-App in PDF, XLSX, CSV un
 !!! note "Berechtigung"
     Berichte erstellen: alle Mitarbeiter (nur eigene Daten) oder Teamleitung (Team-Sicht) oder Admin (organisationsweit).
 
+## Funktionsweise im Detail
+
+### Das Problem, das wir loesen
+
+Eine Einrichtung produziert im Jahr **Dutzende unterschiedliche
+Berichte** an sechs verschiedene Zielgruppen:
+
+- **Kostentraeger**: Quartalsberichte, Jahresberichte, Wirksamkeits-
+  nachweise, Rechnungen.
+- **Lohnbuchhaltung**: Monats-Zeitnachweise, Lohnsteuer-Monatsabschluss.
+- **Finanzamt**: Jahresabschluss, USt-Voranmeldung.
+- **Betriebsrat**: Ueberstunden-Uebersichten, Krankenquote.
+- **Einrichtungsleitung**: Kennzahlen, Team-Auslastung, Budget-Stand.
+- **Aufsichtsbehoerden** (LfDI, Heimaufsicht): anlassbezogen.
+
+Jede Zielgruppe erwartet **unterschiedliches Format, unterschiedliche
+Detail-Tiefe, unterschiedliche Rechtsgrundlagen**. Ohne strukturiertes
+Berichts-Modul sitzt die Verwaltungskraft stundenlang an Copy-Paste
+aus 5 Excel-Tabellen. Die Verwaltungs-App buendelt diese Berichte
+als **Template-basierte Export-Pipeline**: einmal die Grundlage
+pflegen, Bericht auf Knopfdruck in passendem Format.
+
+### Konkretes Szenario: Der Monatsabschluss im April
+
+**01. Mai, 08:00 Uhr — Admin Anja startet den Monatsabschluss fuer April.**
+
+Sie arbeitet eine Checkliste ab:
+
+1. **Zeitnachweise** fuer alle 25 Mitarbeiter als PDF → drucken,
+   in die Mitarbeiter-Postfaecher zur Unterschrift.
+2. **Team-CSV-Export** fuer Lohnbuchhalter: alle Schichten April,
+   mit Lohn-Multipliern.
+3. **Klienten-Monatsberichte**: pro aktivem Klient eine kurze PDF mit
+   geleisteten FLS, Wirkungsmessungs-Snapshot, Abwesenheiten.
+4. **Kassenbuch-Monatsauszuege**: pro Klient mit Kassenbuch, PDF,
+   Signaturen inkludiert.
+5. **Kapazitaets-Report** fuer sie selbst: Team-Auslastung April,
+   Trend.
+6. **XRechnungen**: Monatslauf starten fuer Sozialamt (siehe
+   [Fachleistungsstunden im Doku-Wiki](https://miri2577.github.io/FEGH-Dokumentation/anleitung/fachleistungsstunden/)).
+
+**Dauer**: in der Verwaltungs-App typisch 20 Minuten (Klicks +
+PDF-Ansicht). Ohne App: ein halber Tag.
+
+**02. Mai — Versand.**
+
+- XRechnung XML → OZG-RE Portal hochladen, Status "Versendet".
+- Zeitnachweise-PDFs → Mitarbeiter Rueckgabe nach Unterschrift →
+  Archiv.
+- CSV → Lohnbuchhaltung per beA.
+- Klienten-Monatsberichte → optional an Sozialamt (nur wenn
+  vertraglich vereinbart; nicht alle verlangen monatlich).
+
+### Berichts-Typen im Ueberblick
+
+| Bericht | Format | Zyklus | Zielgruppe |
+|---------|--------|--------|------------|
+| Zeitnachweis pro MA | PDF | Monat | Lohnbuchhaltung, Mitarbeiter |
+| Team-CSV Arbeitszeit | CSV | Monat | Lohnbuchhaltung |
+| Klient-Monatsbericht | PDF | Monat | intern + optional Kostentraeger |
+| Kassenbuch-Monatsauszug | PDF | Monat | Klient, Betreuer, intern |
+| Wochen-Aushang Dienstplan | PDF | Woche | Mitarbeiterraum |
+| Kapazitaets-Report | PDF | Monat | Einrichtungsleitung |
+| XRechnung | UBL-XML | Monat | Kostentraeger elektronisch |
+| BtM-Bestandsliste | CSV/PDF | Quartal | interne Kontrolle |
+| Jahresbilanz | PDF | Jahr | Leitung, Steuerberater |
+| Wirksamkeitsbericht (Klient) | PDF | jaehrlich/bei Bedarf | Hilfeplan-Konferenz |
+
+### PDF-Design-System
+
+Alle PDFs nutzen den gemeinsamen **`fegh_pdf_kit`-Baukasten**:
+
+- Einheitliche Farbpalette (primary/accent/warn/muted)
+- Header-Baustein mit Logo + Titel + Aktenzeichen
+- KPI-Kacheln fuer Kennzahlen
+- Tabellenstil mit Zebra-Zeilen
+- Roboto-Schrift (embedded, auch auf Behoerdenrechnern sichtbar)
+- Fuss-/Kopfzeile einheitlich
+
+Wenn die Einrichtung ihr Logo oder Farben anpassen will, wird das
+in den PDF-Kit-Tokens **zentral** geaendert — nicht pro Bericht.
+
+### Exportwege
+
+Ein erzeugter Bericht wird **nicht automatisch** auf HiDrive abgelegt
+— die Entscheidung trifft der Mitarbeiter:
+
+- **Download auf PC** (Default) — ins lokale Verzeichnis
+- **Per Mail senden** (noch nicht aktiv) — geplantes Feature
+- **Auf HiDrive ablegen** — explizit auswaehlen; landet im Team-
+  Ordner unter `reports/YYYY-MM/`
+
+Fuer rechtssichere Archivierung empfiehlt sich ein separates DMS
+(ecoDMS, Docuware) mit OCR.
+
+### Rechtlicher Hintergrund
+
+- **§14a UStG + ERechVBln** — elektronische Rechnung an Behoerden
+  seit 2020 Pflicht.
+- **HGB §257 + AO §147** — Aufbewahrungspflicht 10 Jahre fuer
+  Rechnungen, 6 Jahre fuer sonstige Geschaeftsunterlagen.
+- **§128 SGB IX** — Wirksamkeitsnachweis; Bericht pro Klient als
+  Nachweis.
+- **§21 SGB IX** — Teilhabeplanung; Klient-Monatsberichte sind
+  Bestandteil der laufenden Teilhabeplanung.
+- **Art. 30 DSGVO** — Verzeichnis der Verarbeitungstaetigkeiten;
+  Berichte dokumentieren, welche personenbezogenen Daten wann
+  verarbeitet wurden.
+
 ## Standard-Berichte
 
 ### Zeitnachweis (PDF)
