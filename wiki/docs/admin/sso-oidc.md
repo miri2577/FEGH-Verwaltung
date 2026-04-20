@@ -25,6 +25,124 @@ Authorization Code Flow mit PKCE** (RFC 6749 + RFC 7636) und
 - Audit-Spur: Login-Fehler/-Erfolge fliessen sowohl ins IdP-Log als
   auch ins FEGH-Audit-Log (Action `sso.login.success` / `.failed`).
 
+## Funktionsweise im Detail
+
+### Was SSO/OIDC eigentlich tut
+
+Stell dir vor: Mitarbeiterin Alice hat einen Firmen-Account bei
+Microsoft 365, Keycloak oder Google Workspace. Ohne SSO muss sie sich
+in jede App einzeln einloggen — inkl. der FEGH-App mit eigenem
+Passwort. Mit SSO loggt sie sich **einmal** bei ihrem Firmen-Account
+ein, und die FEGH-App vertraut dem.
+
+Der groesste Vorteil entsteht beim Ausscheiden: Wenn HR ihren
+Firmen-Account deaktiviert, sperrt sich die FEGH-App
+**automatisch aus** — niemand muss manuell in der FEGH-
+Rollenverwaltung klicken.
+
+### Der Login-Flow in 6 Schritten
+
+Alice klickt auf "Einloggen mit SSO":
+
+1. **Discovery.** Die App ruft den Identity-Provider an und fragt:
+   "Wo sind deine Login-Endpunkte?" Antwort: JSON-Datei mit URLs
+   (`/.well-known/openid-configuration`).
+2. **Lokaler Server starten.** Die App oeffnet einen winzigen
+   HTTP-Server auf `127.0.0.1:<dynamischer-Port>` auf Alices PC.
+   Nur die Loopback-Schnittstelle — niemand im Netzwerk kann darauf
+   zugreifen.
+3. **Browser oeffnen.** Der *System-Browser* (Edge/Firefox/Chrome)
+   oeffnet die IdP-Login-Seite — nicht ein Browser in der App.
+   Begruendet in RFC 8252 §8.12: embedded Webviews geben dem
+   umgebenden Prozess Zugriff auf IdP-Cookies und sind deshalb
+   ausdruecklich verboten.
+4. **Alice loggt sich ein** — mit ihrem gewohnten Passwort, MFA,
+   Fingerprint, alles was der IdP vorschreibt. Die FEGH-App sieht
+   davon **nichts**; sie wartet einfach auf den Callback.
+5. **Redirect.** Nach erfolgreichem Login leitet der IdP den Browser
+   zurueck auf
+   `http://127.0.0.1:<port>/callback?code=...`. Unser lokaler Server
+   nimmt den Code entgegen, zeigt Alice eine "Fenster kann geschlossen
+   werden"-Seite und faehrt sich sofort wieder herunter.
+6. **Token-Tausch.** Die App ruft den IdP direkt an (nicht ueber den
+   Browser): "Hier der Code, gib mir die echten Tokens." Antwort:
+   `access_token`, `id_token`, `refresh_token`.
+
+### Was nach dem Login auf dem PC liegt
+
+Im sicheren Geraetespeicher (`flutter_secure_storage` → Windows
+DPAPI, macOS Keychain, iOS Keychain, Android Keystore):
+
+| Token | Zweck | Gueltigkeit |
+|-------|-------|-------------|
+| `access_token` | "Alice ist angemeldet" | typisch 1 Stunde |
+| `id_token` | JWT mit Alices Identitaet (`sub`, `email`, `name`) | identisch mit access |
+| `refresh_token` | Neue access_tokens holen ohne neuen Browser-Login | Tage bis Monate |
+
+### PKCE — warum der Flow trotz abgefangenem Code sicher bleibt
+
+Bevor der Browser losgeht, wuerfelt die App einen Zufallsstring (den
+**Verifier**) und schickt dessen SHA-256-Hash (die **Challenge**) an
+den IdP mit. Beim Token-Tausch muss die App den Original-Verifier
+vorzeigen.
+
+Falls ein Angreifer — z. B. Malware, ein feindseliger Browser-Plugin
+oder ein Proxy — den `code` aus der Redirect-URL abfaengt, kann er
+ihn trotzdem **nicht gegen Tokens eintauschen**: ihm fehlt der
+Verifier. Der Angreifer haette mueheloser Zugang, wenn statt PKCE
+ein statisches "Client Secret" im Code stehen wuerde — genau
+deshalb schreibt RFC 8252 PKCE fuer Desktop-Apps vor.
+
+### User-Mapping auf die interne FEGH-`userId`
+
+Aus dem ID-Token extrahiert die App — in dieser Reihenfolge — einen
+Identifier:
+
+1. `email` (bevorzugt — menschenlesbar, cross-App stabil)
+2. `preferred_username` (Fallback, z. B. bei Entra-ID "alice@firma")
+3. `sub` (letzte Option — kryptographische ID des IdP)
+
+Dieser Wert landet im Audit-Log als `userId` und ist der Anknuepfungs-
+punkt fuer die FEGH-Rollen-Matrix.
+
+## Was der SSO-Screen heute konkret kann
+
+Der `Admin-Console → Tools → SSO / OIDC einrichten` bietet:
+
+- **Drei Felder** — Issuer-URL, Client-ID, Scopes
+- **Speichern** — Konfiguration landet im Secure Storage
+- **Discovery testen** — prueft ob die URL stimmt und TLS funktioniert,
+  ohne einen echten Login zu starten
+- **Test-Login** — spielt den kompletten Flow durch und zeigt danach
+  den erkannten Benutzer, Email, Name, Token-Ablauf und Scopes an
+- **Logout** — Tokens lokal verwerfen
+- **Audit-Events** — jede Aktion laeuft ins `audit.log`
+  (`sso.config.updated`, `sso.login.success`, `sso.login.failed`,
+  `sso.logout`). Damit tauchen sie auch automatisch in jedem
+  SIEM-Export auf.
+
+## Aktueller Integrationsstand — was heute NICHT passiert
+
+Bewusste Phasung, damit SSO nicht in einem Big-Bang eingefuehrt wird:
+
+1. **Kein Login-Zwang.** Die App verlangt beim Start **keinen**
+   OIDC-Login. Der bestehende HiDrive-Username-Login ist weiter
+   aktiv. Der SSO-Screen ist heute ein **Einrichtungs- und
+   Test-Werkzeug** — nicht der Haupt-Loginpfad.
+2. **Keine Rollen-Zuordnung aus OIDC-Groups.** Die Rollen
+   (Admin/Teamleitung/Teammitglied) kommen aus `roles.json` in der
+   Cloud. Bindung an OIDC-Groups (`email → roles.json`) ist noch
+   nicht aktiviert.
+3. **Keine ID-Token-Signaturpruefung.** Die App vertraut dem Token,
+   weil er ueber HTTPS vom TLS-verifizierten Token-Endpoint kam.
+   Das ist fuer Desktop-Apps etabliert, aber keine kryptographische
+   Haerterung gegen einen kompromittierten IdP. Optional nachrustbar
+   via `jose`-Package + JWKS-Abruf.
+
+Diese drei Punkte sind bewusst getrennt geplant, weil ein SSO-Zwang
+ein invasiver Schritt ist — Test-Accounts, Rollback-Strategie und
+Break-Glass-Zugang muessen vorher durchdacht sein.
+
 ## Einrichtung im Identity-Provider
 
 ### Keycloak (Beispiel)
