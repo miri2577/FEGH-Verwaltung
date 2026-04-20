@@ -46,6 +46,28 @@ So wirkt ein einzelner Storno-Klick auf den State:
 
 Alles deklarativ, ohne `setState`, ohne manuelle Event-Bus-Logik.
 
+### Kassenbuch-Storno-Propagation als Diagramm
+
+```mermaid
+flowchart LR
+    Click[Mia klickt Stornieren] --> Action[kassenbuchActionProvider<br/>.storno]
+    Action --> Svc[KassenbuchService]
+    Svc --> Store[SharedPreferences<br/>persist]
+    Svc --> Invalidate[Provider invalidieren]
+
+    Invalidate --> P1[kassenbuchForClientProvider]
+    Invalidate --> P2[kassenbuchSaldoProvider]
+    Invalidate --> P3[kassenbuchStornoMapProvider]
+
+    P1 --> W1[Liste Rebuild]
+    P2 --> W2[Saldo-Karte Rebuild]
+    P3 --> W3[STORNIERT-Badge]
+
+    W1 --> UI[UI frisch]
+    W2 --> UI
+    W3 --> UI
+```
+
 ### Das Standard-Muster pro Entitaet
 
 Fuer jede persistente Entitaet haben wir **drei Provider**:

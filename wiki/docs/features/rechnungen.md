@@ -105,6 +105,30 @@ Das Bezirksamt Mitte hat gezahlt (3.744 EUR, Referenz
 Das Dashboard zeigt: **Sozialamt Friedrichshain-Kreuzberg, Faellig
 seit 30+ Tagen**. Anja schreibt eine Mahnung aus der App.
 
+### Vom Monatslauf zur elektronisch eingereichten Rechnung
+
+```mermaid
+flowchart LR
+    Start([Monatslauf-Button]) --> Agg[Aggregate Termine<br/>+ Arbeitszeit]
+    Agg --> Split[Split nach<br/>Kostentraeger]
+    Split --> Cap[Kappung auf<br/>Bewilligtes]
+    Cap --> Review[Review-Dialog]
+    Review --> Plausi[Plausi-Check<br/>harte Felder]
+    Plausi -->|FAIL| Block([Abbruch])
+    Plausi -->|OK| Build[XRechnungService<br/>.buildXml]
+    Build --> Validate[intern: Pflichtfelder?<br/>ArgumentError bei Luecke]
+    Validate --> UBL[UBL 2.1 XML-Datei]
+    UBL --> Download[Download auf PC]
+    Download --> OZG[manueller Upload<br/>OZG-RE-Portal]
+    OZG --> KoSIT[KoSIT-Schematron<br/>Validation]
+    KoSIT -->|accept| KT[Kostentraeger]
+    KoSIT -->|reject| Feedback[Fehler-Report]
+    KT -.zahlt.-> Konto[Bankkonto]
+```
+
+<!-- SCREENSHOT: Rechnungs-Uebersicht mit Status-Spalte -->
+<!-- SCREENSHOT: XRechnung-Detail mit allen Pflichtfeldern -->
+
 ### Die kritischen KoSIT-Pflichtfelder in der Deep-Dive
 
 Wir haben waehrend der Entwicklung **4 echte Produkt-Bugs** via

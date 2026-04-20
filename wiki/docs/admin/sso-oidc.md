@@ -40,6 +40,41 @@ Firmen-Account deaktiviert, sperrt sich die FEGH-App
 **automatisch aus** — niemand muss manuell in der FEGH-
 Rollenverwaltung klicken.
 
+### OIDC-Login als Sequenzdiagramm
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Alice as Alice (Mitarbeiter)
+    participant App as FEGH-App
+    participant Loop as Lokaler Server<br/>(127.0.0.1:dyn)
+    participant Browser as System-Browser
+    participant IdP as Identity-Provider<br/>(Keycloak / Entra / Google)
+    participant Storage as Secure Storage
+
+    Alice->>App: "Mit SSO einloggen"
+    App->>IdP: GET /.well-known/openid-configuration
+    IdP-->>App: Discovery-URLs
+    App->>Loop: Server auf 127.0.0.1:47293 starten
+    App->>App: PKCE Verifier + Challenge erzeugen
+    App->>Browser: oeffne Authorization-URL + code_challenge + state
+    Browser->>IdP: Login-Seite
+    Alice->>IdP: Benutzer + Passwort + MFA
+    IdP-->>Browser: Redirect 127.0.0.1:47293/callback?code=...
+    Browser->>Loop: GET /callback?code=XYZ&state=abc
+    Loop-->>Browser: "Login erfolgreich" HTML
+    Loop-->>App: code + state
+    App->>App: state pruefen (CSRF)
+    App->>IdP: POST /token<br/>(code + verifier + client_id)
+    IdP-->>App: access_token, id_token, refresh_token
+    App->>App: JWT-Payload entpacken<br/>(sub, email, name)
+    App->>Storage: Tokens verschluesselt speichern
+    App-->>Alice: eingeloggt als alice@firma.de
+```
+
+<!-- SCREENSHOT: SSO-Settings-Screen mit Discovery-Test-Button -->
+<!-- SCREENSHOT: Browser-Fenster "Login erfolgreich, kann geschlossen werden" -->
+
 ### Der Login-Flow in 6 Schritten
 
 Alice klickt auf "Einloggen mit SSO":

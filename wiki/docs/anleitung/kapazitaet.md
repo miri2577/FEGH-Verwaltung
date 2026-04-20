@@ -61,6 +61,33 @@ Die **Kennzahlen pro Team**:
    Sozialarbeiterin nimmt Kontakt zum Bezirksamt auf, die haben eine
    Warteliste.
 
+### 3-Monats-Planungs-Horizont als Diagramm
+
+```mermaid
+flowchart LR
+    W1[Woche 1-12<br/>Dienstplan konkret]
+    W2[Woche 13-26<br/>Bewilligung vs. Soll]
+    W3[Woche 27+<br/>Grobplan]
+
+    W1 -.detailliert.-> Heute
+    W2 -.Lueckenalarm.-> Heute
+    W3 -.nur-Monatssumme.-> Heute
+
+    Heute[Admin-Dashboard<br/>Heute]
+
+    Heute --> R[Rot: Fehldeckung > 10%]
+    Heute --> G[Gelb: eng 95-105%]
+    Heute --> GR[Gruen: 70-95%]
+
+    R -.Aktion.-> E[Eskalationsoptionen]
+    E --> Z[Zusatzschichten]
+    E --> U[Umverteilung]
+    E --> X[Extern beauftragen]
+    E --> B[Bedarfskorrektur]
+```
+
+<!-- SCREENSHOT: Kapazitaets-Dashboard mit Ampeln pro Woche -->
+
 ### Das 3-Monats-Rollende-Dashboard
 
 Die praktikabelste Sicht ist nicht das Jahr, sondern die

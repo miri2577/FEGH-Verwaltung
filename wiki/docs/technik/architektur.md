@@ -46,6 +46,39 @@ Jede Schicht hat **eine Verantwortung** und ist isoliert testbar.
 Beim Wechsel des Cloud-Providers wird nur der Adapter getauscht —
 der Service und die UI bleiben unberuehrt.
 
+### Die Schichten als Diagramm
+
+```mermaid
+flowchart TB
+    UI[UI-Widgets<br/>lib/features/*/]
+    Prov[Riverpod-Provider<br/>lib/providers/]
+    Svc[Services<br/>lib/services/]
+    Core[fegh_core<br/>Client Employee Team Shift]
+    Cloud[fegh_cloud<br/>WebDAV-Adapter]
+    Crypto[fegh_crypto<br/>AES-256-GCM DEK MEK]
+    Comp[fegh_compliance<br/>Audit + SIEM]
+    PDF[fegh_pdf_kit]
+    Bill[fegh_billing<br/>XRechnung UBL]
+    Chat[fegh_chat<br/>Matrix]
+    Backup[fegh_backup]
+    Auth[fegh_auth_oidc<br/>OIDC Loopback]
+
+    UI --> Prov
+    Prov --> Svc
+    Svc --> Core
+    Svc --> Cloud
+    Svc --> Crypto
+    Svc --> Comp
+    Svc --> PDF
+    Svc --> Bill
+    Svc --> Chat
+    Svc --> Backup
+    Svc --> Auth
+
+    Bill --> Core
+    Backup --> Crypto
+```
+
 ### Die Schichten im Ueberblick
 
 | Schicht | Ort | Aufgabe |

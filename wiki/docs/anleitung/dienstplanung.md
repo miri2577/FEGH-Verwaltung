@@ -122,6 +122,26 @@ sie allen Mitarbeitern den **iCal-Export**: `iCal-Export` klicken →
 das in Outlook/Apple-Kalender/Google-Kalender und sieht seine
 Schichten integriert mit privaten Terminen.
 
+### Tausch-Anfrage als State-Diagramm
+
+```mermaid
+stateDiagram-v2
+    [*] --> pending: Antragsteller stellt
+    pending --> accepted: Kollege nimmt an
+    pending --> declined: Kollege lehnt ab
+    pending --> cancelled: Antragsteller zieht zurueck
+    accepted --> approved: Teamleitung genehmigt<br/>(Schicht-Umbuchung!)
+    accepted --> rejected: Teamleitung lehnt ab
+    accepted --> cancelled: Antragsteller zieht zurueck
+    approved --> [*]: final
+    declined --> [*]: final
+    rejected --> [*]: final
+    cancelled --> [*]: final
+```
+
+<!-- SCREENSHOT: Tausch-Anfrage-Screen mit 3 Tabs (Meine / Fuer mich / Leitung) -->
+<!-- SCREENSHOT: Tausch-Anfrage-Dialog mit Empfaenger-Auswahl -->
+
 ### Lohn-Multiplier und Zuschlaege
 
 Die Schicht-Typen wirken auf den Lohn:

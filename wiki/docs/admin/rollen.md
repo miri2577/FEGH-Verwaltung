@@ -75,6 +75,39 @@ listet sie auf — aber in Szenarien wird klarer, was sie bedeuten:
   Veraenderungen. Mit `auditScope`-Einschraenkung auf Zeitraum
   und Teams.
 
+### Rollen-Hierarchie als Diagramm
+
+```mermaid
+flowchart TB
+    orgAdmin[orgAdmin<br/>Volladmin]
+    pvAdmin[pvAdmin<br/>HR-Admin]
+    teamLead[teamLead<br/>Teamleitung]
+    teamMember[teamMember<br/>Mitarbeiter]
+    orgAuditor[orgAuditor<br/>Read-only Pruefer]
+
+    orgAdmin -.kann.-> MEK[MEK rotieren]
+    orgAdmin -.kann.-> Org[Org-Settings]
+    orgAdmin -.kann.-> Teams[Teams erstellen]
+    orgAdmin -.kann.-> Roles[Rollen vergeben]
+
+    pvAdmin -.kann.-> Teams
+    pvAdmin -.kann.-> Roles
+    pvAdmin -.kann.-> Mitarb[Mitarbeiter einladen]
+
+    teamLead -.kann.-> TeamDaten[eigenes Team]
+    teamLead -.kann.-> Schichten[Dienstplan im Team]
+
+    teamMember -.kann.-> eigene[eigene Daten]
+
+    orgAuditor -.liest.-> Audit[Audit-Log im Scope]
+    orgAuditor -.liest.-> Daten[Daten im Scope]
+
+    orgAdmin -.NICHT mehr als...-> pvAdmin
+    pvAdmin -.NICHT mehr als...-> teamLead
+```
+
+<!-- SCREENSHOT: roles.json-Editor mit Benutzer-Liste und Rollen-Dropdowns -->
+
 ### Wie roles.json technisch funktioniert
 
 - Die Datei liegt verschluesselt in der Cloud unter

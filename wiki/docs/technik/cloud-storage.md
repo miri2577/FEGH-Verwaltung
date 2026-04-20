@@ -51,6 +51,26 @@ Die App selbst hat davon **nichts gemerkt** — die `CloudAdapter`-
 Schnittstelle bleibt identisch, nur der konkrete Adapter wechselt
 von `HidriveAdapter` zu `NextcloudAdapter`.
 
+### Provider-Abstraktion als Diagramm
+
+```mermaid
+flowchart TB
+    Interface["CloudAdapter abstract<br/>testConnection / upload / download /<br/>createDirectory / delete / list / move"]
+
+    H[HidriveAdapter]
+    N[NextcloudAdapter]
+    O[OwncloudAdapter]
+    G[GenericWebdavAdapter]
+
+    Interface -.implementiert.- H
+    Interface -.implementiert.- N
+    Interface -.implementiert.- O
+    Interface -.implementiert.- G
+
+    App[App-Code] -->|ruft Interface| Interface
+    Config[User-Setting<br/>Provider-Typ] -.waehlt.-> Interface
+```
+
 ### Die `CloudAdapter`-Schnittstelle
 
 Alle vier Adapter implementieren dasselbe Interface:

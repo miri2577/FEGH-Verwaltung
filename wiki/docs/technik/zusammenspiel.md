@@ -64,6 +64,31 @@ Keine Synchronisation-Merge-Logik. Kein Schema-Mapping. Kein
 "import/export". Beide Apps lesen und schreiben **dieselben Dateien
 auf demselben Cloud-Speicher, mit demselben Datenmodell**.
 
+### Datenfluss zwischen Verwaltung, Doku und Cloud
+
+```mermaid
+sequenceDiagram
+    participant V as Verwaltungs-App<br/>(Buero)
+    participant C as Cloud-Speicher<br/>(WebDAV)
+    participant D as Doku-App<br/>(Tablet)
+
+    V->>V: Client.create(...)
+    V->>V: AES-256-GCM mit Team-Key
+    V->>C: PUT /teams/hauptstrasse/clients/id.bin
+
+    D->>C: PROPFIND Clients-Ordner
+    C-->>D: Liste
+    D->>C: GET Client-Datei
+    D->>D: Decrypt + Client.fromJson
+
+    D->>D: neuer Termin bei Herr K.
+    D->>C: PUT /teams/hauptstrasse/schedules/id.bin
+
+    V->>C: GET Schedules
+    C-->>V: Termin-Liste
+    V->>V: Termin im Monats-PDF
+```
+
 ### Die Trennlinien zwischen den Apps
 
 Obwohl sie Daten teilen, haben die Apps **eigene Verantwortungs-

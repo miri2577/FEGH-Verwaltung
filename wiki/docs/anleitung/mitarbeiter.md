@@ -78,6 +78,35 @@ Medikationsmodul bei BtM-Gaben als Zeuge quittieren.
      koennen, wer im April BtM verabreicht hat — auch wenn Sven
      laengst weg ist.
 
+### Onboarding-Flow als Diagramm
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Anja as Anja (Admin)
+    participant Verw as Verwaltungs-App
+    actor Sven as Sven (Neuer MA)
+    participant Tablet as Svens Tablet
+
+    Anja->>Verw: Mitarbeiter-Stammdaten anlegen
+    Anja->>Verw: Rolle + Team + Wochenarbeitszeit
+    Verw->>Verw: UUID als employeeId vergeben
+    Verw->>Verw: roles.json updaten
+    Anja->>Verw: "Einladen" -> QR + PIN
+
+    Note over Anja,Sven: QR und PIN getrennt uebergeben
+    Sven->>Tablet: Doku-App installieren
+    Sven->>Tablet: QR scannen + PIN
+    Tablet->>Tablet: Auto-Konfig (Cloud, Team, Rolle)
+    Tablet-->>Sven: einsatzbereit
+
+    Note over Anja,Sven: Spaeter: Qualifikations-Updates
+    Anja->>Verw: "BtM-Einweisung: ja"
+    Verw-->>Sven: ab sofort als BtM-Zeuge wahlbar
+```
+
+<!-- SCREENSHOT: Mitarbeiter-Formular mit Qualifikations-Flags -->
+
 ### Stabile IDs statt Namen
 
 Beim Anlegen bekommt jeder Mitarbeiter eine UUID. Diese ID wandert

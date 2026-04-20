@@ -97,6 +97,24 @@ Rechnungsdaten. Das Audit-Log selbst ist zwar kein Rechnungsnach-
 weis, aber es **dokumentiert** Rechnungsaenderungen. Waere das Log
 nachtraeglich aenderbar, waere die Beweiskraft null.
 
+### Die drei Ebenen der Persistenz als Diagramm
+
+```mermaid
+flowchart LR
+    Action[Aktion<br/>z. B. medication.given]
+
+    Action --> L1[Ebene 1: Device-lokal<br/>audit.log JSON Lines]
+    Action --> L2[Ebene 2: Cloud-Backup<br/>AES-256-GCM Envelope]
+    Action --> L3[Ebene 3: SIEM-Export<br/>on-demand]
+
+    L1 -.24h Backup.-> L2
+    L2 -.Admin-Console Export.-> L3
+    L3 -.Download.-> External[Unternehmens-SIEM<br/>Splunk/QRadar/ELK]
+```
+
+<!-- SCREENSHOT: Audit-Tab mit Filter und Aktion-Liste -->
+<!-- SCREENSHOT: SIEM-Export-Popup mit 3 Formaten -->
+
 ### Die drei Ebenen der Persistenz
 
 | Ebene | Standort | Zweck |

@@ -52,6 +52,41 @@ Stunden an Daten verloren. Fuer die 30 Stunden muss sie:
 
 **11:00 — Everything back to normal.**
 
+### Backup + Restore als Sequenzdiagramm
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Scheduler as 24h-Scheduler
+    participant App as Verwaltungs-App
+    participant SP as SharedPreferences
+    participant Codec as BackupCodec
+    participant Cloud as Cloud-Speicher
+
+    Note over Scheduler,Cloud: TAEGLICHER BACKUP-LAUF (03:00)
+    Scheduler->>App: trigger backup
+    App->>SP: lese alle _v1 Keys
+    SP-->>App: JSON-Map
+    App->>Codec: encode(JSON, Sync-Passphrase)
+    Codec->>Codec: AES-256-GCM + Checksum
+    Codec-->>App: Envelope-Bytes
+    App->>Cloud: PUT /backup/2026-04-20T03-00-00.fegh.bak
+    App->>App: Audit: backup.created
+
+    Note over Scheduler,Cloud: RESTORE NACH PC-CRASH
+    App->>Cloud: GET /backup/neustes.fegh.bak
+    Cloud-->>App: Envelope-Bytes
+    App->>Codec: decode(bytes, Sync-Passphrase)
+    Codec->>Codec: Checksum pruefen
+    Codec->>Codec: AES-256-GCM entschluesseln
+    Codec-->>App: JSON-Map
+    App->>SP: alle _v1 Keys zurueckschreiben
+    App-->>App: Restore erfolgreich
+```
+
+<!-- SCREENSHOT: Backup-Uebersicht mit Liste der letzten Backups -->
+<!-- SCREENSHOT: Restore-Dialog mit Backup-Auswahl -->
+
 ### Was konkret im Backup ist
 
 Ein Backup ist eine **verschluesselte Datei** (typisch 500 KB - 5 MB

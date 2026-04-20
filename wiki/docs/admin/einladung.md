@@ -88,6 +88,42 @@ Team-Keys keine Klient-Daten.
 2. Neues Tablet ausgeben, neuen Provisioning-QR fuer Mia, neue
    Daten auf neuem Geraet.
 
+### QR-Provisioning als Sequenzdiagramm
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Anja as Anja (Admin)
+    participant Verw as Verwaltungs-App
+    actor Mia as Mia (Mitarbeiter)
+    participant Tablet as Mias Tablet (Doku-App)
+    participant Cloud as Cloud-Speicher
+
+    Anja->>Verw: Mitarbeiter einladen
+    Verw->>Verw: Token-Blob bauen<br/>{cloud, org, team, teamKey, role}
+    Verw->>Verw: PBKDF2(PIN) -> AES-Key
+    Verw->>Verw: AES-256-GCM(Token-Blob)
+    Verw-->>Anja: QR-Code + PIN (getrennt!)
+
+    Note over Anja,Mia: Anja uebergibt QR + PIN<br/>auf zwei verschiedenen Kanaelen
+
+    Anja->>Mia: QR-Code (Papier/Screen)
+    Anja->>Mia: PIN (muendlich/SMS)
+
+    Mia->>Tablet: Doku-App installieren
+    Mia->>Tablet: "Einladung verwenden" -> QR scannen
+    Tablet->>Tablet: encoded Token landet in App
+    Mia->>Tablet: PIN eingeben
+    Tablet->>Tablet: PBKDF2(PIN) -> AES-Key
+    Tablet->>Tablet: Decrypt -> {cloud, org, team, teamKey, role}
+    Tablet->>Cloud: initial Sync mit Cloud-Credentials
+    Cloud-->>Tablet: Team-Daten (mit Team-Key entschluesselbar)
+    Tablet-->>Mia: Klientenliste sichtbar, einsatzbereit
+```
+
+<!-- SCREENSHOT: QR-Code-Anzeige in der Admin-Konsole mit PIN-Feld -->
+<!-- SCREENSHOT: Einladungs-Scanner in der Doku-App -->
+
 ### Was der QR-Token alles enthaelt
 
 Ein Provisioning-Token ist ein verschluesselter JSON-Blob:

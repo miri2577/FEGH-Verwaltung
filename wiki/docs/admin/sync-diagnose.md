@@ -59,6 +59,40 @@ Statt zu raten, laesst Anja sie die Sync-Diagnose laufen:
 
 Statt stundenlanges Raten — in 3 Minuten geloest.
 
+### Die Pruefschritte als Flowchart
+
+```mermaid
+flowchart TD
+    Start([Diagnose starten]) --> S1{1. TCP + TLS<br/>Cloud erreichbar?}
+    S1 -->|nein| E1[Firewall? DNS? Zertifikat?]
+    S1 -->|ja| S2{2. Auth<br/>App-Passwort gueltig?}
+    S2 -->|401| E2[App-Passwort rotiert?<br/>im Cloud-Portal pruefen]
+    S2 -->|ja| S3{3. Root-Pfad<br/>lesbar?}
+    S3 -->|404| E3[Pfad falsch? Schreibrechte?]
+    S3 -->|ja| S4{4. Org-Ordner<br/>organizations/orgId vorhanden?}
+    S4 -->|nein| E4[Setup unvollstaendig]
+    S4 -->|ja| S5{5. Sync-Passphrase<br/>entschluesselbar?}
+    S5 -->|nein| E5[Passphrase leer/falsch]
+    S5 -->|ja| S6{6. Team-Liste<br/>ladbar?}
+    S6 -->|nein| E6[members.json fehlt?]
+    S6 -->|ja| S7{7. Schreibtest<br/>PUT+DELETE moeglich?}
+    S7 -->|403| E7[Quota voll? Berechtigung?]
+    S7 -->|ja| S8{8. Rewrap-Check<br/>Records entschluesselbar?}
+    S8 -->|nein| E8[Nach Passwortaenderung Rewrap fehlt?]
+    S8 -->|ja| OK([Alle gruen - Sync OK])
+
+    E1 -.-> Stop([Handlungsempfehlung anzeigen])
+    E2 -.-> Stop
+    E3 -.-> Stop
+    E4 -.-> Stop
+    E5 -.-> Stop
+    E6 -.-> Stop
+    E7 -.-> Stop
+    E8 -.-> Stop
+```
+
+<!-- SCREENSHOT: Sync-Diagnose-Ergebnisliste mit Haken und Kreuzen -->
+
 ### Die 8 Pruefschritte im Detail
 
 1. **Cloud-Verbindung** — TCP-Handshake + TLS-Zertifikat. Versagt

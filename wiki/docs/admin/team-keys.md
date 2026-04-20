@@ -96,6 +96,26 @@ bekannt, Recovery-Codes koennten durchgesickert sein).
 5. **Altes kompromittiertes Geraet** kann die neuen Files nicht
    mehr entschluesseln — Kompromittierung neutralisiert.
 
+### Die kryptographische Schichtung als Diagramm
+
+```mermaid
+flowchart TB
+    P[Login-Passwort<br/>in-memory only]
+    P -->|PBKDF2-HMAC-SHA256<br/>100k Iter.<br/>+ Salt| DEK[DEK<br/>Data Encryption Key<br/>32 Byte, geraete-lokal]
+
+    DEK -->|AES-256-GCM-Unwrap| MEK[MEK<br/>Master Encryption Key<br/>32 Byte, org-weit]
+
+    MEK -->|AES-256-GCM-Unwrap| TKA[Team-Key A<br/>Hauptstrasse]
+    MEK -->|AES-256-GCM-Unwrap| TKB[Team-Key B<br/>Gruenstrasse]
+    MEK -->|AES-256-GCM-Unwrap| TKC[Team-Key C<br/>Tagesstruktur]
+
+    TKA -->|AES-256-GCM<br/>per-Record Nonce| DA[Klient-, Schicht-,<br/>Medi-Records A]
+    TKB -->|AES-256-GCM| DB[Records B]
+    TKC -->|AES-256-GCM| DC[Records C]
+```
+
+<!-- SCREENSHOT: Team-Key-Verwaltungs-Screen mit Rotations-Button -->
+
 ### Die kryptographische Schichtung
 
 ```

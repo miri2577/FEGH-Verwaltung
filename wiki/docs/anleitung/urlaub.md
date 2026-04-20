@@ -93,6 +93,26 @@ abgegeben?"
 Clara ist zurueck. System wechselt ihren Status automatisch zurueck
 auf `aktiv` (kein manueller Eingriff noetig).
 
+### Urlaubsantrag-Flow als Diagramm
+
+```mermaid
+flowchart TD
+    Start([Mitarbeiter stellt Antrag]) --> Check[System-Pruefung]
+    Check --> Anspruch{Anspruch<br/>verbleibend?}
+    Anspruch -->|nein| Reject[Antrag abgelehnt:<br/>Kontostand]
+    Anspruch -->|ja| Conflict[Konflikt-Check<br/>Team-Unterdeckung?]
+    Conflict --> Notice[Teamleitung-Inbox]
+    Notice --> Decision{Leitung entscheidet}
+    Decision -->|genehmigen| Approve[Schichten stornieren<br/>Konto abbuchen<br/>iCal-Export]
+    Decision -->|ablehnen| Rej[mit Begruendung]
+    Approve --> End([gruene Leiste im Kalender])
+    Rej --> End2([Antrag mit Grund archiviert])
+    Reject --> End2
+```
+
+<!-- SCREENSHOT: Urlaubsantrag-Formular mit Anspruchs-Anzeige -->
+<!-- SCREENSHOT: Team-Kalender mit Urlaubs-Kacheln -->
+
 ### Typen der Abwesenheit im Ueberblick
 
 | Typ | Urlaubskonto | Lohn | Genehmigung |
