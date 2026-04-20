@@ -264,6 +264,10 @@ Map<NavSection, List<NavEntry>> visibleEntriesGrouped(UserRole role) {
 /// Liefert den Default-Eintrag (erstes Item in der ersten sichtbaren
 /// Sektion) oder `null`, falls nichts sichtbar ist.
 NavEntry? defaultEntryFor(UserRole role) {
+  // Dashboard bekommt Vorrang als Startseite, wenn die Rolle es sehen darf.
+  for (final e in navRegistry) {
+    if (e.id == 'dashboard' && e.visibleFor(role)) return e;
+  }
   for (final section in NavSection.values) {
     for (final e in navRegistry) {
       if (e.section == section && e.visibleFor(role)) return e;

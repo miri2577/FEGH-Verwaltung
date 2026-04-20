@@ -96,27 +96,25 @@ class _ShiftsScreenState extends ConsumerState<ShiftsScreen> with SingleTickerPr
                   ),
                 ),
                 const SizedBox(width: 12),
-                OutlinedButton.icon(
+                IconButton(
+                  tooltip: 'Aktualisieren',
                   onPressed: () => _refreshShifts(ref),
-                  icon: const Icon(Symbols.refresh, size: 18),
-                  label: const Text('Aktualisieren'),
+                  icon: const Icon(Symbols.refresh),
                 ),
-                const SizedBox(width: 12),
-                OutlinedButton.icon(
+                IconButton(
+                  tooltip: 'iCal-Export',
                   onPressed: () => _exportIcs(),
-                  icon: const Icon(Symbols.calendar_month, size: 18),
-                  label: const Text('iCal-Export'),
+                  icon: const Icon(Symbols.calendar_month),
                 ),
-                const SizedBox(width: 12),
-                OutlinedButton.icon(
+                IconButton(
+                  tooltip: 'Tausch-Anfragen',
                   onPressed: () => Navigator.of(context).push(
                     MaterialPageRoute(
                         builder: (_) => const ShiftSwapScreen()),
                   ),
-                  icon: const Icon(Symbols.swap_horiz, size: 18),
-                  label: const Text('Tausch-Anfragen'),
+                  icon: const Icon(Symbols.swap_horiz),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 8),
                 FilledButton.icon(
                   onPressed: () => _showAddShiftDialog(),
                   icon: const Icon(Symbols.add, size: 18),

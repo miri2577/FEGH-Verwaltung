@@ -16,7 +16,6 @@ class ClientsScreen extends ConsumerStatefulWidget {
 
 class _ClientsScreenState extends ConsumerState<ClientsScreen> with TickerProviderStateMixin {
   late TabController _tabController;
-  String _searchQuery = '';
   bool _isTableView = false;
 
   @override
@@ -111,20 +110,6 @@ class _ClientsScreenState extends ConsumerState<ClientsScreen> with TickerProvid
                   ),
                 ),
                 const SizedBox(width: 12),
-                // Search Field
-                SizedBox(
-                  width: 300,
-                  child: SearchBar(
-                    hintText: 'Klienten durchsuchen...',
-                    leading: const Icon(Symbols.search),
-                    onChanged: (value) {
-                      setState(() {
-                        _searchQuery = value;
-                      });
-                    },
-                  ),
-                ),
-                const SizedBox(width: 12),
                 OutlinedButton.icon(
                   onPressed: () => _refreshClients(),
                   icon: const Icon(Symbols.refresh, size: 18),
@@ -167,10 +152,10 @@ class _ClientsScreenState extends ConsumerState<ClientsScreen> with TickerProvid
               child: TabBarView(
                 controller: _tabController,
                 children: [
-                  _buildClientsList(_filterClients(clients)),
-                  _buildClientsList(_filterClients(activeClients)),
-                  _buildClientsList(_filterClients(pendingClients)),
-                  _buildClientsList(_filterClients(archivedClients)),
+                  _buildClientsList(clients),
+                  _buildClientsList(activeClients),
+                  _buildClientsList(pendingClients),
+                  _buildClientsList(archivedClients),
                 ],
               ),
             ),
@@ -178,11 +163,6 @@ class _ClientsScreenState extends ConsumerState<ClientsScreen> with TickerProvid
         ),
       ),
     );
-  }
-
-  List<Client> _filterClients(List<Client> clients) {
-    if (_searchQuery.isEmpty) return clients;
-    return clientNotifier.searchClients(_searchQuery);
   }
 
   Widget _buildClientsList(List<Client> clients) {
@@ -209,9 +189,7 @@ class _ClientsScreenState extends ConsumerState<ClientsScreen> with TickerProvid
           ),
           const SizedBox(height: 8),
           Text(
-            _searchQuery.isEmpty
-                ? 'Fügen Sie den ersten Klienten hinzu, um zu beginnen.'
-                : 'Keine Klienten entsprechen Ihrer Suche.',
+            'Fuegen Sie den ersten Klienten hinzu, um zu beginnen.',
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),

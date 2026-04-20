@@ -114,9 +114,9 @@ class _EmployeeListViewState extends ConsumerState<EmployeeListView> {
 
   Widget _buildEmployeeGrid(List<Employee> employees) {
     return GridView.builder(
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        childAspectRatio: 1.2,
+      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: 360,
+        mainAxisExtent: 240,
         crossAxisSpacing: 16,
         mainAxisSpacing: 16,
       ),

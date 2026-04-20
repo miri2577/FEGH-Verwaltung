@@ -134,9 +134,9 @@ class _ClientListViewState extends ConsumerState<ClientListView> {
   Widget _buildClientGrid(List<Client> clients) {
     final policy = ref.read(policyProvider);
     return GridView.builder(
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        childAspectRatio: 1.2,
+      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: 360,
+        mainAxisExtent: 290,
         crossAxisSpacing: 16,
         mainAxisSpacing: 16,
       ),
