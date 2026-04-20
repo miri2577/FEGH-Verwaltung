@@ -1,5 +1,130 @@
 # Architektur
 
+## Funktionsweise im Detail (fuer Entwickler)
+
+### Das Problem, das wir loesen
+
+Die Verwaltungs-App ist kein 1-Mann-1-Feature-Tool. Sie muss:
+
+- **Mehrere Apps bedienen** — FEGH-Dokumentation (mobile) und
+  FEGH-Verwaltung (Desktop) teilen ~80 % der Datenmodelle.
+- **Mehrere Cloud-Provider unterstuetzen** — HiDrive, Nextcloud,
+  ownCloud, generisches WebDAV.
+- **Offline-faehig sein** — die Doku-App muss ohne Netz arbeiten
+  (Schicht im Keller ohne WLAN), Sync nachholen wenn verfuegbar.
+- **Kryptographisch stark getrennte Teams** — Team A darf Team B's
+  Daten nicht einmal entschluesseln koennen.
+- **Buchhalterisch korrekt sein** — GoBD verbietet nachtraegliche
+  Aenderungen, Rechnungen sind unveraenderlich.
+
+Diese Anforderungen treiben die Architektur zu einer **modularen
+Shared-Package-Struktur** mit scharfer Trennung zwischen App-
+spezifischer Logik und wiederverwendbarem Kern.
+
+### Konkretes Szenario: Ein Klient-Record wird erstellt
+
+So laeuft es durch die Schichten:
+
+1. **UI** (`lib/features/clients/client_form_dialog.dart`) sammelt
+   das Formular-Input.
+2. **Provider** (`lib/providers/client_provider.dart`) ruft
+   `ClientService.create(client)` auf.
+3. **Service** (in der Doku-App: `lib/services/client_service.dart`)
+   validiert, erzeugt UUID, legt die Instanz als `Client` aus
+   `fegh_core` an.
+4. **Local Storage**: JSON-serialisierter Record wird in
+   `SharedPreferences` (Schluessel `clients_v1`) gespeichert.
+5. **Crypto Layer** (`fegh_crypto`): Falls Cloud-Sync aktiv, wird der
+   Record mit dem Team-Key verschluesselt (AES-256-GCM mit
+   pro-Record-Nonce).
+6. **Cloud-Adapter** (`fegh_cloud`, `GenericWebdavAdapter` oder
+   `HidriveAdapter`): `PUT` zum Pfad aus `FeghPaths.teamClientRecord(...)`.
+7. **Audit-Log** (`fegh_compliance`): Event `client.create` mit
+   ClientId + EmployeeId.
+
+Jede Schicht hat **eine Verantwortung** und ist isoliert testbar.
+Beim Wechsel des Cloud-Providers wird nur der Adapter getauscht —
+der Service und die UI bleiben unberuehrt.
+
+### Die Schichten im Ueberblick
+
+| Schicht | Ort | Aufgabe |
+|---------|-----|---------|
+| **UI-Komponenten** | `lib/features/<modul>/` | Flutter-Widgets, Dialoge, Listen |
+| **Provider** | `lib/providers/` | Riverpod-State fuer UI |
+| **Services** | `lib/services/` | Business-Logik pro App |
+| **Models (gemeinsam)** | `fegh_core/` | Entitaeten Client, Employee, Team, Shift |
+| **Cloud-Adapter** | `fegh_cloud/` | WebDAV-Abstraktion mit 4 Adaptern |
+| **Kryptographie** | `fegh_crypto/` | DEK/MEK/Team-Keys, AES-256-GCM |
+| **Compliance** | `fegh_compliance/` | AuditLogger + SIEM-Exporter |
+| **PDF-Erzeugung** | `fegh_pdf_kit/` | Design-Tokens, Layout-Bausteine |
+| **Rechnung** | `fegh_billing/` | XRechnung UBL 2.1 |
+| **Chat** | `fegh_chat/` | Matrix/Olm-Adapter |
+| **Backup** | `fegh_backup/` | RecoveryService, BackupCodec |
+| **OIDC SSO** | `fegh_auth_oidc/` | OAuth 2.0 + PKCE + RFC 8252 Loopback |
+
+### Warum Shared-Packages statt Monorepo?
+
+Doku-App und Verwaltung haben **unterschiedliche Nutzer-Workflows**
+(mobile Schicht vs. stationaer Buero) und **unterschiedliche
+Deployment-Targets** (Mobile Stores vs. Desktop). Sie teilen aber
+die Datenmodelle, Crypto-Stack, Cloud-Layer.
+
+Eine naive Monorepo-Loesung haette beide Apps in eine riesige
+Flutter-Code-Basis gezwungen, mit Dead Code fuer jeweils die andere
+Plattform. Shared-Packages trennen sauber:
+
+- `fegh_core` kann standalone gebaut und unit-getestet werden
+- Jede App pullt nur die Packages, die sie braucht
+- Updates am Core brechen nie zwingend beide Apps gleichzeitig
+- Testabdeckung ist pro Package messbar
+
+### Die kryptographische Schichtung (Tiefe fuer Security-Auditoren)
+
+```
+Login-Passwort (in-memory only)
+    |
+    v PBKDF2-HMAC-SHA256 (100.000 Iterationen, Salt aus flutter_secure_storage)
+    v
+DEK (Data Encryption Key, 32 Byte, geraete-lokal)
+    |
+    v AES-256-GCM-Unwrap
+    v
+MEK (Master Encryption Key, 32 Byte, org-weit)
+    |
+    v AES-256-GCM-Unwrap pro Team
+    v
+Team-Keys (32 Byte pro Team)
+    |
+    v AES-256-GCM mit per-Record Nonce
+    v
+Record (Client, Shift, Medication, etc.)
+```
+
+Keine Schicht kann ihre uebergeordnete entschluesseln — das Geraet
+kennt nur den DEK, ableiten kann es nur bei Login (PBKDF2 verlangt
+das Original-Passwort). Der MEK liegt **nur** vom DEK-wrapped
+auf dem Geraet.
+
+### Offline-Strategie
+
+Die Doku-App laeuft in Wohngruppen ohne WLAN. Strategie:
+
+1. **Lokale Schreiboperationen** laufen sofort — kein Netz-Wait.
+2. **Outgoing Queue** (in `SharedPreferences`) sammelt ausstehende
+   Cloud-Uploads.
+3. **Sync-Scheduler** versucht alle 5 Minuten oder beim App-Start
+   die Queue zu leeren.
+4. **Konflikte** (zwei Geraete haben denselben Record geaendert):
+   der neuere `updatedAt`-Timestamp gewinnt; der Verlierer wandert
+   ins Audit-Log als `sync.conflict.resolved`.
+
+Das ist **Last-Write-Wins** — simpel, aber fuer die meisten
+EGH-Szenarien ausreichend (zwei Mitarbeiter aendern selten
+denselben Record zeitgleich). Fuer BtM-Buchungen waere LWW zu
+wenig (Gabe wird nie ueberschrieben, sondern hinzugefuegt —
+append-only fuer medication_administrations_v1).
+
 ## Stack
 
 - **Flutter 3.9.2 / Dart 3** — Cross-platform Desktop-App (Windows/macOS/Linux)

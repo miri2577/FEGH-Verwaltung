@@ -4,6 +4,123 @@ Beide Apps sind technisch eigenstaendig, teilen aber Datenmodelle und
 Wire-Formate. Diese Seite beschreibt wie sie zusammenarbeiten und wo
 die Grenzen liegen.
 
+## Funktionsweise im Detail
+
+### Das Problem, das wir loesen
+
+Ein Mitarbeiter schreibt am Nachmittag einen Verlaufsbericht auf
+dem **Tablet** (Doku-App). Die Teamleitung liest ihn abends am
+**Buero-PC** (Verwaltungs-App) — und ergaenzt ihn um Abrechnungs-
+notizen. Beide sehen denselben Klienten, dieselbe Schicht, dasselbe
+Ereignis — aber mit **unterschiedlichen Werkzeugen** und
+**unterschiedlichen Berechtigungen**.
+
+Naive Umsetzung: zwei getrennte Apps, die beide den Klient-Record
+haben und sich ueber irgendeine Schnittstelle gegenseitig updaten.
+Ergebnis: Schema-Drift, Merge-Konflikte, Inkonsistenzen. Wenn der
+Mitarbeiter in Version 1.2 der Doku-App ein neues Feld anlegt und
+die Verwaltung in Version 2.0 haengt, passt es nicht zusammen.
+
+Unsere Loesung: **Ein einziges Datenmodell**, geteilt ueber das
+Paket `fegh_core`. Beide Apps instantiieren dieselbe Dart-Klasse
+`Client`, serialisieren sie identisch, speichern sie mit
+identischen Cloud-Pfaden. Schema-Drift ist per Definition
+unmoeglich.
+
+### Konkretes Szenario: Ein Klient im Tagesverlauf
+
+**09:00 Uhr — Admin Anja legt in der Verwaltung einen neuen
+Klienten an**:
+
+- Name Frau S., geboren 1985, Bundesland Berlin
+- Kostentraeger Sozialamt Friedrichshain-Kreuzberg, Fallnummer
+  EGH-2026-0987
+- Team Hauptstrasse zugewiesen
+
+Verwaltung schreibt das als `Client`-JSON in
+`/teams/hauptstrasse/clients/<clientId>.bin`
+(AES-256-GCM, mit dem Team-Key).
+
+**09:05 Uhr — Mitarbeiterin Mia oeffnet die Doku-App auf ihrem
+Tablet**:
+
+- Geraet synct: laedt den neuen verschluesselten Record von der
+  Cloud.
+- Lokaler DEK entschluesselt Team-Key.
+- Team-Key entschluesselt Frau S.'s Record.
+- `Client.fromJson(...)` — dasselbe Model wie die Verwaltung
+  benutzt.
+- Mia sieht Frau S. in ihrer Klientenliste.
+
+**11:30 Uhr — Mia dokumentiert einen Termin bei Frau S.** —
+schreibt einen kurzen Verlaufsbericht. Doku-App schreibt das als
+`Termin`-Record in die Cloud.
+
+**17:45 Uhr — Anja sieht den Bericht im Buero in der
+Verwaltung.** Beide Apps nutzen denselben `Termin`-Record, dieselbe
+`Client`-Referenz, denselben Verlaufsbericht-Text.
+
+Keine Synchronisation-Merge-Logik. Kein Schema-Mapping. Kein
+"import/export". Beide Apps lesen und schreiben **dieselben Dateien
+auf demselben Cloud-Speicher, mit demselben Datenmodell**.
+
+### Die Trennlinien zwischen den Apps
+
+Obwohl sie Daten teilen, haben die Apps **eigene Verantwortungs-
+bereiche**:
+
+| Funktion | Doku-App | Verwaltung |
+|----------|:--------:|:----------:|
+| Klient anlegen | ✗ | ✓ |
+| Klient-Stammdaten bearbeiten | ✗ | ✓ |
+| Verlaufsbericht schreiben | ✓ | ✓ |
+| Termin dokumentieren | ✓ | ✓ |
+| Medikationsgabe quittieren | ✓ | (eher nicht) |
+| Medikationsplan anlegen | ✗ | ✓ |
+| Kassenbuch-Eintrag buchen | ✓ | (moeglich) |
+| Kassenbuch-Eintrag freigeben | ✓ | ✓ |
+| Monatsabschluss Kassenbuch | ✗ | ✓ |
+| Schicht starten/beenden (stempeln) | ✓ | ✓ |
+| Dienstplan anlegen | ✗ | ✓ |
+| Tausch-Anfrage stellen | ✓ | ✓ |
+| Tausch-Anfrage genehmigen | ✗ | ✓ |
+| XRechnung erstellen | ✗ | ✓ |
+| Monatsbericht | ✓ (Wirkungsmessung) | ✓ (alle Typen) |
+
+Die Trennung ist keine UI-Entscheidung, sondern folgt aus dem
+**Usecase**: wer sitzt gerade am Geraet? Im Einsatz am Klienten
+steht das Tablet im Vordergrund; im Buero der Bildschirm mit
+Tabellen und PDF-Viewer.
+
+### Konflikt-Behandlung bei gleichzeitigen Aenderungen
+
+Selten, aber passiert: Mia und Anja aendern **gleichzeitig** denselben
+Klient-Record (z. B. Mia traegt eine neue Anschrift ein, Anja
+korrigiert zeitgleich die Telefonnummer).
+
+Beide Geraete haben lokal eine neue Version. Beim Upload:
+
+1. **Geraet A** lookte den `eTag`/`updatedAt` des letzten Servers
+   und schreibt mit `If-Unmodified-Since`-Header.
+2. **Geraet B** kommt eine Sekunde spaeter — Server hat neuen Stand
+   von A.
+3. `If-Unmodified-Since` schlaegt fehl → HTTP 412.
+4. Geraet B laedt die neue Version von A, merged lokal beide
+   Aenderungen (Mias Adresse + Anjas Telefon), schreibt erneut.
+5. Audit-Event `sync.conflict.resolved` mit beiden Versionen.
+
+Fuer append-only Daten (BtM-Gabe, Audit-Log) gibt es keinen Konflikt
+— nur die Summe wird hochgeladen.
+
+### Rechtlicher Hintergrund
+
+- **Art. 5 DSGVO** (Datensparsamkeit, Richtigkeit) — ein einziges
+  Datenmodell ueber beide Apps verhindert abweichende Datenstaende.
+- **§67a SGB X** — Sozialgeheimnis; gemeinsame Cloud mit
+  Team-Key-Verschluesselung setzt Need-to-know um.
+- **Art. 32 DSGVO** — Verschluesselung + konsistente Schemata
+  reduzieren Angriffsflaeche (kein Gateway-Service zum Abfangen).
+
 ## Architektur-Ueberblick
 
 ```
