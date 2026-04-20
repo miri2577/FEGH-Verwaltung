@@ -78,10 +78,10 @@ Ausserdem:
 
 ## P2 — UI- und Navigations-Feinschliff
 
-- [ ] Globale Suche in der AppBar (aktuell Platzhalter) — implementieren
+- [x] Globale Suche in der AppBar — `GlobalSearchDialog` mit Debounce, Keyboard-Navigation (↑/↓/Enter/Esc), Ctrl+F / Cmd+F Shortcut, Scoring ueber Klienten/Mitarbeiter/Teams/Schichten/Rechnungen, Audit-Event `search.result_selected`
+- [x] UI-Customization aufraeumen — `tabDisplayMode` aus Settings entfernt (seit NavigationRail ohne Funktion)
+- [x] Dashboard-Kacheln konfigurierbar (Drag-Drop pro User) — `DashboardLayout`-Modell + `SharedPreferences`-Persistenz, ReorderableListView mit Edit-Modus, Visibility-Toggle je Kachel, Reset-Dialog
 - [ ] Deep-Links via `go_router` (`/klienten/42`) — spaetere Umstellung
-- [ ] UI-Customization aufraeumen — `tabDisplayMode` ist seit D-Nav ohne Funktion
-- [ ] Dashboard-Kacheln konfigurierbar (Drag-Drop pro User)
 - [ ] Mitarbeiter-Dashboard (`MyWorkScreen`) nach Feedback verfeinern
 
 ---
@@ -150,3 +150,6 @@ Anmerkung: §302 SGB V DTA ist fuer Eingliederungshilfe nicht einschlaegig (EGH 
 - [x] iCal-Export Dienstplan (`ShiftIcsExporter` in fegh_core, 8 Tests) + Buttons in beiden Apps
 - [x] Wiki-Seiten: Medikation, Wohnraum, Kassenbuch, Chat
 - [x] Kassenbuch-Storno: Gegenbuchung (Pflicht-Grund + Unterschrift), Originale als storniert markiert, im PDF gekennzeichnet
+- [x] Globale Suche (AppBar-Icon + Ctrl+F / Cmd+F) — Debounce, Keyboard-Navigation, Scoring ueber 5 Entitaets-Typen
+- [x] UI-Customization-Cleanup: `tabDisplayMode` aus Settings entfernt (seit NavigationRail ohne Funktion)
+- [x] Dashboard-Kacheln per Drag-Drop anordnen + aus-/einblenden (SharedPreferences-Persistenz, Reset-Dialog)
