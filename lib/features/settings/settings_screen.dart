@@ -771,7 +771,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               onSelectionChanged: (selected) {
                 final preset = selected.first;
                 final newUi = UICustomization.fromPreset(preset).copyWith(
-                  tabDisplayMode: ui.tabDisplayMode,
                   cardStyle: ui.cardStyle,
                 );
                 _updateUICustomization(newUi);
@@ -811,25 +810,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               title: const Text('Layout-Praeferenzen'),
               tilePadding: EdgeInsets.zero,
               children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('Tab-Darstellung'),
-                      const SizedBox(height: 8),
-                      SegmentedButton<TabDisplayMode>(
-                        segments: const [
-                          ButtonSegment(value: TabDisplayMode.iconAndText, label: Text('Icon+Text')),
-                          ButtonSegment(value: TabDisplayMode.iconOnly, label: Text('Nur Icon')),
-                          ButtonSegment(value: TabDisplayMode.textOnly, label: Text('Nur Text')),
-                        ],
-                        selected: {ui.tabDisplayMode},
-                        onSelectionChanged: (s) => _updateUICustomization(ui.copyWith(tabDisplayMode: s.first)),
-                      ),
-                    ],
-                  ),
-                ),
+                // Hinweis: 'Tab-Darstellung' wurde entfernt — seit der
+                // NavigationRail-Umstellung hat die Option keine Wirkung
+                // mehr. Falls spaeter wieder Tabs genutzt werden, kann
+                // die Einstellung reaktiviert werden.
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 8),
                   child: Column(

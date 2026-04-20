@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_symbols_icons/symbols.dart';
 
 import '../../features/notifications/widgets/notification_bell.dart';
 import '../../navigation/nav_registry.dart';
 import '../../providers/policy_provider.dart';
+import '../../services/global_search_service.dart';
 import '../../services/policy_service.dart';
+import '../global_search_dialog.dart';
 
 /// Neue Haupt-Shell: NavigationRail links, AppBar oben, Content rechts.
 ///
@@ -44,7 +47,16 @@ class _AppShellState extends ConsumerState<AppShell> {
     final appBarFg = theme.colorScheme.onSurface;
     final appBarMuted = theme.colorScheme.onSurfaceVariant;
 
-    return Scaffold(
+    return CallbackShortcuts(
+      bindings: {
+        const SingleActivator(LogicalKeyboardKey.keyF, control: true):
+            _openGlobalSearch,
+        const SingleActivator(LogicalKeyboardKey.keyF, meta: true):
+            _openGlobalSearch, // macOS Cmd+F
+      },
+      child: Focus(
+        autofocus: true,
+        child: Scaffold(
       appBar: AppBar(
         title: Row(
           children: [
@@ -77,8 +89,8 @@ class _AppShellState extends ConsumerState<AppShell> {
         ),
         actions: [
           IconButton(
-            onPressed: () {},
-            tooltip: 'Suche (folgt)',
+            onPressed: _openGlobalSearch,
+            tooltip: 'Globale Suche (Strg+F)',
             icon: Icon(Symbols.search, color: appBarFg),
           ),
           NotificationBell(iconColor: appBarFg),
@@ -102,7 +114,56 @@ class _AppShellState extends ConsumerState<AppShell> {
           ),
         ],
       ),
+        ),
+      ),
     );
+  }
+
+  Future<void> _openGlobalSearch() async {
+    await GlobalSearchDialog.show(
+      context,
+      onSelect: _jumpToResult,
+    );
+  }
+
+  void _jumpToResult(SearchResult r) {
+    // Map Result-Typ auf Nav-Registry-ID und wechsle den Tab.
+    // Exakt-Deep-Link auf einen einzelnen Datensatz passiert noch nicht
+    // (braucht go_router) — erstmal nur Tab-Wechsel.
+    final targetId = _navIdFor(r.type);
+    if (targetId == null) return;
+    final policy = ref.read(policyProvider);
+    final flat = visibleEntriesGrouped(policy.role)
+        .values
+        .expand((e) => e)
+        .toList();
+    final target = flat.firstWhere(
+      (e) => e.id == targetId,
+      orElse: () => flat.first,
+    );
+    setState(() => _selectedId = target.id);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text('Geoeffnet: ${r.type.label} — ${r.title}'),
+      duration: const Duration(seconds: 2),
+    ));
+  }
+
+  String? _navIdFor(SearchResultType type) {
+    // Best-Effort-Mapping. Nav-Registry-IDs sind aktuell:
+    //   klienten, mitarbeiter, teams, shifts, rechnungen, ...
+    switch (type) {
+      case SearchResultType.client:
+        return 'klienten';
+      case SearchResultType.employee:
+        return 'mitarbeiter';
+      case SearchResultType.team:
+        return 'teams';
+      case SearchResultType.shift:
+        return 'shifts';
+      case SearchResultType.rechnung:
+        return 'rechnungen';
+    }
   }
 
   Widget _roleBadge(ThemeData theme, UserRole role) {
