@@ -15,7 +15,7 @@ Die Kapazitaetsplanung bilanziert **Soll** (vertraglich verfuegbare Stunden) geg
 | Abwesenheits-Soll | Soll-Stunden abzueglich Urlaub/Krankheit/Fortbildung |
 | Plan-Stunden | Summe aller geplanten Schichten des Monats |
 | Ist-Stunden | Summe erfasster Zeit-Eintraege |
-| Klienten-FLS-Bedarf | Summe der FLS pro Klient (siehe [Fachleistungsstunden](fachleistungsstunden.md)) |
+| Klienten-FLS-Bedarf | Summe der FLS pro Klient (siehe [Fachleistungsstunden im Doku-Wiki](https://miri2577.github.io/FEGH-Dokumentation/anleitung/fachleistungsstunden/)) |
 | Fehldeckung | Bedarf − Plan |
 
 ## Dashboard-Kacheln

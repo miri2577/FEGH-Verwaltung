@@ -26,7 +26,7 @@ Die Einstellungen sind in drei Ebenen aufgeteilt:
 
 ### Medi-PIN
 
-Optional ein PIN zur Bestaetigung jeder Medikations-Gabe (siehe [Medikation](medikation.md)). PBKDF2-HMAC-SHA256, 100.000 Iterationen, pro-Mitarbeiter-Salt, Speicherung im sicheren Geraetespeicher (Windows DPAPI, macOS Keychain, iOS Keychain, Android Keystore).
+Optional ein PIN zur Bestaetigung jeder Medikations-Gabe (siehe [Medikation im Doku-Wiki](https://miri2577.github.io/FEGH-Dokumentation/anleitung/medikation/)). PBKDF2-HMAC-SHA256, 100.000 Iterationen, pro-Mitarbeiter-Salt, Speicherung im sicheren Geraetespeicher (Windows DPAPI, macOS Keychain, iOS Keychain, Android Keystore).
 
 Zugriff: AppBar in der Medikationsgaben-Ansicht → Symbol "PIN". Drei Falscheingaben brechen die Gabe ab.
 
@@ -52,7 +52,7 @@ Aenderungen propagieren beim naechsten Sync-Zyklus. Rollen-Downgrade wird sofort
 
 - Name, Adresse, USt-ID, Bundesland
 - Logo (fuer PDF-Header)
-- Standard-Bedarfsinstrument (default aus Bundesland, siehe [Bundeslaender](bundeslaender.md))
+- Standard-Bedarfsinstrument (default aus Bundesland, siehe [Bundeslaender im Doku-Wiki](https://miri2577.github.io/FEGH-Dokumentation/anleitung/bundeslaender/))
 
 ### Abrechnung
 

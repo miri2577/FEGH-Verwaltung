@@ -81,7 +81,7 @@ Fuer jeden Mitarbeiter:
 Die Arbeitszeit-Eintraege mit Taetigkeit "Betreuung", "Dokumentation"
 oder "Buero (mit Fallbezug)" fliessen automatisch in die
 FLS-Rechnungen — siehe
-[Fachleistungsstunden](../anleitung/fachleistungsstunden.md) in der
+[Fachleistungsstunden im Doku-Wiki](https://miri2577.github.io/FEGH-Dokumentation/anleitung/fachleistungsstunden/) in der
 Doku-App. Der Monatslauf dort nutzt dieselben Zeit-Eintraege.
 
 ### Die drei Sichten — eine Datenbasis
@@ -181,5 +181,5 @@ Das Zeit-Dashboard zeigt pro Mitarbeiter und Monat:
 ## Integration
 
 - **Dienstplan** erzeugt Standard-Schicht, die bei Start/Ende zum Zeit-Eintrag wird
-- **Fachleistungsstunden** zieht "Betreuung"-Zeiten heran (siehe [Fachleistungsstunden](fachleistungsstunden.md))
+- **Fachleistungsstunden** zieht "Betreuung"-Zeiten heran (siehe [Fachleistungsstunden im Doku-Wiki](https://miri2577.github.io/FEGH-Dokumentation/anleitung/fachleistungsstunden/))
 - **Kapazitaetsplanung** bilanziert Soll vs. Ist team- und bereichsweit

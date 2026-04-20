@@ -121,7 +121,7 @@ hinterlegt ist. Das ist GoBD-konform und DSGVO-konform.
 | Wochenarbeitszeit | Vertragliche Sollzeit in Stunden |
 | Stundensatz | Default fuer Dienstplan (kann pro Schicht ueberschrieben werden) |
 | Notfallkontakt | Name + Telefon fuer Ernstfall |
-| Bundesland-Qualifikation | Fachliche Freigabe fuer spezifische Bedarfsinstrumente (siehe [Bundeslaender](bundeslaender.md)) |
+| Bundesland-Qualifikation | Fachliche Freigabe fuer spezifische Bedarfsinstrumente (siehe [Bundeslaender im Doku-Wiki](https://miri2577.github.io/FEGH-Dokumentation/anleitung/bundeslaender/)) |
 
 ## Teams
 
