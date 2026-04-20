@@ -71,6 +71,9 @@ dependencies:
   # Compliance: Audit-Log + DSGVO-Services
   fegh_compliance:
     path: ../fegh-shared/fegh_compliance
+  # OIDC-SSO (OAuth 2.0 Authorization Code + PKCE + RFC 8252 Loopback)
+  fegh_auth_oidc:
+    path: ../fegh-shared/fegh_auth_oidc
   # Gemeinsames PDF-Toolkit (Design-Tokens, Layout-Bausteine, Preview)
   fegh_pdf_kit:
     path: ../fegh-shared/fegh_pdf_kit

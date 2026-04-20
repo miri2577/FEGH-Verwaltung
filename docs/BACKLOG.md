@@ -112,7 +112,7 @@ Fallback: Wir bleiben bei sauberen Export-Formaten; Nutzer oeffnen selbst in ihr
 
 Bewusst nicht Prio 1, weil der MVP zuerst fertig werden muss. Was echte Ausschreibungen in dem Markt verlangen:
 
-- [ ] **SSO** via OIDC (Entra ID, Keycloak) — OAuth Authorization Code + PKCE im System-Browser
+- [x] **SSO** via OIDC (Entra ID, Keycloak, Google) — neues Shared-Package `fegh_auth_oidc` mit OAuth Authorization Code + PKCE + RFC 8252 Loopback-Redirect, System-Browser (keine Webview), Tokens im secure_storage, Refresh-Flow, 13 Unit-Tests, Admin-UI (`SsoSettingsScreen`), Wiki-Seite
 - [ ] **SCIM-Provisioning** (User-Lifecycle aus HR/AD) — braucht Backend-Endpoint
 - [ ] **MDM/Intune-Deployment** — MSI-Paket mit ADMX-Policies, silent install, preconfig via Registry/JSON
 - [x] **SIEM-Export** des Audit-Logs — `SiemExporter` in fegh_compliance, 3 Formate (Syslog RFC 5424, ArcSight CEF, ECS JSON Lines), Filter (Zeitraum + Action-Prefix), 12 Unit-Tests, Admin-UI-Einstieg als Popup-Menu

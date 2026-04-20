@@ -25,6 +25,7 @@ import '../../services/admin_health_service.dart';
 import '../../services/admin_repair_service.dart';
 import '../../services/roles_policy_service.dart';
 import '../../providers/roles_policy_provider.dart';
+import '../settings/sso_settings_screen.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'dart:ui' as ui;
 
@@ -507,6 +508,13 @@ class _AdminConsoleScreenState extends ConsumerState<AdminConsoleScreen>
             onPressed: canRotate ? _showProvisioningQr : null,
             icon: const Icon(Symbols.qr_code_scanner),
             label: const Text('Mitarbeiter provisionieren (QR)'),
+          ),
+          OutlinedButton.icon(
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => const SsoSettingsScreen(),
+            )),
+            icon: const Icon(Symbols.shield_person),
+            label: const Text('SSO / OIDC einrichten'),
           ),
           // Rollen‑Policy Editor (einfach)
           Card(
