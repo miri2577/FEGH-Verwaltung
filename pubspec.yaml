@@ -59,33 +59,44 @@ dependencies:
   crypto: ^3.0.3
   cryptography: ^2.7.0
 
-  # Geteiltes Wire-Format mit FEGH-Dokumentation
+  # Geteilte Pakete aus dem fegh-shared Repo
+  # Lokal arbeiten? Siehe pubspec_overrides.yaml (path-Overrides)
   fegh_crypto:
-    path: ../fegh-shared/fegh_crypto
-  # Geteilter Cloud-Storage-Adapter (WebDAV via webdav_client)
+    git:
+      url: https://github.com/miri2577/fegh-shared.git
+      path: fegh_crypto
   fegh_cloud:
-    path: ../fegh-shared/fegh_cloud
-  # Rechnungsmodul (Models + XRechnung UBL 2.1)
+    git:
+      url: https://github.com/miri2577/fegh-shared.git
+      path: fegh_cloud
   fegh_billing:
-    path: ../fegh-shared/fegh_billing
-  # Compliance: Audit-Log + DSGVO-Services
+    git:
+      url: https://github.com/miri2577/fegh-shared.git
+      path: fegh_billing
   fegh_compliance:
-    path: ../fegh-shared/fegh_compliance
-  # OIDC-SSO (OAuth 2.0 Authorization Code + PKCE + RFC 8252 Loopback)
+    git:
+      url: https://github.com/miri2577/fegh-shared.git
+      path: fegh_compliance
   fegh_auth_oidc:
-    path: ../fegh-shared/fegh_auth_oidc
-  # Gemeinsames PDF-Toolkit (Design-Tokens, Layout-Bausteine, Preview)
+    git:
+      url: https://github.com/miri2577/fegh-shared.git
+      path: fegh_auth_oidc
   fegh_pdf_kit:
-    path: ../fegh-shared/fegh_pdf_kit
-  # Backup + Recovery (RecoveryService, BackupCodec, BackupEnvelope)
+    git:
+      url: https://github.com/miri2577/fegh-shared.git
+      path: fegh_pdf_kit
   fegh_backup:
-    path: ../fegh-shared/fegh_backup
-  # Matrix-Chat (Team-Kommunikation ueber Conduit, E2E-verschluesselt)
+    git:
+      url: https://github.com/miri2577/fegh-shared.git
+      path: fegh_backup
   fegh_chat:
-    path: ../fegh-shared/fegh_chat
-  # Gemeinsame Domaenen-Modelle (Client, Bundesland, Employee, Team, Shift)
+    git:
+      url: https://github.com/miri2577/fegh-shared.git
+      path: fegh_chat
   fegh_core:
-    path: ../fegh-shared/fegh_core
+    git:
+      url: https://github.com/miri2577/fegh-shared.git
+      path: fegh_core
   flutter_secure_storage: ^9.2.2
   logger: ^2.4.0
   signature: ^5.4.0
