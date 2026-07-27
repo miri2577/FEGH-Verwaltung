@@ -196,7 +196,9 @@ void main() {
       final admin = MedicationAdministrationService(medications: svc);
       final slots = await admin.openSlotsForDate(DateTime(2026, 4, 20));
       await admin.administer(slots.first, employeeId: 'e1');
-      final hist = await admin.historyForClient('c1');
+      // days grosszuegig: die Quittung hat ein festes Datum (2026-04-20); mit dem
+      // Default-Fenster von 30 Tagen faellt sie sonst je nach Testlauf-Datum heraus.
+      final hist = await admin.historyForClient('c1', days: 36500);
       expect(hist, hasLength(1));
       expect(hist.first.status, AdministrationStatus.given);
     });
