@@ -385,10 +385,13 @@ class _ClientProfileScreenState extends ConsumerState<ClientProfileScreen>
               ),
             if (client.betreuungSeit != null)
               _buildInfoRow('Betreuung seit', _formatDate(client.betreuungSeit!)),
-            if (client.kalkulationsfaktorOverride != null)
-              _buildInfoRow('Kalkulationsfaktor', '${client.kalkulationsfaktorOverride}'),
+            if (client.hilfebedarfsgruppe != null) ...[
+              _buildInfoRow('Hilfebedarfsgruppe', 'HBG ${client.hilfebedarfsgruppe}'),
+              if (client.flsWocheAusHbg() != null)
+                _buildInfoRow('FLS/Woche (aus HBG)', client.flsWocheAusHbg()!.toStringAsFixed(3)),
+            ],
             if (client.stundensatzOverride != null)
-              _buildInfoRow('Stundensatz', '${client.stundensatzOverride!.toStringAsFixed(2)} EUR'),
+              _buildInfoRow('FLS-Stundensatz', '${client.stundensatzOverride!.toStringAsFixed(2)} EUR'),
           ],
         ),
       ),
@@ -1126,8 +1129,8 @@ class _ClientProfileScreenState extends ConsumerState<ClientProfileScreen>
                 '${client.kostenuebernahmeBis != null ? ' - ${_formatDate(client.kostenuebernahmeBis!)}' : ''}'),
           if (client.betreuungSeit != null)
             _pdfRow('Betreuung seit', _formatDate(client.betreuungSeit!)),
-          if (client.kalkulationsfaktorOverride != null)
-            _pdfRow('Kalkulationsfaktor', '${client.kalkulationsfaktorOverride}'),
+          if (client.hilfebedarfsgruppe != null)
+            _pdfRow('Hilfebedarfsgruppe', 'HBG ${client.hilfebedarfsgruppe}'),
           if (client.stundensatzOverride != null)
             _pdfRow('Stundensatz', '${client.stundensatzOverride!.toStringAsFixed(2)} EUR'),
 

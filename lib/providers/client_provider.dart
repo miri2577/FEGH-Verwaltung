@@ -70,7 +70,7 @@ class ClientNotifier extends Notifier<List<Client>> {
               icfBereiche: client.icfBereiche,
               tibZiele: client.tibZiele,
               individuelleTibZiele: client.individuelleTibZiele,
-              kalkulationsfaktorOverride: client.kalkulationsfaktorOverride,
+              hilfebedarfsgruppe: client.hilfebedarfsgruppe,
               stundensatzOverride: client.stundensatzOverride,
               verbrauchteStunden: client.verbrauchteStunden,
             )

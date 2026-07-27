@@ -37,7 +37,6 @@ class _ClientFormDialogState extends ConsumerState<ClientFormDialog> {
 
   // EH-Controller
   final _fachleistungsstundenController = TextEditingController();
-  final _kalkulationsfaktorController = TextEditingController();
   final _stundensatzController = TextEditingController();
 
   DateTime? _dateOfBirth = DateTime.now().subtract(const Duration(days: 365 * 30));
@@ -54,6 +53,7 @@ class _ClientFormDialogState extends ConsumerState<ClientFormDialog> {
   // EH-State
   HilfeTyp? _hilfeTyp;
   FachleistungsIntervall? _fachleistungsIntervall;
+  int? _hilfebedarfsgruppe;
   String? _kostenuebernahme;
   DateTime? _betreuungSeit;
   DateTime? _kostenuebernahmeVon;
@@ -131,7 +131,7 @@ class _ClientFormDialogState extends ConsumerState<ClientFormDialog> {
       // EH-Felder
       _fachleistungsstundenController.text = client.fachleistungsstunden?.toString() ?? '';
       _kostenuebernahme = client.kostenuebernahme;
-      _kalkulationsfaktorController.text = client.kalkulationsfaktorOverride?.toString() ?? '';
+      _hilfebedarfsgruppe = client.hilfebedarfsgruppe;
       _stundensatzController.text = client.stundensatzOverride?.toString() ?? '';
       _hilfeTyp = client.hilfeTyp;
       _fachleistungsIntervall = client.fachleistungsIntervall;
@@ -403,7 +403,7 @@ class _ClientFormDialogState extends ConsumerState<ClientFormDialog> {
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 4),
               child: Text(
-                'Kalkulation (optional)',
+                'Vergütung – Berliner Modell 2026',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
@@ -413,13 +413,22 @@ class _ClientFormDialogState extends ConsumerState<ClientFormDialog> {
             Row(
               children: [
                 Expanded(
-                  child: TextFormField(
-                    controller: _kalkulationsfaktorController,
+                  child: DropdownButtonFormField<int?>(
+                    value: _hilfebedarfsgruppe,
+                    isExpanded: true,
                     decoration: const InputDecoration(
-                      labelText: 'Kalkulationsfaktor',
-                      hintText: 'z.B. 1.5',
+                      labelText: 'Hilfebedarfsgruppe (HBG)',
+                      helperText: 'Bestimmt kLE-Tagespauschale und FLS/Woche',
                     ),
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    items: [
+                      const DropdownMenuItem<int?>(value: null, child: Text('Keine')),
+                      for (var h = 1; h <= 12; h++)
+                        DropdownMenuItem<int?>(
+                          value: h,
+                          child: Text('HBG $h  ·  ${flsWocheFuerHbg(h)!.toStringAsFixed(3)} FLS/Woche'),
+                        ),
+                    ],
+                    onChanged: (val) => setState(() => _hilfebedarfsgruppe = val),
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -427,14 +436,28 @@ class _ClientFormDialogState extends ConsumerState<ClientFormDialog> {
                   child: TextFormField(
                     controller: _stundensatzController,
                     decoration: const InputDecoration(
-                      labelText: 'Stundensatz (EUR)',
-                      hintText: 'z.B. 55.00',
+                      labelText: 'FLS-Stundensatz (EUR, optional)',
+                      hintText: 'überschreibt Standard',
                     ),
                     keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   ),
                 ),
               ],
             ),
+            if (_hilfebedarfsgruppe != null) ...[
+              const SizedBox(height: 8),
+              Builder(builder: (context) {
+                final flsWoche = flsWocheFuerHbg(_hilfebedarfsgruppe)!;
+                final flsMonat = flsWoche * kWochenJeMonat;
+                return Text(
+                  'Abgeleitet: ${flsWoche.toStringAsFixed(3)} FLS/Woche · '
+                  '${flsMonat.toStringAsFixed(1)} FLS/Monat · kLE fällt je Kalendertag an',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                );
+              }),
+            ],
           ],
         ),
       ),
@@ -950,8 +973,6 @@ class _ClientFormDialogState extends ConsumerState<ClientFormDialog> {
       // EH-Felder parsen
       final flsText = _fachleistungsstundenController.text.trim();
       final fls = flsText.isNotEmpty ? int.tryParse(flsText) : null;
-      final kalkText = _kalkulationsfaktorController.text.trim();
-      final kalk = kalkText.isNotEmpty ? double.tryParse(kalkText) : null;
       final satzText = _stundensatzController.text.trim();
       final satz = satzText.isNotEmpty ? double.tryParse(satzText) : null;
       final client = Client(
@@ -985,7 +1006,7 @@ class _ClientFormDialogState extends ConsumerState<ClientFormDialog> {
         kostenuebernahmeVon: _kostenuebernahmeVon,
         kostenuebernahmeBis: _kostenuebernahmeBis,
         betreuungSeit: _betreuungSeit,
-        kalkulationsfaktorOverride: kalk,
+        hilfebedarfsgruppe: _hilfebedarfsgruppe,
         stundensatzOverride: satz,
         verbrauchteStunden: widget.client?.verbrauchteStunden ?? 0.0,
       );
@@ -1053,7 +1074,6 @@ class _ClientFormDialogState extends ConsumerState<ClientFormDialog> {
     _caseManagerController.dispose();
     _notesController.dispose();
     _fachleistungsstundenController.dispose();
-    _kalkulationsfaktorController.dispose();
     _stundensatzController.dispose();
     super.dispose();
   }
