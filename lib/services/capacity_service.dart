@@ -1,8 +1,15 @@
 import '../models/capacity_analytics.dart';
+import '../models/client.dart';
 import '../models/employee.dart';
 import '../models/team.dart';
 import '../models/shift.dart';
 import '../models/timesheet.dart';
+
+/// Richtwert: Fachleistungsstunden (Netto-Direktleistung), die eine Vollzeitkraft
+/// pro Woche erbringt. Der uebrige Teil der Arbeitszeit entfaellt auf Doku,
+/// Fahrten, Teamsitzungen, Urlaub/Ausfall. Traeger-/angebotsspezifisch – hier als
+/// Default; kann spaeter konfigurierbar gemacht werden.
+const double kFlsStundenProVollzeitkraftWoche = 25.0;
 
 class CapacityService {
   Future<WorkforceAnalytics> generateWorkforceAnalytics({
@@ -10,6 +17,7 @@ class CapacityService {
     required List<Team> teams,
     required List<Shift> shifts,
     required List<Timesheet> timesheets,
+    List<Client> clients = const [],
     DateTime? startDate,
     DateTime? endDate,
   }) async {
@@ -21,7 +29,7 @@ class CapacityService {
     final onVacation = employees.where((e) => e.status == EmployeeStatus.onLeave).length;
     final onSickLeave = 0; // Would be calculated from absence records
 
-    final teamCapacities = await _calculateTeamCapacities(teams, activeEmployees, shifts, analysisStart, analysisEnd);
+    final teamCapacities = await _calculateTeamCapacities(teams, activeEmployees, clients, shifts, analysisStart, analysisEnd);
     final forecasts = await _generateCapacityForecasts(teamCapacities, analysisEnd);
 
     final recentTimesheets = timesheets.where((ts) =>
@@ -52,6 +60,7 @@ class CapacityService {
   Future<List<TeamCapacity>> _calculateTeamCapacities(
     List<Team> teams,
     List<Employee> employees,
+    List<Client> clients,
     List<Shift> shifts,
     DateTime startDate,
     DateTime endDate,
@@ -66,7 +75,15 @@ class CapacityService {
         s.startTime.isBefore(endDate)
       ).toList();
 
-      final requiredStaff = teamEmployees.length; // Based on team member count
+      // Bedarfsgetrieben: Sollbesetzung aus dem woechentlichen FLS-Bedarf der
+      // Team-Klienten (aus der HBG abgeleitet), umgerechnet in Vollzeitkraefte.
+      // Fallback auf die Kopfzahl, solange keine Klienten-FLS hinterlegt sind.
+      final flsBedarfWoche = clients
+          .where((c) => c.teamId == team.id)
+          .fold<double>(0, (sum, c) => sum + _flsWocheFuer(c));
+      final requiredStaff = flsBedarfWoche > 0
+          ? (flsBedarfWoche / kFlsStundenProVollzeitkraftWoche).ceil()
+          : teamEmployees.length;
       final availableStaff = teamEmployees.where((e) =>
         e.status == EmployeeStatus.active
       ).length;
@@ -75,7 +92,7 @@ class CapacityService {
       final capacityPercentage = requiredStaff > 0 ? (availableStaff / requiredStaff) * 100 : 0.0;
 
       final status = _determineCapacityStatus(capacityPercentage);
-      final warnings = _generateCapacityWarnings(team, teamEmployees, teamShifts);
+      final warnings = _generateCapacityWarnings(teamEmployees, teamShifts, requiredStaff);
       final workloadDistribution = _calculateWorkloadDistribution(teamShifts);
 
       capacities.add(TeamCapacity(
@@ -102,11 +119,11 @@ class CapacityService {
     return CapacityStatus.optimal;
   }
 
-  List<String> _generateCapacityWarnings(Team team, List<Employee> employees, List<Shift> shifts) {
+  List<String> _generateCapacityWarnings(
+      List<Employee> employees, List<Shift> shifts, int requiredStaff) {
     final warnings = <String>[];
 
     final activeEmployees = employees.where((e) => e.status == EmployeeStatus.active).length;
-    final requiredStaff = employees.length; // Based on employee count
 
     if (activeEmployees < requiredStaff * 0.6) {
       warnings.add('Kritischer Personalmangel - nur ${(activeEmployees / requiredStaff * 100).round()}% der Sollbesetzung');
@@ -129,6 +146,24 @@ class CapacityService {
     }
 
     return warnings;
+  }
+
+  /// Woechentlicher FLS-Bedarf eines Klienten: bevorzugt aus der HBG, sonst aus
+  /// den manuell erfassten Fachleistungsstunden inkl. Intervall-Umrechnung.
+  double _flsWocheFuer(Client c) {
+    final ausHbg = c.flsWocheAusHbg();
+    if (ausHbg != null) return ausHbg;
+    final s = c.fachleistungsstunden?.toDouble();
+    if (s == null) return 0;
+    switch (c.fachleistungsIntervall) {
+      case FachleistungsIntervall.woechentlich:
+        return s;
+      case FachleistungsIntervall.jaehrlich:
+        return s / (kWochenJeMonat * 12);
+      case FachleistungsIntervall.monatlich:
+      case null:
+        return s / kWochenJeMonat;
+    }
   }
 
   Map<WorkloadType, double> _calculateWorkloadDistribution(List<Shift> shifts) {

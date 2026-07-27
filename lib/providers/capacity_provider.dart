@@ -5,6 +5,7 @@ import '../models/team.dart';
 import '../models/shift.dart';
 import '../models/timesheet.dart';
 import '../services/capacity_service.dart';
+import 'client_provider.dart';
 import 'employee_provider.dart';
 import 'team_provider.dart';
 import 'shift_provider.dart';
@@ -39,11 +40,16 @@ final workforceAnalyticsProvider = FutureProvider<WorkforceAnalytics>((ref) asyn
     data: (data) => data,
   ) ?? <Timesheet>[];
 
+  // Klienten liefern den woechentlichen FLS-Bedarf (aus HBG) fuer die
+  // bedarfsgetriebene Sollbesetzung je Team.
+  final clients = ref.watch(clientProvider);
+
   return await capacityService.generateWorkforceAnalytics(
     employees: employees,
     teams: teams,
     shifts: shifts,
     timesheets: timesheets,
+    clients: clients,
   );
 });
 
