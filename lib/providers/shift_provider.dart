@@ -1,30 +1,96 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/foundation.dart';
+import 'package:fegh_cloud/fegh_cloud.dart' show FeghPaths;
 import '../models/shift.dart';
 import '../models/app_settings.dart';
 import '../services/local_storage_service.dart';
 import '../services/cloud_sync_service.dart';
-import '../services/crypto_storage.dart';
 import '../services/shift_conflict_checker.dart';
+import '../services/team_shift_sync_service.dart';
 import 'settings_provider.dart';
 import 'employee_provider.dart';
+import 'cloud_provider.dart';
 
 final shiftsProvider = StateNotifierProvider<ShiftsNotifier, AsyncValue<List<Shift>>>((ref) {
   final localStorage = ref.watch(localStorageServiceProvider);
   final syncService = ref.watch(cloudSyncServiceProvider);
   final settings = ref.watch(appSettingsProvider);
 
-  return ShiftsNotifier(localStorage, syncService, settings);
+  return ShiftsNotifier(localStorage, syncService, settings, ref);
 });
 
 class ShiftsNotifier extends StateNotifier<AsyncValue<List<Shift>>> {
   final LocalStorageService _localStorage;
   final CloudSyncService? _syncService;
   final AppSettings _settings;
+  final Ref _ref;
 
-  ShiftsNotifier(this._localStorage, this._syncService, this._settings)
+  ShiftsNotifier(this._localStorage, this._syncService, this._settings, this._ref)
       : super(const AsyncValue.loading()) {
     _initialize();
+  }
+
+  /// Baut den kanonischen Team-Dienstplan-Sync (FeghPaths). `null`, wenn die
+  /// Cloud nicht konfiguriert ist – dann bleibt alles rein lokal.
+  Future<TeamShiftSyncService?> _canonicalSync() async {
+    final settings = _ref.read(appSettingsProvider);
+    final orgId = settings.organizationId;
+    if (!settings.isCloudSyncReady || orgId == null || orgId.isEmpty) {
+      return null;
+    }
+    final crypto = _ref.read(cryptoStorageProvider);
+    await crypto.initialize();
+    return TeamShiftSyncService(
+      client: _ref.read(cloudClientProvider),
+      crypto: crypto,
+      paths: FeghPaths(orgId: orgId),
+    );
+  }
+
+  /// Legt eine Schicht zusaetzlich im kanonischen Cloud-Layout ab, damit die
+  /// Doku-App sie liest. Defensiv: Fehler werden nur geloggt.
+  Future<void> _maybeCanonicalUpload(Shift s) async {
+    try {
+      final svc = await _canonicalSync();
+      if (svc != null) await svc.uploadShift(s);
+    } catch (e) {
+      if (kDebugMode) print('☁️ Shift-Sync (kanonisch) fehlgeschlagen: $e');
+    }
+  }
+
+  Future<void> _maybeCanonicalDelete(Shift s) async {
+    try {
+      final svc = await _canonicalSync();
+      if (svc != null) await svc.deleteShift(s);
+    } catch (e) {
+      if (kDebugMode) print('☁️ Shift-Delete-Sync (kanonisch) fehlgeschlagen: $e');
+    }
+  }
+
+  /// Zieht die Schichten eines Teams aus dem kanonischen Cloud-Layout und merged
+  /// neuere lokal (updatedAt-Vergleich). Fuer manuellen/initialen Team-Pull.
+  Future<void> pullTeamShifts(String teamId) async {
+    try {
+      final svc = await _canonicalSync();
+      if (svc == null) return;
+      final remote = await svc.downloadShifts(teamId);
+      final local = await _localStorage.loadShifts();
+      for (final r in remote) {
+        Shift? existing;
+        for (final s in local) {
+          if (s.id == r.id) {
+            existing = s;
+            break;
+          }
+        }
+        if (existing == null || r.updatedAt.isAfter(existing.updatedAt)) {
+          await _localStorage.saveShift(r);
+        }
+      }
+      await _loadShifts();
+    } catch (e) {
+      if (kDebugMode) print('☁️ Team-Shift-Pull fehlgeschlagen: $e');
+    }
   }
 
   Future<void> _initialize() async {
@@ -71,6 +137,8 @@ class ShiftsNotifier extends StateNotifier<AsyncValue<List<Shift>>> {
         if (_settings.autoSyncOnChanges && _syncService != null) {
           await _syncService!.saveRecord('shift', savedShift.toJson());
         }
+        // Kanonischer Cross-App-Sync (no-op ohne Cloud-Konfiguration).
+        await _maybeCanonicalUpload(savedShift);
 
         await _loadShifts();
 
@@ -99,6 +167,8 @@ class ShiftsNotifier extends StateNotifier<AsyncValue<List<Shift>>> {
         if (_settings.autoSyncOnChanges && _syncService != null) {
           await _syncService!.saveRecord('shift', updatedShift.toJson());
         }
+        // Kanonischer Cross-App-Sync (no-op ohne Cloud-Konfiguration).
+        await _maybeCanonicalUpload(updatedShift);
 
         await _loadShifts();
 
@@ -118,6 +188,16 @@ class ShiftsNotifier extends StateNotifier<AsyncValue<List<Shift>>> {
 
   Future<void> deleteShift(String shiftId) async {
     try {
+      // Vor dem Statuswechsel fuer den kanonischen Cloud-Delete merken (teamId noetig).
+      final before = state.asData?.value ?? const <Shift>[];
+      Shift? toDelete;
+      for (final s in before) {
+        if (s.id == shiftId) {
+          toDelete = s;
+          break;
+        }
+      }
+
       state = const AsyncValue.loading();
 
       final success = await _localStorage.deleteShift(shiftId);
@@ -134,6 +214,7 @@ class ShiftsNotifier extends StateNotifier<AsyncValue<List<Shift>>> {
             }
           }
         }
+        if (toDelete != null) await _maybeCanonicalDelete(toDelete);
 
         await _loadShifts();
 
