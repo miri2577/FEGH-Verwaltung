@@ -3,8 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../models/client.dart';
 import '../../providers/billing_provider.dart';
-import '../../services/billing_service.dart';
+import '../../providers/client_provider.dart';
 
 /// Erstellt eine neue Rechnung mit manueller Positions-Eingabe.
 ///
@@ -69,6 +70,65 @@ class _RechnungErstellenScreenState
     setState(() {
       _positionen[i].dispose();
       _positionen.removeAt(i);
+    });
+  }
+
+  /// Leitet aus einem Klienten und dem Leistungszeitraum die Berliner-Modell-
+  /// Positionen ab: FLS-Soll (§18 Erbringungsfiktion, aus HBG) und die
+  /// kLE-Tagespauschale (je Kalendertag der Betreuung im Zeitraum).
+  Future<void> _ausKlientAbleiten() async {
+    if (_leistungsVon == null || _leistungsBis == null) {
+      _showError('Bitte zuerst den Leistungszeitraum (von / bis) waehlen');
+      return;
+    }
+    final clients = ref.read(activeClientsProvider);
+    if (clients.isEmpty) {
+      _showError('Keine aktiven Klienten vorhanden');
+      return;
+    }
+    final params = await showDialog<_AbleitungsParams>(
+      context: context,
+      builder: (_) => _KlientAbleitungDialog(clients: clients),
+    );
+    if (params == null || !mounted) return;
+
+    final client = params.client;
+    final von = _leistungsVon!;
+    final bis = _leistungsBis!;
+    final kleTage = client.kalendertageImZeitraum(von, bis);
+    final flsSoll = client.flsSollImZeitraum(von, bis) ?? 0;
+    final df = DateFormat('dd.MM.yyyy');
+    final zeitraum = '${df.format(von)}–${df.format(bis)}';
+
+    final neue = <_PositionData>[];
+    if (flsSoll > 0 && params.flsSatz > 0) {
+      neue.add(_PositionData.of(
+        bezeichnung: 'Fachleistungsstunden (Soll § 18) – ${client.fullName}',
+        menge: flsSoll,
+        einheit: 'FLS (Std.)',
+        einzelpreis: params.flsSatz,
+        hinweis: 'HBG ${client.hilfebedarfsgruppe ?? '–'}, $zeitraum',
+      ));
+    }
+    if (kleTage > 0 && params.kleSatz > 0) {
+      neue.add(_PositionData.of(
+        bezeichnung: 'Kalkulatorische Leistungseinheit (kLE) – ${client.fullName}',
+        menge: kleTage.toDouble(),
+        einheit: 'Kalendertage',
+        einzelpreis: params.kleSatz,
+        hinweis: 'kLE je Kalendertag, $zeitraum',
+      ));
+    }
+    if (neue.isEmpty) {
+      _showError('Nichts abzurechnen: weder FLS-Soll noch kLE-Tage im Zeitraum');
+      return;
+    }
+    setState(() {
+      // Eine leere Default-Position entfernen, damit keine Leerzeile bleibt.
+      _positionen.removeWhere((p) =>
+          p.bezeichnungCtrl.text.trim().isEmpty &&
+          p.einzelpreisCtrl.text.trim().isEmpty);
+      _positionen.addAll(neue);
     });
   }
 
@@ -312,6 +372,12 @@ class _RechnungErstellenScreenState
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                 const Spacer(),
                 TextButton.icon(
+                  onPressed: _ausKlientAbleiten,
+                  icon: const Icon(Icons.person_search, size: 18),
+                  label: const Text('Aus Klient (kLE + FLS)'),
+                ),
+                const SizedBox(width: 8),
+                TextButton.icon(
                   onPressed: _addLeerePosition,
                   icon: const Icon(Icons.add, size: 18),
                   label: const Text('Position hinzufuegen'),
@@ -372,6 +438,27 @@ class _PositionData {
   final steuerCtrl = TextEditingController(text: '0');
   final hinweisCtrl = TextEditingController();
 
+  _PositionData();
+
+  /// Vorbelegte Position (z. B. aus einer kLE/FLS-Ableitung).
+  factory _PositionData.of({
+    required String bezeichnung,
+    required double menge,
+    required String einheit,
+    required double einzelpreis,
+    double steuer = 0,
+    String? hinweis,
+  }) {
+    final p = _PositionData();
+    p.bezeichnungCtrl.text = bezeichnung;
+    p.mengeCtrl.text = _fmtNum(menge);
+    p.einheitCtrl.text = einheit;
+    p.einzelpreisCtrl.text = _fmtNum(einzelpreis);
+    p.steuerCtrl.text = _fmtNum(steuer);
+    if (hinweis != null) p.hinweisCtrl.text = hinweis;
+    return p;
+  }
+
   double get netto {
     final m = double.tryParse(mengeCtrl.text.replaceAll(',', '.')) ?? 0;
     final e = double.tryParse(einzelpreisCtrl.text.replaceAll(',', '.')) ?? 0;
@@ -391,6 +478,116 @@ class _PositionData {
     einzelpreisCtrl.dispose();
     steuerCtrl.dispose();
     hinweisCtrl.dispose();
+  }
+}
+
+/// Ganzzahlig ohne Nachkommastellen, sonst mit drei (z. B. 30 / 34.786 / 0.722).
+String _fmtNum(double v) =>
+    v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(3);
+
+/// Ergebnis des Ableitungs-Dialogs.
+class _AbleitungsParams {
+  final Client client;
+  final double kleSatz;
+  final double flsSatz;
+  const _AbleitungsParams(this.client, this.kleSatz, this.flsSatz);
+}
+
+/// Waehlt Klient + Saetze fuer die kLE/FLS-Ableitung.
+class _KlientAbleitungDialog extends StatefulWidget {
+  final List<Client> clients;
+  const _KlientAbleitungDialog({required this.clients});
+
+  @override
+  State<_KlientAbleitungDialog> createState() => _KlientAbleitungDialogState();
+}
+
+class _KlientAbleitungDialogState extends State<_KlientAbleitungDialog> {
+  Client? _client;
+  final _kleCtrl = TextEditingController(text: '0.722');
+  final _flsCtrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _kleCtrl.dispose();
+    _flsCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Positionen aus Klient ableiten'),
+      content: SizedBox(
+        width: 440,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            DropdownButtonFormField<Client>(
+              initialValue: _client,
+              isExpanded: true,
+              decoration: const InputDecoration(
+                labelText: 'Klient *',
+                border: OutlineInputBorder(),
+              ),
+              items: widget.clients
+                  .map((c) => DropdownMenuItem(
+                        value: c,
+                        child: Text(
+                          c.hilfebedarfsgruppe != null
+                              ? '${c.fullName}  ·  HBG ${c.hilfebedarfsgruppe}'
+                              : c.fullName,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ))
+                  .toList(),
+              onChanged: (c) => setState(() {
+                _client = c;
+                final satz = c?.stundensatzOverride;
+                if (satz != null) _flsCtrl.text = satz.toStringAsFixed(2);
+              }),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _kleCtrl,
+              decoration: const InputDecoration(
+                labelText: 'kLE-Tagessatz (EUR)',
+                helperText: 'je Kalendertag der Betreuung',
+                border: OutlineInputBorder(),
+              ),
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _flsCtrl,
+              decoration: const InputDecoration(
+                labelText: 'FLS-Stundensatz (EUR)',
+                border: OutlineInputBorder(),
+              ),
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Abbrechen'),
+        ),
+        FilledButton(
+          onPressed: _client == null
+              ? null
+              : () {
+                  final kle =
+                      double.tryParse(_kleCtrl.text.replaceAll(',', '.')) ?? 0;
+                  final fls =
+                      double.tryParse(_flsCtrl.text.replaceAll(',', '.')) ?? 0;
+                  Navigator.pop(context, _AbleitungsParams(_client!, kle, fls));
+                },
+          child: const Text('Ableiten'),
+        ),
+      ],
+    );
   }
 }
 
